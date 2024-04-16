@@ -1,0 +1,300 @@
+<%- include('./sidebar') %>
+
+<style>
+  .offer-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    margin-top: 20px;
+    margin-left: 155px;
+  }
+
+  .offer-box {
+    width: calc(33.33% - 20px);
+    border: 1px solid #ccc;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+</style>
+
+<div class="content" style="margin-left: 150px;">
+  <div class="container mt-3">
+    <h2>Category Offer Page</h2>
+    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addCategoryOfferModal">Add Category Offer</button>
+  </div>
+</div>
+
+<div class="modal fade" id="addCategoryOfferModal" tabindex="-1" aria-labelledby="addCategoryOfferModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="addCategoryOfferModalLabel">Add Category Offer</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label for="categoryDropdown" class="form-label">Select Category</label>
+          <select class="form-select" id="categoryDropdown">
+            <% categories.forEach(category => { %>
+              <option value="<%= category._id %>"><%= category.name %></option>
+            <% }); %>
+          </select>
+        </div>
+        <!-- Discount Percentage -->
+        <div class="mb-3">
+          <label for="discountPercentage" class="form-label">Discount Percentage (%)</label>
+          <input type="number" class="form-control" id="discountPercentage" placeholder="Enter discount percentage">
+        </div>
+        <!-- Start Date -->
+        <div class="mb-3">
+          <label for="startDate" class="form-label">Start Date</label>
+          <input type="date" class="form-control" id="startDate">
+        </div>
+        <!-- End Date -->
+        <div class="mb-3">
+          <label for="expiryDate" class="form-label">Expiry Date</label>
+          <input type="date" class="form-control" id="expiryDate">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-primary" id="submitCategoryOfferBtn">Submit</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="categoryOfferDetails" class="offer-container">
+  <% categoryOffers.forEach(categoryOffer => { %>
+    <% function formatDate(dateString) {
+      const date = new Date(dateString);
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const year = date.getFullYear();
+      return `${day}/${month}/${year}`;
+  } %>
+    <div class="offer-box">
+      <% console.log(categoryOffer.category); %>
+      <p>Category: <%= categoryOffer.category.name %></p>
+      <p>Discount Percentage: <%= categoryOffer.discountPercentage %>%</p>
+      <p>Start Date: <%=formatDate (categoryOffer.startDate) %></p>
+      <p>Expiry Date: <%= formatDate(categoryOffer.expiryDate) %></p>
+      <% if (categoryOffer.categoryofferprice) { %>
+        <p>Category Offer Price: <%= categoryOffer.categoryofferprice %></p>
+      <% } %>
+      <button class="btn btn-primary edit-category-offer-btn" data-bs-toggle="modal" data-bs-target="#editCategoryOfferModal"
+      data-category-offer-id="<%= categoryOffer._id %>" data-category-id="<%= categoryOffer.category._id %>"
+      data-discount-percentage="<%= categoryOffer.discountPercentage %>" data-start-date="<%= categoryOffer.startDate %>"
+      data-expiry-date="<%= categoryOffer.expiryDate %>">Edit</button>
+      <button class="btn btn-danger delete-category-offer-btn" data-category-offer-id="<%= categoryOffer._id %>">Delete</button>
+    </div>
+  <% }) %>
+</div>
+
+
+<!-- Edit Category Offer Modal -->
+<div class="modal fade" id="editCategoryOfferModal" tabindex="-1" aria-labelledby="editCategoryOfferModalLabel"
+  aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="editCategoryOfferModalLabel">Edit Category Offer</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="editCategoryOfferId">
+        <div class="mb-3">
+          <label for="editCategoryDropdown" class="form-label">Select Category</label>
+          <select class="form-select" id="editCategoryDropdown">
+            <% categories.forEach(category => { %>
+              <option value="<%= category._id %>"><%= category.name %></option>
+            <% }); %>
+          </select>
+        </div>
+        <!-- Discount Percentage -->
+        <div class="mb-3">
+          <label for="editDiscountPercentage" class="form-label">Discount Percentage (%)</label>
+          <input type="number" class="form-control" id="editDiscountPercentage" placeholder="Enter discount percentage">
+        </div>
+        <!-- Start Date -->
+        <div class="mb-3">
+          <label for="editStartDate" class="form-label">Start Date</label>
+          <input type="date" class="form-control" id="editStartDate">
+        </div>
+        <!-- End Date -->
+        <div class="mb-3">
+          <label for="editExpiryDate" class="form-label">Expiry Date</label>
+          <input type="date" class="form-control" id="editExpiryDate">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-primary" id="updateCategoryOfferBtn">Update</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0-alpha1/js/bootstrap.bundle.min.js" integrity="sha512-..." crossorigin="anonymous"></script>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const submitCategoryOfferBtn = document.getElementById('submitCategoryOfferBtn');
+    const categoryOfferDetailsContainer = document.getElementById('categoryOfferDetails');
+
+    submitCategoryOfferBtn.addEventListener('click', async function () {
+      const categoryDropdown = document.getElementById('categoryDropdown');
+      const discountPercentage = document.getElementById('discountPercentage');
+      const startDate = document.getElementById('startDate');
+      const expiryDate = document.getElementById('expiryDate');
+
+      const formData = {
+        categoryId: categoryDropdown.value,
+        discountPercentage: discountPercentage.value,
+        startDate: startDate.value,
+        expiryDate: expiryDate.value
+      }; 
+
+      try {
+        const response = await fetch('/save-category-offer', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(formData)
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log(data.message);
+
+          categoryOfferDetailsContainer.innerHTML += `
+            <div class="offer-box">
+              <p>Category: ${data.category.name}</p>
+              <p>Discount Percentage: ${data.discountPercentage}%</p>
+              <p>Start Date: ${data.startDate}</p>
+              <p>Expiry Date: ${data.expiryDate}</p>
+              <button class="btn btn-primary edit-category-offer-btn" data-toggle="modal" data-target="#editCategoryOfferModal"
+                data-category-offer-id="${data._id}" data-category-id="${data.category._id}"
+                data-discount-percentage="${data.discountPercentage}" data-start-date="${data.startDate}"
+                data-expiry-date="${data.expiryDate}">Edit</button>
+              <button class="btn btn-danger delete-category-offer-btn" data-category-offer-id="${data._id}">Delete</button>
+            </div>
+          `;
+          
+          const modal = new bootstrap.Modal(document.getElementById('addCategoryOfferModal'));
+          modal.hide();
+        } else {
+          console.error('Failed to save category offer');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+      }
+      window.location.reload(); 
+    })
+  })
+
+</script>
+
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const editCategoryOfferBtns = document.querySelectorAll('.edit-category-offer-btn');
+
+    editCategoryOfferBtns.forEach(editCategoryOfferBtn => {
+      editCategoryOfferBtn.addEventListener('click', function (event) {
+        event.preventDefault();
+
+        const categoryOfferId = this.getAttribute('data-category-offer-id');
+        const categoryId = this.getAttribute('data-category-id');
+        const discountPercentage = this.getAttribute('data-discount-percentage');
+        const startDate = this.getAttribute('data-start-date');
+        const expiryDate = this.getAttribute('data-expiry-date');
+
+        // Populate the edit modal fields with the current data
+        document.getElementById('editCategoryOfferId').value = categoryOfferId;
+        // Select the correct category in the dropdown
+        document.getElementById('editCategoryDropdown').value = categoryId;
+        document.getElementById('editDiscountPercentage').value = discountPercentage;
+        document.getElementById('editStartDate').value = startDate;
+        document.getElementById('editExpiryDate').value = expiryDate;
+
+        const editCategoryOfferModal = new bootstrap.Modal(document.getElementById('editCategoryOfferModal'));
+        editCategoryOfferModal.show();
+      });
+    });
+  });
+</script>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const updateCategoryOfferBtn = document.getElementById('updateCategoryOfferBtn');
+
+    updateCategoryOfferBtn.addEventListener('click', async function () {
+      const editCategoryOfferId = document.getElementById('editCategoryOfferId').value;
+      const editCategoryDropdown = document.getElementById('editCategoryDropdown');
+      const editDiscountPercentage = document.getElementById('editDiscountPercentage');
+      const editStartDate = document.getElementById('editStartDate');
+      const editExpiryDate = document.getElementById('editExpiryDate');
+
+      const formData = {
+        categoryId: editCategoryDropdown.value,
+        discountPercentage: editDiscountPercentage.value,
+        startDate: editStartDate.value,
+        expiryDate: editExpiryDate.value
+      };
+
+      try {
+        const response = await fetch(`/update-category-offer/${editCategoryOfferId}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(formData)
+        });
+
+        if (response.ok) {
+          console.log('Category offer updated successfully');
+          // Refresh the page or update the UI as needed
+          window.location.reload(); 
+        } else {
+          console.error('Failed to update category offer');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+      }
+    });
+  });
+</script>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const deleteCategoryOfferBtns = document.querySelectorAll('.delete-category-offer-btn');
+
+    deleteCategoryOfferBtns.forEach(deleteCategoryOfferBtn => {
+      deleteCategoryOfferBtn.addEventListener('click', async function () {
+        const categoryOfferId = this.getAttribute('data-category-offer-id');
+
+        try {
+          const response = await fetch(`/delete-category-offer/${categoryOfferId}`, {
+            method: 'POST'
+          });
+
+          if (response.ok) {
+            console.log('Category offer deleted successfully');
+            // Refresh the page or update the UI as needed
+            window.location.reload(); 
+          } else {
+            console.error('Failed to delete category offer');
+          }
+        } catch (error) {
+          console.error('Error:', error);
+        }
+      });
+    });
+  });
+</script>
+
+  

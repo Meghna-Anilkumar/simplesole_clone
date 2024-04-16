@@ -1,0 +1,32 @@
+#navbar{
+    padding-right: 50px;
+    background-color: black;
+    }
+
+.nav-link:not(:last-child) {
+    color: white;
+    margin-right: 10px; /* Adjust the value to your desired spacing */
+}
+#signupbody{
+    padding-top:50px;
+    background-image: url(/images/wallpaper.jpg);
+    background-size: cover;
+    background-position: center;
+    width: 100%; /* Set the width of your div */
+}
+#loginbody{
+    padding-top:50px;
+    background-image: url(/images/wallpaper.jpg);
+    background-size: cover;
+    background-position: center;
+    width: 100%; 
+}
+.nav-link{
+    color: white;
+}
+
+#logo{
+    height: 80px;
+}
+
+

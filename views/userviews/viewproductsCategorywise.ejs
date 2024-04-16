@@ -1,0 +1,80 @@
+<%-include('./header',{ title: 'Products in category',category:selectedCategory,selectedCategory: selectedCategory, products: products})%>
+<style>
+  #navbar{
+    padding-right: 50px;
+    background-color: black;
+  }
+
+  .nav-link:not(:last-child) {
+    color: white;
+    margin-right: 10px; 
+  }
+
+  #signupbody{
+    padding-top:50px;
+    background-image: url(/images/wallpaper.jpg);
+    background-size: cover;
+    background-position: center;
+    width: 100%; 
+  }
+
+  #loginbody{
+    padding-top:50px;
+    background-image: url(/images/wallpaper.jpg);
+    background-size: cover;
+    background-position: center;
+    width: 100%; 
+  }
+
+  .nav-link{
+    color: white;
+  }
+
+  #logo{
+    height: 80px;
+  }
+
+  .original-price {
+    text-decoration: line-through;
+    color: gray;
+  }
+
+</style>
+<div class="container mt-5">
+  <h2 class="mb-4">Products in Category: <%= selectedCategory.name %></h2>
+  <div class="row">
+    <% products
+      .filter(product => !product.category.blocked && !product.blocked)
+      .filter(p => p.category.toString() === selectedCategory._id.toString())
+      .forEach(product => { %>
+        <div class="col-md-4 mb-4">
+          <div class="card position-relative">
+            <!-- Check if there's a category offer for the selected category -->
+            <% const categoryOffer = categoryOffers.find(offer => offer.category.toString() === selectedCategory._id.toString()); %>
+            <% if (categoryOffer) { %>
+              <div class="badge bg-success position-absolute top-0 start-0 mt-2 ms-2">
+                <%= categoryOffer.discountPercentage %>% OFF
+              </div>
+            <% } %>
+            <button class="btn btn-light btn-wishlist position-absolute top-0 end-0 mt-2 me-2">
+              <i class="fas fa-heart"></i>
+            </button>
+            <a href="/products/<%= product._id %>">
+              <img src="/<%= product.images.length > 0 ? product.images[0] : '' %>" width="50" class="card-img-top" alt="<%= product.name %>">
+            </a>
+            <div class="card-body">
+              <h5 class="card-title"><%= product.name %></h5>
+              <% if (product.categoryofferprice) { %>
+                <p class="card-text original-price"><strong>Original Price:</strong> <del>&#8377;<%= product.price %></del></p>
+                <p class="card-text"><strong>Category Offer Price:</strong> &#8377;<%= product.categoryofferprice %></p>
+              <% } else { %>
+                <p class="card-text"><strong>Price:</strong> &#8377;<%= product.price %></p>
+              <% } %>
+            </div>
+          </div>
+        </div>
+    <% }); %>
+  </div>
+</div>
+
+<%- include('./footer') %>

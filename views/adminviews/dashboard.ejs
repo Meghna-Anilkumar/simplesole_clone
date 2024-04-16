@@ -1,0 +1,183 @@
+<%- include('./sidebar') %>
+
+<style>
+  .dashboard-card i {
+    font-size: 48px; 
+    margin-bottom: 10px;
+  }
+
+  .dashboard-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between; 
+  }
+
+  .dashboard-card {
+    flex: 1;
+    margin: 15px;
+    padding: 20px;
+    width: calc(33.33% - 30px); 
+    max-width: 300px; 
+    box-sizing: border-box;
+    text-align: center;
+  }
+
+  .box {
+    border: 1px solid #ccc;
+    padding: 10px;
+    border-radius: 5px;
+  }
+</style>
+
+<div class="content">
+  <h2>Welcome to the Admin Dashboard</h2>
+
+  <div class="dashboard-container">
+    <div class="dashboard-card">
+      <i class="fas fa-shopping-cart"></i>
+      <h2>Total Orders</h2>
+      <p><%= totalOrders %></p>
+    </div>
+
+    <div class="dashboard-card">
+      <i class="fas fa-box"></i>
+      <h2>Total Products Sold</h2>
+      <p><%= productQuantity %></p>
+    </div>
+
+    <div class="dashboard-card">
+      <i class="fas fa-users"></i>
+      <h2>Total Users</h2>
+      <p><%= totalUsers %></p>
+    </div>
+  </div>
+
+  <!-- Add cards for top selling products and categories -->
+  <div class="dashboard-container">
+    <div class="dashboard-card">
+      <div class="box">
+        <h2>Top Selling Products</h2>
+        <!-- Display top selling products here -->
+        <% topSellingProducts.forEach(product => { %>
+          <p><%= product.name %> - <%= product.sales %></p>
+        <% }); %>
+      </div>
+    </div>
+
+    <div class="dashboard-card">
+      <div class="box">
+        <h2>Top Selling Categories</h2>
+        <!-- Display top selling categories here -->
+        <% topSellingCategories.forEach(category => { %>
+          <p><%= category.name %> - <%= category.sales %></p>
+        <% }); %>
+      </div>
+    </div>
+  </div>
+
+  <h1>Sales Report</h1>
+  <form id="dateRangeForm">
+    <label for="fromDate">From Date:</label>
+    <input type="date" id="fromDate" name="fromDate">
+    <label for="toDate">To Date:</label>
+    <input type="date" id="toDate" name="toDate">
+    <!-- <label for="interval">Select Time Interval:</label> -->
+    <select id="interval" name="interval">
+      <option value="daily">Daily</option>
+      <option value="monthly">Monthly</option>
+      <option value="yearly">Yearly</option>
+    </select>
+    <button type="submit">Generate Report</button>
+    <button type="button" onclick="generatePDF()">Generate PDF</button>
+  </form>
+  
+  <div>
+    <canvas id="salesChart" width="800" height="400"></canvas>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+  const form = document.getElementById('dateRangeForm');
+  const salesChart = document.getElementById('salesChart').getContext('2d');
+  let currentChart;
+
+  form.addEventListener('submit', async function(event) {
+    event.preventDefault();
+    
+    const fromDate = document.getElementById('fromDate').value;
+    const toDate = document.getElementById('toDate').value;
+    const interval = document.getElementById('interval').value;
+
+    const response = await fetch(`/generatesalesreport?fromDate=${fromDate}&toDate=${toDate}&interval=${interval}`);
+    const data = await response.json();
+
+    const labels = Object.keys(data);
+    const values = Object.values(data);
+
+    if (currentChart) {
+      currentChart.destroy(); 
+    }
+
+    currentChart = new Chart(salesChart, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Sales',
+          data: values,
+          backgroundColor: 'rgba(75, 192, 192, 0.2)',
+          borderColor: 'rgba(75, 192, 192, 1)',
+          borderWidth: 1
+        }]
+      },
+      options: {
+        scales: {
+          y: {
+            beginAtZero: true
+          }
+        }
+      }
+    });
+  });
+
+</script>
+
+<script>
+
+  async function generatePDF() {
+    try {
+      const fromDate = document.getElementById('fromDate').value;
+      const toDate = document.getElementById('toDate').value;
+      const interval = document.getElementById('interval').value;
+
+      const response = await fetch(`/generatepdf?fromDate=${fromDate}&toDate=${toDate}&interval=${interval}`);
+      
+      if (response.ok) {
+        
+        const blob = await response.blob();
+
+        
+        const url = window.URL.createObjectURL(blob);
+
+       
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'sales_report.pdf';
+
+        document.body.appendChild(a);
+        a.click();
+
+        document.body.removeChild(a);
+      } else {
+        
+        console.error('Failed to generate PDF');
+      }
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+    }
+  }
+  document.getElementById('generatePDFButton').addEventListener('click', generatePDF);
+</script>
+

@@ -1,0 +1,81 @@
+<div class="modal fade" id="addressModal" tabindex="-1" role="dialog" aria-labelledby="addressModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addressModalLabel">Add Address</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="addressForm">
+                    <div class="form-group">
+                        <label for="addressName">Name</label>
+                        <input type="text" class="form-control" id="addressName" name="addressName" placeholder="" required="true">
+                    </div>
+                    <div class="form-group">
+                        <label for="mobileNumber">Mobile Number</label>
+                        <input type="text" class="form-control" id="mobileNumber" name="mobileNumber" placeholder="" required="true">
+                    </div>
+                    <div class="form-group">
+                        <label for="buildingname">Building name</label>
+                        <input type="text" class="form-control" id="buildingname" name="buildingname" placeholder="" required="true">
+                    </div>
+                    <div class="form-group">
+                        <label for="street">Street</label>
+                        <input type="text" class="form-control" id="street" name="street" placeholder="" required="true">
+                    </div>
+                    <div class="form-group">
+                        <label for="city">City</label>
+                        <input type="text" class="form-control" id="city" name="city" placeholder="" required="true">
+                    </div>
+                    <div class="form-group">
+                        <label for="state">State</label>
+                        <input type="text" class="form-control" id="state" name="state" placeholder="" required="true">
+                    </div>
+                    <div class="form-group">
+                        <label for="PIN Code">PIN Code</label>
+                        <input type="text" class="form-control" id="PIN Code" name="PIN Code" placeholder="" required="true">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Address Type</label><br>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" name="addressType" id="homeAddress" value="home">
+                            <label class="form-check-label" for="homeAddress">Home</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" name="addressType" id="workAddress" value="work">
+                            <label class="form-check-label" for="workAddress">Work</label>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Save Address</button>
+
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.getElementById('openAddressModal').addEventListener('click', function () {
+        $('#addressModal').modal('show');
+    });
+
+    document.getElementById('addressForm').addEventListener('submit', function (event) {
+        event.preventDefault();
+
+        const addressData = {
+           name: document.getElementById('addressName').value,
+            mobile: document.getElementById('mobileNumber').value,
+            buildingname: document.getElementById('buildingname').value,
+            street: document.getElementById('street').value,
+            city: document.getElementById('city').value,
+            state: document.getElementById('state').value,
+            pincode: document.getElementById('PIN Code').value,
+            addresstype: document.querySelector('input[name="addressType"]:checked').value
+        };
+
+    });
+</script>

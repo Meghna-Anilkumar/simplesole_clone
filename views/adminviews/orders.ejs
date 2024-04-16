@@ -1,0 +1,159 @@
+<%- include('./sidebar') %>
+<style>
+  body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+  }
+
+  #content {
+    margin-left: 150px;
+    padding: 20px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+  }
+
+  th,
+  td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+  }
+
+  th {
+    background-color: #333;
+    color: white;
+  }
+
+  .pagination {
+    margin-top: 20px;
+  }
+
+  .pagination a {
+    color: black;
+    float: left;
+    padding: 8px 16px;
+    text-decoration: none;
+    transition: background-color .3s;
+  }
+
+  .pagination a.active {
+    background-color: #4caf50;
+    color: white;
+  }
+
+  .pagination a:hover:not(.active) {background-color: #ddd;}
+</style>
+<div id="content">
+  <h1>Orders</h1>
+
+  <table id="ordersTable" class="display">
+    <thead>
+      <tr>
+        <th>No.</th>
+        <th>Order ID</th>
+        <th>User ID</th>
+        <th>Purchased On</th>
+        <th>Payment Method</th>
+        <th>Total Price</th>
+        <th>Status</th>
+        <th>View</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% orders.forEach((order, index) => { %>
+        <tr>
+          <td><%= (currentPage - 1) * pageSize + index + 1 %></td>
+          <td><%= order.orderId %></td>
+          <td>
+            <% if (order.user) { %>
+              <%= order.user.userId %>
+            <% } else { %>
+              User Not Found
+            <% } %>
+          </td>
+          <td><%= order.orderdate.toDateString() %></td>
+          <td><%= order.paymentMethod %></td>
+          <td><%= order.totalAmount %></td>
+          <td>
+            <% if (order.orderStatus === 'CANCELLED') { %>
+              <span style="color: red;">Order Cancelled</span>
+            <% } else if (order.orderStatus === 'DELIVERED') { %>
+              <span style="color: green;">Delivered</span>
+            <% } else if (order.orderStatus === 'RETURNED') { %>
+              <span style="color: red;">Returned</span>
+            <% } else { %>
+              <select name="orderStatus" id="orderStatus_<%= order._id %>"
+                onchange="updateOrderStatus('<%= order._id %>')"
+                <%= order.orderStatus === 'CANCELLED' || order.orderStatus === 'DELIVERED' || order.orderStatus === 'RETURNED' ? 'disabled' : '' %>>
+                <option value="PENDING" <%= order.orderStatus === 'PENDING' ? 'selected' : '' %>>Pending</option>
+                <option value="PROCESSING" <%= order.orderStatus === 'PROCESSING' ? 'selected' : '' %>>Processing</option>
+                <option value="SHIPPED" <%= order.orderStatus === 'SHIPPED' ? 'selected' : '' %>>Shipped</option>
+                <option value="DELIVERED" <%= order.orderStatus === 'DELIVERED' ? 'selected' : '' %>>Delivered</option>
+              </select>
+            <% } %>
+          </td>
+          <td><a href="/ordersview/<%= order._id %>">View</a></td>
+        </tr>
+      <% }); %>
+    </tbody>
+  </table>
+
+  <div class="pagination">
+    <% const range = 5; // Number of index numbers to display on each side of the current page %>
+    <% const startPage = Math.max(1, currentPage - range); %>
+    <% const endPage = Math.min(totalPages, currentPage + range); %>
+
+    <% if (currentPage > 1) { %>
+      <a href="?page=1">&laquo;</a>
+    <% } %>
+    <% if (startPage > 1) { %>
+      <span>...</span>
+    <% } %>
+    <% for (let i = startPage; i <= endPage; i++) { %>
+      <a class="<%= currentPage === i ? 'active' : '' %>" href="?page=<%= i %>"><%= i %></a>
+    <% } %>
+    <% if (endPage < totalPages) { %>
+      <span>...</span>
+    <% } %>
+    <% if (currentPage < totalPages) { %>
+      <a href="?page=<%= totalPages %>">&raquo;</a>
+    <% } %>
+  </div>
+</div>
+
+<script>
+  function updateOrderStatus(orderId) {
+    const newOrderStatus = document.getElementById(`orderStatus_${orderId}`).value;
+
+    fetch(`/updateOrderStatus/${orderId}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ orderStatus: newOrderStatus }),
+    })
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then(updatedOrder => {
+        console.log('Order status updated:', updatedOrder);
+      })
+      .catch(error => console.error('Error updating order status:', error));
+
+    window.location.reload();
+  }
+</script>
+
+<script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+<script>
+  $(document).ready(function () {
+    $('#ordersTable').DataTable();
+  });
+</script>

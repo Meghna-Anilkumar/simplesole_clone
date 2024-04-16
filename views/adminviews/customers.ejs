@@ -1,0 +1,69 @@
+<%-include('./sidebar')%>
+
+  <div class="content">
+    <h2 style="color: blue;">Customers</h2>
+    <% if(message) { %>
+      <div class="alert alert-dismissable fade show alert-<%=message.type %>" role="alert"></div>
+      <button class="btn-close" type="button" data-bs-dismiss="alert" aria-label="Close"></button>
+      <strong>
+        <%=message.message%>
+      </strong>
+  </div>
+  <% } %>
+    <!-- <form action="/signup" method="get"> -->
+    <% if (users!='' ) { %>
+      <table class="table table-bordered">
+        <thead>
+          <tr>
+            <th>Index</th>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% users.forEach((row,index)=>{%>
+            <tr>
+              <td>
+                <%= index+1%>
+              </td>
+              <td>
+                <%=row.userId%>
+              </td>
+              <td>
+                <%=row.name%>
+              </td>
+              <td>
+                <%=row.email%>
+              </td>
+              <td>
+                <form method="post" action="/block-user">
+                  <input type="hidden" name="userId" value="<%= row._id %>">
+                  <% if (row.blocked) { %>
+                    <button type="submit" class="btn btn-success">Unblock</button>
+                    <% } else { %>
+                      <button type="submit" class="btn btn-danger">Block</button>
+                      <% } %>
+                </form>
+              </td>
+            </tr>
+            <%}) %>
+
+        </tbody>
+      </table>
+
+      <% }else{%>
+        <h1 class="text-center text-secondary mt-5">No users found</h1>
+
+        <%} %>
+
+          <!-- </form> -->
+          </div>
+
+
+
+
+          </body>
+
+          </html>

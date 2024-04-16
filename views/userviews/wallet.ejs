@@ -1,0 +1,93 @@
+<%-include('./header')%>
+
+<style>
+    body {
+        margin: 0;
+        padding: 0;
+    }
+
+    header {
+        width: 150px;
+        background-color: #333; 
+        color: #fff; 
+        padding: 10px;
+    }
+
+    main {
+        margin-left: 150px;
+        padding: 20px;
+    }
+
+    .wallet-container {
+        max-width: 600px;
+        margin-top: 150px;
+    }
+
+    .wallet-balance {
+        border: 1px solid #ccc; 
+        padding: 20px;
+        text-align: center;
+    }
+
+    footer {
+        text-align: center;
+        padding: 10px;
+    }
+    .transaction-details {
+        margin-top: 50px;
+    }
+
+    .transaction-box {
+        border: 1px solid #ccc;
+        padding: 20px;
+        margin-top: 20px;
+    }
+
+    .transaction-row {
+        display: flex;
+        flex-wrap: wrap;
+        margin-bottom: 10px;
+    }
+
+    .transaction-row .label {
+        width: 120px;
+        font-weight: bold;
+    }
+
+    .transaction-row .value {
+        flex: 1;
+    }
+</style>
+
+<main>
+    <div class="wallet-container">
+        <h2 style="color: rgb(255, 63, 108);">My Wallet</h2>
+        <div class="wallet-balance">
+            <h2><i class="fas fa-wallet"></i>Wallet Balance: ₹ <%= walletBalance %></h2>
+        </div>
+    </div>
+
+    <!-- <div class="transaction-details">
+        <h2>Transaction Details</h2>
+        <div class="transaction-box">
+            <div class="transaction-row">
+                <div class="label">Type:</div>
+                <div class="value"><%=wallet.transactiontype %></div>
+            </div>
+            <div class="transaction-row">
+                <div class="label">Amount:</div>
+                <div class="value"> </div>
+            </div>
+            <div class="transaction-row">
+                <div class="label">Date:</div>
+                <div class="value"> </div>
+            </div>
+            <div class="transaction-row">
+                <div class="label">From:</div>
+                <div class="value"> </div>
+            </div>
+        </div>
+    </div> -->
+</main>
+
+<%-include('./footer')%>

@@ -1,0 +1,419 @@
+<%-include('./header',{ title: 'Products in category',category:selectedCategory,selectedCategory: selectedCategory, products: products})%>
+<style>
+  #navbar{
+    padding-right: 50px;
+    background-color: black;
+    }
+
+.nav-link:not(:last-child) {
+    color: white;
+    margin-right: 10px;
+}
+#signupbody{
+    padding-top:50px;
+    background-image: url(/images/wallpaper.jpg);
+    background-size: cover;
+    background-position: center;
+    width: 100%; 
+}
+#loginbody{
+    padding-top:50px;
+    background-image: url(/images/wallpaper.jpg);
+    background-size: cover;
+    background-position: center;
+    width: 100%; 
+}
+.nav-link{
+    color: white;
+}
+
+#logo{
+    height: 80px;
+}
+
+  /* body {
+  font-family: 'open sans';
+  overflow-x: hidden;
+} */
+
+img {
+  max-width: 70%;
+}
+
+.preview {
+  display: flex;
+  flex-direction: column;
+}
+
+@media screen and (max-width: 996px) {
+  .preview {
+    margin-bottom: 20px;
+  }
+}
+
+.preview-pic {
+  flex-grow: 1;
+}
+
+.preview-thumbnail.nav-tabs {
+  border: none;
+  margin-top: 15px;
+}
+
+.preview-thumbnail.nav-tabs li {
+  width: 18%;
+  margin-right: 2.5%;
+}
+
+.preview-thumbnail.nav-tabs li img {
+  max-width: 100%;
+  display: block;
+}
+
+.preview-thumbnail.nav-tabs li a {
+  padding: 0;
+  margin: 0;
+}
+
+.preview-thumbnail.nav-tabs li:last-of-type {
+  margin-right: 0;
+}
+
+.tab-content {
+  overflow: hidden;
+}
+
+.tab-content img {
+  width: 100%;
+  animation-name: opacity;
+  animation-duration: .3s;
+}
+
+.card {
+  margin-top: 50px;
+  background: #eee;
+  padding: 3em;
+  line-height: 1.5em;
+}
+
+@media screen and (min-width: 997px) {
+  .wrapper {
+    display: flex;
+  }
+}
+
+.details {
+  display: flex;
+  flex-direction: column;
+}
+
+.colors {
+  flex-grow: 1;
+}
+
+.product-title,
+.price,
+.sizes,
+.colors {
+  text-transform: uppercase;
+  font-weight: bold;
+}
+
+.checked,
+.price span {
+  color:  rgb(255, 63, 108);
+}
+
+.product-title,
+.rating,
+.product-description,
+.price,
+.vote,
+.sizes {
+  margin-bottom: 15px;
+}
+
+.product-title {
+  margin-top: 0;
+}
+
+.size {
+  margin-right: 10px;
+}
+
+.size:first-of-type {
+  margin-left: 40px;
+}
+
+.color {
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 10px;
+  height: 2em;
+  width: 2em;
+  border-radius: 2px;
+}
+
+.color:first-of-type {
+  margin-left: 20px;
+}
+
+.add-to-cart,
+.like {
+  background: rgb(255, 63, 108);
+  padding: 1.2em 1.5em;
+  border: none;
+  text-transform: uppercase;
+  font-weight: bold;
+  color: #fff;
+  transition: background .3s ease;
+}
+
+.add-to-cart:hover,
+.like:hover {
+  background:  rgb(255, 63, 108);
+  color: #fff;
+}
+
+.not-available {
+  text-align: center;
+  line-height: 2em;
+}
+
+.not-available:before {
+  content: "\f00d";
+  color: #fff;
+}
+
+.tooltip-inner {
+  padding: 1.3em;
+}
+.contant{
+  margin-top: 7rem;
+}
+
+@keyframes opacity {
+  0% {
+    opacity: 0;
+    transform: scale(3);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+</style>
+
+<div class=" contant container">
+  <div class="card">
+      <div class="container-fluid">
+          <div class="row">
+              <div class="col-md-6">
+                  <h2><%= product.name %></h2>
+                  <% if (product.stock < 1) { %>
+                    <p class="out-of-stock" style="color: red;">Out of Stock</p>
+                <% }  %>
+                  <div id="carouselExample" class="carousel slide" data-bs-ride="carousel">
+                      <div class="carousel-inner">
+                          <% product.images.forEach((image, index) => { %>
+                              <div class="carousel-item <%= index === 0 ? 'active' : '' %>">
+                                  <img src="/<%= image %>" class="d-block w-100 zoomable-image" alt="Image <%= index + 1 %>" data-zoom="/<%= image %>" >
+                              </div>
+                          <% }); %>
+                      </div>
+                      <button class="carousel-control-prev" type="button" data-bs-target="#carouselExample" data-bs-slide="prev">
+                          <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                          <span class="visually-hidden">Previous</span>
+                      </button>
+                      <button class="carousel-control-next" type="button" data-bs-target="#carouselExample" data-bs-slide="next">
+                          <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                          <span class="visually-hidden">Next</span>
+                      </button>
+                  </div>
+
+                  <div class="row mt-3">
+                      <% product.images.slice(1).forEach((thumbnail, index) => { %>
+                          <div class="col-2">
+                              <img class="thumb" src="/<%= thumbnail %>" class="img-fluid" alt="Thumbnail <%= index + 2 %>" data-bs-target="#carouselExample" data-bs-slide-to="<%= index + 1 %>">
+                          </div>
+                      <% }); %>
+                  </div>
+              </div>
+              <div class="col-md-6">
+                <h3 class="product-title">Category:<%= product.category.name%></h3>
+                
+                <!-- Product description -->
+<p class="product-description"><%= product.description %></p>
+
+<% if (productOffers.length > 0) { %>
+  <% productOffers.forEach(offer => { %>
+    <!-- Display new price with strike-through original price -->
+    <h4 class="price">Price: <span style="text-decoration: line-through;">&#8377;<%= product.price %></span> &#8377;<%= offer.newPrice %></h4>
+    <!-- You can also display the offer details if needed -->
+    <div class="offer-details">
+      <p>Offer: Flat<%= offer.discountPercentage %>% discount</p>
+      <!-- You can include other offer details here -->
+    </div>
+  <% }); %>
+  <% } else if (product.categoryofferprice && product.categoryofferprice < product.price) { %>
+
+    <h4 class="price">Price: <span style="text-decoration: line-through;">&#8377;<%= product.price %></span> &#8377;<%= product.categoryofferprice %></h4>
+<% } else { %>
+  
+  <h4 class="price">Price: &#8377;<%= product.price %></h4>
+<% } %>
+
+                
+                <h5 class="sizes">size:
+                    <% product.size.forEach(size => { %>
+                        <span class="size" data-bs-toggle="tooltip" title="<%= size %>"><%= size %></span>
+                    <% }); %>
+                </h5>
+                
+                <!-- <h5 class="colors">color:
+                    <span class="color <%= product.color%>"></span>
+                </h5> -->
+                
+                <h5 class="quantity">Quantity:
+                  <input 
+                      type="number" 
+                      class="quantity-input" 
+                      value="1" 
+                      min="1" 
+                      max="<%= product.stock %>" 
+                      <% if (product.stock < 1) { %>disabled<% } %> 
+                      required
+                      pattern="[1-9]\d*" 
+                      oninput="validity.valid||(value='1');"
+                  >
+              </h5>
+                <% if (product.stock >= 1) { %>
+                    <div class="action">
+                        <button class="add-to-cart btn btn-primary" type="button">add to cart</button>
+                        <button class="like btn btn-danger <%= productInWishlist ? 'wishlisted' : '' %>" type="button" onclick="addToWishlist('<%= product._id %>')">
+                          <span class="fa fa-heart"></span>
+                          <%= productInWishlist ? 'Wishlisted' : 'Add to Wishlist' %>
+                        </button>
+                        <% if (typeof error !== 'undefined') { %>
+                          <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            <%= error %>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                          </div>
+                        <% } %> 
+                    </div>
+                <% } else { %>
+                    <div class="action" style="pointer-events: none; opacity: 0.5;">
+                        <button class="add-to-cart btn btn-primary" type="button" disabled>Out of Stock</button>
+                        <!-- <button class="like btn btn-danger" type="button" onclick="addToWishlist('<%= product._id %>')">
+                          <span class="fa fa-heart"></span> 
+                        </button> -->
+                    </div>
+                <% } %>
+            </div>
+          </div>
+      </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@10">
+</script>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const addToCartButton = document.querySelector('.add-to-cart');
+    
+    addToCartButton.addEventListener('click', function () {
+      const productId = '<%= product._id %>';
+      const quantity = document.querySelector('.quantity-input').value;
+
+      fetch('/cart/add', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          productId,
+          quantity,
+        }),
+      })
+        .then(response => {
+          if (response.redirected) {
+            window.location.href = response.url;
+            return null; 
+          }
+          return response.json();
+        })
+        .then(data => {
+          if (data) {
+            console.log(data);
+
+            Swal.fire({
+              title: 'Success',
+              text: 'Product successfully added to the cart.',
+              icon: 'success',
+            });
+          }
+        })
+        .catch(error => {
+          console.error('Error:', error);
+
+          Swal.fire({
+            text: 'Product already exists in the cart',
+          });
+        });
+    });
+  });
+</script>
+
+<script>
+  function addToWishlist(productId) {
+  fetch('/addtowishlist', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    },
+    body: JSON.stringify({ productId }),
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.message === 'Product added to wishlist successfully') {
+      // Swal.fire({
+      //   title: 'Success',
+      //   text: 'Product added to wishlist successfully',
+      //   icon: 'success',
+      // });
+
+      const productInWishlist = data.inWishlist;
+      const likeButton = document.querySelector('.like');
+      likeButton.textContent = productInWishlist ? 'Wishlisted' : 'Add to Wishlist';
+      likeButton.classList.toggle('wishlisted', productInWishlist);
+    } else {
+      // Swal.fire({
+      //   text: 'Product already exist in your wishlist',
+      //   icon: 'error',
+      // });
+    }
+  })
+  .catch(error => {
+    console.error('Error adding product to wishlist:', error);
+    Swal.fire({
+      title: 'Error',
+      text: 'An error occurred while adding the product to the wishlist',
+      icon: 'error',
+    });
+  });
+  window.location.reload()
+}
+
+</script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/medium-zoom/0.8.3/medium-zoom.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const images = document.querySelectorAll('.zoomable-image');
+    mediumZoom(images);
+  });
+</script>
+
+<%-include('./footer')%>

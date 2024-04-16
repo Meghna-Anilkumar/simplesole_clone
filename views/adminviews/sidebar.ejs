@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>
+    <%=title %>
+  </title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <style>
+    body {
+      background-color: #f8f9fa;
+    }
+
+    .sidebar {
+      height: 100vh;
+      width: 150px;
+      position: fixed;
+      top: 0;
+      left: 0;
+      background-color: #343a40;
+      padding-top: 0px;
+    }
+
+
+    .sidebar a {
+      padding: 10px 20px;
+      text-decoration: none;
+      font-size: 18px;
+      color: #d1d8e0;
+      display: block;
+    }
+
+    .sidebar a:hover {
+      background-color: #495057;
+      color: #ffffff;
+    }
+
+    .content {
+      margin-left: 250px;
+      padding: 20px;
+    }
+
+    .logo {
+      height: 70px;
+      width: auto;
+    }
+
+    .logo img {
+      width: 100%;
+      height: 90px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="sidebar">
+    <div class="logo">
+      <img src="/images/SIMPLESOLE.png" alt="Logo">
+    </div>
+    <br>
+    <a href="/dashboard">Dashboard</a>
+    <a href="/products">Products</a>
+    <a href="/categories">Categories</a>
+    <a href="/adminorders">Orders</a>
+    <a href="/customers">Customers</a>
+    <a href="/coupon">Coupons</a>
+    <!-- <a href="/bestsellers">Bestsellers</a> -->
+    <a href="/productoffer">Product Offer</a>
+    <a href="/categoryoffer">Category Offer</a>
+    <a href="/adminlogout">Logout</a>
+   
+
+  </div>

@@ -1,0 +1,134 @@
+<%-include('./header')%>
+<style>
+#navbar{
+    padding-right: 50px;
+    background-color: black;
+    }
+
+.nav-link:not(:last-child) {
+    color: white;
+    margin-right: 10px; /* Adjust the value to your desired spacing */
+}
+#signupbody{
+    padding-top:50px;
+    background-image: url(/images/wallpaper.jpg);
+    background-size: cover;
+    background-position: center;
+    width: 100%; /* Set the width of your div */
+}
+#loginbody{
+    padding-top:50px;
+    background-image: url(/images/wallpaper.jpg);
+    background-size: cover;
+    background-position: center;
+    width: 100%; 
+}
+.nav-link{
+    color: white;
+}
+
+#logo{
+    height: 80px;
+}
+.main-content {
+      margin-left: 150px;
+      padding: 20px;
+    }
+
+    /* Additional styles for order details */
+    .order-info-box, .product-info-box, .shipping-address-box {
+      border: 1px solid #dee2e6;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    .product-info-box img {
+      max-width: 100px; /* Adjust the image width as needed */
+      height: auto;
+    }
+  </style>
+
+<div class="main-content" style="margin-top: 100px;">
+    <div class="container">
+      <h1>Order Details</h1>
+
+      <!-- Order Information Box -->
+      <div class="order-info-box">
+        <h2>Order Information</h2>
+        <p>Order ID: <%= order.orderId %></p>
+        <p>Order Date: <%= order.orderdate.toLocaleDateString() %></p>
+        <p>Status: <%= order.orderStatus %></p>
+        <p>Payment Method: <%= order.paymentMethod %></p>
+        <!-- Add more order information as needed -->
+        <% if (order.orderStatus === 'DELIVERED') { %>
+          <form action="/download-invoice/<%= order._id %>" method="GET">
+              <button type="submit" class="btn btn-primary">Download Invoice</button>
+          </form>
+      <% } %>
+      </div>
+
+      <!-- Product Information Box -->
+      <div class="product-info-box">
+        <h2>Products</h2>
+        <% order.items.forEach((item) => { %>
+          <% if (item.itemstatus !== 'CANCELLED') { %>
+            <div class="row">
+              <div class="col-md-2">
+                <img src="/<%= item.product.images[0] %>" class="img-fluid" alt="Product Image">
+              </div>
+              <div class="col-md-4">
+                <p>Product Name: <%= item.product.name %></p>
+                <p>Price: &#8377;<%= item.product.price %></p>
+                <p>Quantity: <%= item.quantity %></p>
+              </div>
+            </div>
+            <hr>
+          <% } %>
+        <% }); %>
+      </div>
+
+      <!-- Shipping Address Box -->
+      <div class="shipping-address-box">
+        <div class="d-flex justify-content-between pt-2">
+            <p class="fw-bold mb-0">Shipping Address Details</p>
+          </div>
+
+          <div class="d-flex justify-content-between pt-2">
+            <p class="text-muted mb-0">Customer name: <%= order.shippingAddress.name %></p>
+          </div>
+
+          <div class="d-flex justify-content-between">
+            <p class="text-muted mb-0">Mobile: <%= order.shippingAddress.mobile %></p>
+          </div>
+
+          <div class="d-flex justify-content-between">
+            <p class="text-muted mb-0">Building name: <%= order.shippingAddress.buildingname %></p>
+          </div>
+
+          <div class="d-flex justify-content-between">
+            <p class="text-muted mb-0">Street: <%= order.shippingAddress.street %></p>
+          </div>
+
+          <div class="d-flex justify-content-between">
+            <p class="text-muted mb-0">City: <%= order.shippingAddress.city %></p>
+          </div>
+
+          <div class="d-flex justify-content-between">
+            <p class="text-muted mb-0">Pincode: <%= order.shippingAddress.pincode %></p>
+          </div>
+
+          <div class="d-flex justify-content-between">
+            <p class="text-muted mb-0">State: <%= order.shippingAddress.state %></p>
+          </div>
+
+        </div>
+        <div class="card-footer border-0 px-4 py-4"
+        style="background-color: #a8729a; border-bottom-left-radius: 10px; border-bottom-right-radius: 10px;">
+        <h5 class="d-flex align-items-center justify-content-end text-white text-uppercase mb-0">Total Amount:&#8377; <%= order.totalAmount%></h5>
+      </div>
+  
+      </div>
+
+    </div>
+  </div>
+

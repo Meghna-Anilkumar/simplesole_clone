@@ -1,0 +1,233 @@
+<%-include('./sidebar') %>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+
+    form {
+      max-width: 600px;
+      margin: auto;
+    }
+
+    label {
+      display: block;
+      margin-top: 10px;
+    }
+
+    input,
+    select {
+      width: 100%;
+      padding: 8px;
+      margin-top: 5px;
+      margin-bottom: 10px;
+      box-sizing: border-box;
+    }
+
+    button {
+      background-color: #4CAF50;
+      color: white;
+      padding: 10px 15px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+  </style>
+  </head>
+
+  <body>
+    <div class="content">
+      <form id="yourFormId" action="/updateProduct/<%=product._id %>" method="post" class="form-horizontal"
+        enctype="multipart/form-data">
+        <h2 style="color: blue;">Edit Product(<%=product.name %>)</h2>
+
+        <div class="form-group">
+          <label class="col-md-4 control-label" for="product_name">NAME</label>
+          <div class="col-md-8">
+            <input id="product_name" name="name" placeholder="" class="form-control input-md" required="true"
+              type="text" value="<%=product.name %>">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="col-md-4 control-label" for="product_name_fr">DESCRIPTION</label>
+          <div class="col-md-8">
+            <input id="product_name_fr" name="description" placeholder="" class="form-control input-md" required=""
+              type="text" value="<%=product.description%>">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="col-md-4 control-label" for="product_categorie">CATEGORY</label>
+          <div class="col-md-4">
+            <select id="product_categorie" name="category" class="form-control">
+              <% category.forEach(cat=> { %>
+                <option value="<%= cat._id %>">
+                  <%= cat.name %>
+                </option>
+                <% }); %>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="col-md-4 control-label" for="price">PRICE</label>
+          <div class="col-md-4">
+            <input id="price" name="price" placeholder="" class="form-control input-md" required="true" type="text"
+              value="<%=product.price %>">
+          </div>
+          <label class="col-md-4 control-label" for="stock">STOCK</label>
+          <div class="col-md-4">
+            <input id="stock" name="stock" placeholder="" class="form-control input-md" required="true" type="text"
+              value="<%=product.stock %>">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="col-md-4 control-label" for="size">SIZE</label>
+          <div class="col-md-4">
+            <input id="size" name="size" placeholder="" class="form-control input-md" required="" type="text"
+              value="<%=product.size %>">
+          </div>
+          <label class="col-md-4 control-label" for="color">COLOR</label>
+          <div class="col-md-4">
+            <input id="color" name="color" placeholder="" class="form-control input-md" required="" type="text"
+              value="<%=product.color %>">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="col-md-4 control-label" for="filebutton">images</label>
+          <div class="col-md-4">
+            <input id="filebutton" name="images" class="input-file" type="file" multiple onchange="previewImages(this)">
+          </div>
+        </div>
+        <input type="hidden" name="old_images" value="<%=product.images.join(',')%>">
+       
+        <div id="imagePreview">
+          <% existingImages.forEach(image=> { %>
+            <div class="preview-container">
+              <img src="/<%=image %>" style="width: 100px; height: 100px;">
+              <button class="delete-button" onclick="removeImage('<%= image %>')">X</button>
+            </div>
+            <% }); %>
+        </div>
+
+        <input type="hidden" name="deletedImages" id="deletedImages" value="">
+
+        <div class="form-group">
+          <label class="col-md-4 control-label" for="singlebutton"></label>
+          <div class="col-md-4">
+            <button type="submit" id="singlebutton" name="singlebutton" class="btn btn-primary">Update</button>
+          </div>
+        </div>
+
+        </fieldset>
+      </form>
+    </div>
+    
+    <script>
+  
+      function removeImage(imageName) {
+        var deletedImagesInput = document.getElementById('deletedImages');
+        var currentDeletedImages = deletedImagesInput.value.split(',');
+        currentDeletedImages.push(imageName);
+        deletedImagesInput.value = currentDeletedImages.join(',');
+    
+      }
+    
+      function previewImages(input) {
+        var previewContainer = document.getElementById('imagePreview');
+        var files = input.files;
+    
+        for (var i = 0; i < files.length; i++) {
+          var file = files[i];
+          var reader = new FileReader();
+    
+          reader.onload = (function (file) {
+            return function (e) {
+              var previewDiv = document.createElement('div');
+              previewDiv.className = 'preview-container';
+    
+              var img = document.createElement('img');
+              img.src = e.target.result;
+              img.style.width = '100px';
+              img.style.height = '100px';
+    
+              var deleteButton = document.createElement('button');
+              deleteButton.className = 'delete-button';
+              deleteButton.innerHTML = 'X';
+              deleteButton.onclick = function () {
+                previewContainer.removeChild(previewDiv);
+                removeImage(file.name); 
+              };
+    
+              previewDiv.appendChild(img);
+              previewDiv.appendChild(deleteButton);
+              previewContainer.appendChild(previewDiv);
+            };
+          })(file);
+    
+          reader.readAsDataURL(file);
+        }
+      }
+    </script>
+
+ <script>
+      document.getElementById('singlebutton').addEventListener('click', function (event) {
+        var nameInput = document.getElementById('product_name');
+        if (!validateName(nameInput.value)) {
+          alert('Please enter a valid name.');
+          event.preventDefault(); 
+          return;
+        }
+
+        var priceInput = document.getElementById('price');
+        if (!validatePrice(priceInput.value)) {
+          alert('Please enter a valid price.');
+          event.preventDefault();
+          return;
+        }
+
+        var stockInput = document.getElementById('stock');
+        if (!validateStock(stockInput.value)) {
+          alert('Please enter a valid stock.');
+          event.preventDefault();
+          return;
+        }
+
+        var sizeInput = document.getElementById('size');
+        if (!validateSize(sizeInput.value)) {
+          alert('Please enter a valid size.');
+          event.preventDefault();
+          return;
+        }
+      });
+
+      function validateName(name) {
+        if (name.trim() === "") {
+          return false; 
+        }
+        return true;
+      }
+
+      function validatePrice(price) {
+        var numericPrice = parseFloat(price);
+        return !isNaN(numericPrice) && numericPrice > 0;
+      }
+
+      function validateStock(stock) {
+        var numericStock = parseInt(stock, 10);
+        return !isNaN(numericStock) && numericStock >= 0 && Number.isInteger(numericStock);
+      }
+
+      function validateSize(size) {
+
+        return true;
+      }
+
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  </body>
+
+  </html>

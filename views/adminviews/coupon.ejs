@@ -1,0 +1,200 @@
+<%- include('./sidebar') %>
+<style>
+    .coupon-container {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        margin-top: 20px;
+    }
+
+    .coupon-box {
+        width: calc(33.33% - 20px);
+        border: 1px solid #ccc;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+</style>
+
+<div class="content" style="margin-left: 150px;">
+    <button class="btn btn-primary profile-button" id="openCouponModal" type="button">
+        <i class="fas fa-plus"></i> Add Coupon
+    </button>
+
+    <div class="modal fade" id="addCouponModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="exampleModalLabel">Add Coupon</h5>
+                </div>
+                <div class="modal-body">
+                    <form id="addCouponForm" action="/submitcoupon" method="POST">
+                        <div class="form-group">
+                            <label for="couponCode">Coupon Code</label>
+                            <input type="text" class="form-control" id="couponCode" name="couponCode" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="discountRate">Discount Rate (%)</label>
+                            <input type="number" class="form-control" id="discountRate" name="discountRate"
+                                required>
+                        </div>
+                        <div class="form-group">
+                            <label for="minPurchaseAmount">Minimum Purchase Amount</label>
+                            <input type="number" class="form-control" id="minPurchaseAmount"
+                                name="minPurchaseAmount" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="expiryDate">Expiry Date</label>
+                            <input type="date" class="form-control" id="expiryDate" name="expiryDate" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Submit</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <% function formatDate(dateString) {
+        const date = new Date(dateString);
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        return `${day}/${month}/${year}`;
+    } %>
+    
+    <div id="couponDetails" class="coupon-container">
+        <% coupons.forEach(coupon => { %>
+        <div class="coupon-box">
+            <p>Coupon Code: <%= coupon.couponCode %></p>
+            <p>Discount Rate: <%= coupon.discountRate %>%</p>
+            <p>Minimum Purchase Amount: <%= coupon.minimumPurchaseAmount %></p>
+            <p>Expiry Date: <%= formatDate(coupon.expiryDate) %></p>
+            <button class="btn btn-primary edit-coupon-btn" data-toggle="modal" data-target="#editCouponModal"
+                data-coupon-id="<%= coupon._id %>" data-coupon-code="<%= coupon.couponCode %>"
+                data-discount-rate="<%= coupon.discountRate %>"
+                data-min-purchase-amount="<%= coupon.minimumPurchaseAmount %>"
+                data-expiry-date="<%= coupon.expiryDate %>">Edit</button>
+            <button class="btn btn-danger delete-coupon-btn" data-coupon-id="<%= coupon._id %>">Delete</button>
+        </div>
+        <% }) %>
+    </div>    
+    
+
+<div class="content">
+    <!-- Edit Coupon Modal -->
+    <div class="modal fade" id="editCouponModal" tabindex="-1" role="dialog" aria-labelledby="editCouponModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editCouponModalLabel">Edit Coupon</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <form id="editCouponForm" action="/updatecoupon" method="POST">
+
+                        <input type="hidden" id="editCouponId" name="editCouponId">
+                        <div class="form-group">
+                            <label for="editCouponCode">Coupon Code</label>
+                            <input type="text" class="form-control" id="editCouponCode" name="editCouponCode" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="editDiscountRate">Discount Rate (%)</label>
+                            <input type="number" class="form-control" id="editDiscountRate" name="editDiscountRate" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="editMinPurchaseAmount">Minimum Purchase Amount</label>
+                            <input type="number" class="form-control" id="editMinPurchaseAmount" name="editMinPurchaseAmount" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="editExpiryDate">Expiry Date</label>
+                            <input type="text" class="form-control" id="editExpiryDate" name="editExpiryDate" required readonly>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">Update Coupon</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+    <script>
+        $(document).ready(function () {
+            $('#openCouponModal').click(function () {
+                $('#addCouponModal').modal('show');
+            });
+        });
+    </script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@10"></script>
+
+    <script>
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear();
+            return `${day}/${month}/${year}`;
+        }
+    
+        document.querySelectorAll('.edit-coupon-btn').forEach(function (button) {
+            button.addEventListener('click', function () {
+                const couponId = button.dataset.couponId;
+                const couponCode = button.dataset.couponCode;
+                const discountRate = button.dataset.discountRate;
+                const minPurchaseAmount = button.dataset.minPurchaseAmount;
+                const expiryDate = button.dataset.expiryDate;
+    
+                // Populate edit modal fields with coupon details
+                document.querySelector('#editCouponId').value = couponId;
+                document.querySelector('#editCouponCode').value = couponCode;
+                document.querySelector('#editDiscountRate').value = discountRate;
+                document.querySelector('#editMinPurchaseAmount').value = minPurchaseAmount;
+                document.querySelector('#editExpiryDate').value = formatDate(expiryDate);
+    
+                // Show the edit modal
+                $('#editCouponModal').modal('show');
+            });
+        });
+    </script>
+    
+
+<script>
+    document.querySelectorAll('.delete-coupon-btn').forEach(function (button) {
+        button.addEventListener('click', function () {
+            const couponId = button.dataset.couponId;
+            Swal.fire({
+                title: 'Are you sure?',
+                text: 'You are about to delete this coupon.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Yes, delete it!'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    fetch(`/deletecoupon/${couponId}`, {
+                        method: 'POST'
+                    })
+                    .then(response => {
+                        if (response.ok) {
+                            window.location.reload();
+                        } else {
+                            console.error('Error deleting coupon:', response.statusText);
+                            
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error deleting coupon:', error);
+                       
+                    });
+                    window.location.reload();
+                }
+            });
+        });
+    });
+</script>

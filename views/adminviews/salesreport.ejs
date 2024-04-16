@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sales Report</title>
+  <style>
+    body {
+      font-family: "Helvetica", sans-serif;
+    }
+    .title {
+      font-size: 16px;
+      text-align: center;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: left;
+    }
+  </style>
+</head>
+<body>
+  <div class="title">Sales Report (<%= startDate %> to <%= endDate %>)</div>
+  <div>
+    <p>Overall Sales Count: <%= overallSalesCount %></p>
+    <p>Overall Order Amount: <%= overallOrderAmount %></p>
+  </div>
+  <table>
+    <tr>
+      <th>Order ID</th>
+      <th>Customer</th>
+      <th>Order Date</th>
+      <th>Product</th>
+      <th>Quantity</th>
+      <th>Payment Method</th>
+      <th>Total Amount</th>
+    </tr>
+    <% orders.forEach(order => { %>
+        <tr>
+          <td><%= order.orderId %></td> 
+          <td>
+            <% if (order.user) { %>
+              <%= order.user.name %>
+            <% } else { %>
+              Unknown Customer
+            <% } %>
+          </td>
+          <td><%= order.orderdate.toISOString().split('T')[0] %></td> 
+          <td>
+            <% order.items.forEach(item => { %>
+              <%= item.product.name %><br /> 
+            <% }); %>
+          </td>
+          <td>
+            <% order.items.forEach(item => { %>
+              <%= item.quantity %><br />
+            <% }); %>
+          </td>
+          <td><%= order.paymentMethod %></td>
+          <td><%= order.totalAmount %></td> 
+        </tr>
+        <% }); %>
+  </table>
+</body>
+</html>
