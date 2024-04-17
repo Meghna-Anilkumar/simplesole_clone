@@ -7,10 +7,10 @@ const User = require('../models/user')
 const Product = require('../models/product')
 const Address = require('../models/address')
 const ejs = require('ejs')
-const path = require('path');
-const fs = require('fs');
-const puppeteer = require('puppeteer');
+const path = require('path')
+const fs = require('fs')
 const Category = require('../models/category')
+const PDFDocument = require('pdfkit');
 
 
 module.exports = {
@@ -229,36 +229,40 @@ module.exports = {
       const overallSalesCount = orders.length;
       const overallOrderAmount = orders.reduce((total, order) => total + order.totalAmount, 0);
   
-      const htmlContent = await ejs.renderFile(
-        path.join(__dirname, '..', 'views', 'adminviews', 'salesreport.ejs'),
-        {
-          orders,
-          startDate: fromDate,
-          endDate: toDate,
-          overallSalesCount,
-          overallOrderAmount
-        }
-      );
+      const doc = new PDFDocument();
   
-      const browser = await puppeteer.launch();
-      const page = await browser.newPage();
-  
-      await page.setContent(htmlContent);
-  
-      const pdfBuffer = await page.pdf({ format: 'A4' });
-  
-      await browser.close();
-  
+      // Set response headers for file download
       const fileName = `sales_report_${fromDate}_${toDate}.pdf`;
       res.setHeader('Content-disposition', `attachment; filename=${fileName}`);
       res.setHeader('Content-type', 'application/pdf');
   
-      res.send(pdfBuffer);
+      // Pipe the PDF document directly to the response
+      doc.pipe(res);
+  
+      // Add content to PDF
+      doc.fontSize(16).text(`Sales Report (${fromDate} to ${toDate})`, { align: 'center' });
+      doc.moveDown();
+      doc.fontSize(12).text(`Overall Sales Count: ${overallSalesCount}`);
+      doc.fontSize(12).text(`Overall Order Amount: ${overallOrderAmount}`);
+      doc.moveDown();
+  
+      // Add table header
+      doc.font('Helvetica-Bold').text('Order ID    Customer    Order Date    Product    Quantity    Payment Method    Total Amount');
+  
+      // Add orders data
+      orders.forEach(order => {
+        let productNames = order.items.map(item => item.product.name).join('\n');
+        let quantities = order.items.map(item => item.quantity).join('\n');
+        doc.font('Helvetica').text(`${order.orderId}    ${order.user ? order.user.name : 'Unknown Customer'}    ${order.orderdate.toISOString().split('T')[0]}    ${productNames}    ${quantities}    ${order.paymentMethod}    ${order.totalAmount}`);
+      });
+  
+      // Finalize the PDF
+      doc.end();
+  
     } catch (error) {
       console.error('Error generating PDF:', error);
       res.status(500).send('Internal Server Error');
     }
   },
-
 
 }
