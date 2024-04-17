@@ -17,7 +17,7 @@ module.exports = {
     const wishlist = await Wishlist.findOne({ user: user._id }).populate('items.product').exec(); 
 
     if (!cart) {
-      return res.render('userviews/cart', { title: 'Cart', category: [], data: { total: 0 }, cart });
+      return res.render('userviews/cart', { title: 'Cart', category: [], data: { total: 0 }, cart, wishlist });
     }
 
     const categories = await Category.find();
@@ -37,13 +37,16 @@ module.exports = {
       total: totalPrice,
     };
 
-    // Check if item.product is defined
+    let product; // Define product variable
+
+    // Check if cart.items is defined and has at least one item
     if (cart.items && cart.items.length > 0 && cart.items[0].product) {
-      const product = cart.items[0].product;
-      res.render('userviews/cart', { title: 'Cart', category: categories, cart, data, productOffers, product ,wishlist});
-    } else {
-      res.render('userviews/cart', { title: 'Cart', category: categories, cart, data, productOffers,wishlist });
+      // If the condition is met, assign the product of the first item to the product variable
+      product = cart.items[0].product;
     }
+
+    // Render the template with the appropriate data
+    res.render('userviews/cart', { title: 'Cart', category: categories, cart, data, productOffers, product, wishlist });
   } catch (error) {
     console.error('Error:', error);
     res.status(500).json({ error: 'Internal Server Error' });

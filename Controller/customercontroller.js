@@ -6,6 +6,8 @@ const bcrypt = require('bcrypt')
 const Category = require('../models/category')
 const { generateReferralCode } = require('../utils/generatereferral');
 const Wallet = require('../models/wallet')
+const Cart = require('../models/cartSchema')
+const Wishlist=require('../models/wishlist')
 
 
 module.exports = {
@@ -19,10 +21,13 @@ module.exports = {
 
       if (!nameRegex.test(name)) {
         const categories = await Category.find();
+        const wishlist=[]
+        const cart=[]
         return res.render('userviews/signup', {
           error: 'Please enter a valid name!!!!!',
           title: 'Signup',
           category: categories,
+          wishlist,cart
         });
       }
 
@@ -30,15 +35,20 @@ module.exports = {
 
       if (!passwordRegex.test(password)) {
         const categories = await Category.find();
-        return res.render('userviews/signup', { error: 'Password should contain atleast 8 characters,an uppercase letter,a lowercase letter and a special character', title: 'Signup', category: categories });
+        const wishlist=[]
+        const cart=[]
+        return res.render('userviews/signup', { error: 'Password should contain atleast 8 characters,an uppercase letter,a lowercase letter and a special character', title: 'Signup', category: categories,wishlist,cart });
       }
 
       if (password !== confirmPassword) {
         const categories = await Category.find();
+        const wishlist=[]
+        const cart=[]
         return res.render('userviews/signup', {
           error: 'Password and Confirm Password do not match',
           title: 'Signup',
-          category: categories
+          category: categories,
+          wishlist,cart
         });
       }
 
@@ -46,10 +56,13 @@ module.exports = {
 
       if (existingUser) {
         const categories = await Category.find();
+        const wishlist=[]
+        const cart=[]
         return res.render('userviews/signup', {
           error: 'Email already exists. Please use a different email address.',
           title: 'Signup',
           category: categories,
+          wishlist,cart
         })
       }
 
@@ -57,10 +70,13 @@ module.exports = {
         const referredUser = await User.findOne({ referral: referralCode });
         if (!referredUser) {
           const categories = await Category.find();
+          const wishlist=[]
+          const cart=[]
           return res.render('userviews/signup', {
-            error: 'Invalid referral code. Please enter a valid referral code or leave it empty.',
+            error: 'Invalid referral code. Please enter a valid referral code if any.',
             title: 'Signup',
             category: categories,
+            wishlist,cart
           });
         }
       }
@@ -196,7 +212,10 @@ module.exports = {
 
       if (!otpRecord || myotp !== otpRecord.otp) {
         const categories = await Category.find();
-        return res.render('userviews/otp', { email, category: categories, error: 'Invalid OTP' });
+        const wishlist=[]
+        const cart=[]
+        return res.render('userviews/otp', { email, category: categories, error: 'Invalid OTP' ,
+        wishlist,cart});
       }
 
     } catch (error) {
@@ -219,6 +238,7 @@ module.exports = {
       res.json({ message: err.message });
     }
   },
+
 
   //to block or unblock user
   blockUser: async (req, res) => {

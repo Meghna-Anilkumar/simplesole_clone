@@ -78,6 +78,8 @@ module.exports = {
         console.log('Redirecting to /');
         return res.redirect('/');
       } else {
+        const wishlist=[]
+        const cart=[]
         const categories = await Category.find();
         return res.render('userviews/login', { error: 'Incorrect password', title: 'Login', category: categories });
       };
