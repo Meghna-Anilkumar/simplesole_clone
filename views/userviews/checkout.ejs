@@ -466,13 +466,8 @@
          COUPON DISCOUNT
         </div>
         <div class="col text-right">
-          <% if (typeof discount !== 'undefined') { %>
-              &#8377;<%= discount.toFixed(2) %>
-          <% } else { %>
-              <!-- Handle case where discount is not defined -->
-              <!-- Maybe display a message or leave it blank -->
-          <% } %>
-      </div>
+          -<span id="discount">0</span>
+        </div>
       
       </div>
 <BR>
@@ -747,6 +742,7 @@
   document.addEventListener("DOMContentLoaded", async function () {
     const applyCouponBtn = document.getElementById('applyCouponBtn');
     const newTotalSpan = document.getElementById('newTotal');
+    const discountSpan = document.getElementById('discount'); 
     const appliedCouponCodeInput = document.getElementById('appliedCouponCode');
 
     applyCouponBtn.addEventListener('click', async () => {
@@ -767,6 +763,7 @@
             applyCouponBtn.innerText = 'Apply';
             applyCouponBtn.dataset.applied = 'false';
             newTotalSpan.innerText = data.newTotal;
+            discountSpan.innerText = '0'; // Set discount to 0 when coupon is removed
 
             // Update the value of the hidden input field
             appliedCouponCodeInput.value = '';
@@ -785,6 +782,7 @@
             applyCouponBtn.innerText = 'Remove';
             applyCouponBtn.dataset.applied = 'true';
             newTotalSpan.innerText = data.newTotal;
+            discountSpan.innerText = data.discount; // Set the discount value returned from server
 
             // Update the value of the hidden input field
             appliedCouponCodeInput.value = couponCode;
@@ -806,6 +804,7 @@
     });
   });
 </script>
+
 
   </div>
   <%- include('./footer') %>

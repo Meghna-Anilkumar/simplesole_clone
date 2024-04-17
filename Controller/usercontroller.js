@@ -49,8 +49,7 @@ module.exports = {
     try {
       const categories = await Category.find();
       const wishlist = [];
-      const cart = req.session.cart || { items: [] }
-
+      const cart=[]
       res.render('userviews/login', { title: 'Login', category: categories, wishlist: wishlist, cart: cart });
     } catch (error) {
       console.error(error);
@@ -66,8 +65,10 @@ module.exports = {
       const user = await User.findOne({ email: email });
 
       if (!user || user.blocked) {
+        const wishlist=[]
+        const cart=[]
         const categories = await Category.find();
-        return res.render('userviews/login', { error: 'User does not exist', title: 'Login', category: categories });
+        return res.render('userviews/login', { error: 'User does not exist', title: 'Login', category: categories,wishlist,cart });
       }
 
       const isMatch = await bcrypt.compare(password, user.password);
@@ -81,7 +82,7 @@ module.exports = {
         const wishlist=[]
         const cart=[]
         const categories = await Category.find();
-        return res.render('userviews/login', { error: 'Incorrect password', title: 'Login', category: categories });
+        return res.render('userviews/login', { error: 'Incorrect password', title: 'Login', category: categories,wishlist,cart });
       };
 
     } catch (error) {

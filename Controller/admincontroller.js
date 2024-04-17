@@ -228,6 +228,7 @@ module.exports = {
   
       const overallSalesCount = orders.length;
       const overallOrderAmount = orders.reduce((total, order) => total + order.totalAmount, 0);
+      const overallDiscountAmount = orders.reduce((total, order) => total + order.discountAmount, 0);
   
       const doc = new PDFDocument();
   
@@ -244,29 +245,17 @@ module.exports = {
       doc.moveDown();
       doc.fontSize(12).text(`Overall Sales Count: ${overallSalesCount}`);
       doc.fontSize(12).text(`Overall Order Amount: ${overallOrderAmount}`);
+      doc.fontSize(12).text(`Overall Discount Amount: ${overallDiscountAmount}`);
       doc.moveDown();
   
-      // Add table headers
-      doc.font('Helvetica-Bold').text('Order ID', { continued: true });
-      doc.font('Helvetica-Bold').text('Customer', { continued: true });
-      doc.font('Helvetica-Bold').text('Order Date', { continued: true });
-      doc.font('Helvetica-Bold').text('Product', { continued: true });
-      doc.font('Helvetica-Bold').text('Quantity', { continued: true });
-      doc.font('Helvetica-Bold').text('Payment Method', { continued: true });
-      doc.font('Helvetica-Bold').text('Total Amount');
+      // Add table header
+      doc.font('Helvetica-Bold').text('Order ID    Customer    Order Date    Product    Quantity    Payment Method    Total Amount');
   
       // Add orders data
       orders.forEach(order => {
-        order.items.forEach(item => {
-          doc.moveDown();
-          doc.font('Helvetica').text(order.orderId.toString(), { continued: true });
-          doc.font('Helvetica').text(order.user ? order.user.name : 'Unknown Customer', { continued: true });
-          doc.font('Helvetica').text(order.orderdate.toISOString().split('T')[0], { continued: true });
-          doc.font('Helvetica').text(item.product.name, { continued: true });
-          doc.font('Helvetica').text(item.quantity.toString(), { continued: true });
-          doc.font('Helvetica').text(order.paymentMethod.toString(), { continued: true });
-          doc.font('Helvetica').text(order.totalAmount.toString());
-        });
+        let productNames = order.items.map(item => item.product.name).join('\n');
+        let quantities = order.items.map(item => item.quantity).join('\n');
+        doc.font('Helvetica').text(`${order.orderId}    ${order.user ? order.user.name : 'Unknown Customer'}    ${order.orderdate.toISOString().split('T')[0]}    ${productNames}    ${quantities}    ${order.paymentMethod}    ${order.totalAmount}`);
       });
   
       // Finalize the PDF

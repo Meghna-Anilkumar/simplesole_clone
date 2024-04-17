@@ -17,7 +17,8 @@ module.exports = {
         const addresses = await Address.find({ user: user });
         const cart = await Cart.findOne({ user }).populate('items.product').exec();
         var wishlist = await Wishlist.findOne({ user });
-        res.render('userviews/checkout', { title: 'checkout page', category: categories, cart, addresses: addresses ,order,wishlist})
+        const discount = req.session.discount || 0;
+        res.render('userviews/checkout', { title: 'checkout page', category: categories, cart, addresses: addresses ,order,wishlist,discount})
     },
 
 }

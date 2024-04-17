@@ -39,12 +39,14 @@ module.exports = {
 
       console.log(user, 'pppppp')
 
+
       const newOrder = new Order({
         user: req.session.user,
         items: cart.items,
         shippingAddress: req.body.selectedAddress,
         totalAmount: cart.newTotal || cart.total,
         paymentMethod,
+        discountAmount: req.session.discount || 0,
       });
 
       await Promise.all(
@@ -82,6 +84,7 @@ module.exports = {
           shippingAddress: req.body.selectedAddress,
           totalAmount: cart.newTotal || cart.total,
           paymentMethod,
+          discountAmount: req.session.discount || 0,
         });
 
         await Promise.all(
@@ -144,6 +147,7 @@ module.exports = {
             paymentMethod: 'RAZORPAY',
             paymentStatus: 'paid',
             razorpayOrderId: razorpayOrder.id,
+            discountAmount: req.session.discount || 0,
           })
 
           await newOrder.save()

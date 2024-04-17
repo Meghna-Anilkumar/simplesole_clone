@@ -76,9 +76,9 @@ module.exports = {
     // Apply coupon
     applyCoupon: async (req, res) => {
         try {
-            const { couponCode } = req.body;
-            const userId = req.session.user._id;
-            const user = await User.findById(userId);
+            const { couponCode } = req.body
+            const userId = req.session.user._id
+            const user = await User.findById(userId)
 
             if (!user) {
                 return res.status(404).json({ error: 'User not found' });
@@ -100,21 +100,21 @@ module.exports = {
                 return res.status(400).json({ error: 'Minimum purchase amount not met for this coupon' });
             }
 
-            if (user.usedCoupons && user.usedCoupons.includes(coupon._id.toString())) {
-                return res.status(400).json({ error: 'You have already used this coupon.' })
-            }
-
             console.log(coupon.discountRate, 'kkkkkkk')
 
             const discount = (cart.total * coupon.discountRate) / 100;
             const newTotal = cart.total - discount;
             cart.newTotal = newTotal;
+            console.log(newTotal,'lllllllll')
             await cart.save()
 
             req.session.couponCode = couponCode
             req.session.discount=discount
 
-            return res.json({ success: true, newTotal: newTotal, coupon: coupon });
+            console.log(couponCode,'hhhhhh')
+            console.log(discount,'kkkkkkkkk')
+
+            return res.json({ success: true, newTotal: newTotal, coupon: coupon,discount: discount });
         } catch (error) {
             console.error(error);
             return res.status(500).json({ error: 'Internal server error' });
@@ -135,11 +135,14 @@ module.exports = {
             const cart = await Cart.findOne({ user }).populate('items.product').exec();
 
             cart.newTotal = cart.total
-            await cart.save();
+            // const discount = req.session.discount || 0;
+            // // cart.newTotal += discount; 
 
+            await cart.save();
             await user.save();
 
             req.session.couponCode = ''
+            req.session.discount = 0;
 
             return res.json({ success: true, newTotal: cart.newTotal });
 

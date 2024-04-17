@@ -22,8 +22,8 @@ module.exports = {
 
       const categories = await Category.find();
       const productOffers = await ProductOffer.find();
-      const categoryOffers = await CategoryOffer.find(); // Fetch category offers
-      const totalPrice = await calculateTotalPrice(cart.items, productOffers, categoryOffers); // Pass categoryOffers to calculateTotalPrice
+      const categoryOffers = await CategoryOffer.find(); 
+      const totalPrice = await calculateTotalPrice(cart.items, productOffers, categoryOffers); 
 
       if (isNaN(totalPrice)) {
         console.error('Total price is not a number:', totalPrice);
@@ -37,16 +37,13 @@ module.exports = {
         total: totalPrice,
       };
 
-      let product; // Define product variable
+      let product;
 
-      // Check if cart.items is defined and has at least one item
       if (cart.items && cart.items.length > 0 && cart.items[0].product) {
-        // If the condition is met, assign the product of the first item to the product variable
         product = cart.items[0].product;
-        console.log('Product:', product); // Log the product object
+        console.log('Product:', product); 
       }
 
-      // Render the template with the appropriate data
       res.render('userviews/cart', { title: 'Cart', category: categories, cart, data, productOffers, product, wishlist });
     } catch (error) {
       console.error('Error:', error);
