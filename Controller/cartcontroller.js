@@ -4,54 +4,55 @@ const Category = require('../models/category');
 const Product = require('../models/product');
 const ProductOffer = require('../models/productoffermodel');
 const { calculateTotalPrice } = require('../utils/cartfunctions');
-const CategoryOffer = require('../models/categoryoffer'); 
-const Wishlist=require('../models/wishlist')
+const CategoryOffer = require('../models/categoryoffer');
+const Wishlist = require('../models/wishlist')
 
 module.exports = {
-  
- // Get cart
- getcart: async (req, res) => {
-  try {
-    const user = req.session.user;
-    const cart = await Cart.findOne({ user }).populate('items.product').exec();
-    const wishlist = await Wishlist.findOne({ user: user._id }).populate('items.product').exec(); 
 
-    if (!cart) {
-      return res.render('userviews/cart', { title: 'Cart', category: [], data: { total: 0 }, cart, wishlist });
+  // Get cart
+  getcart: async (req, res) => {
+    try {
+      const user = req.session.user;
+      const cart = await Cart.findOne({ user }).populate('items.product').exec();
+      const wishlist = await Wishlist.findOne({ user: user._id }).populate('items.product').exec();
+
+      if (!cart) {
+        return res.render('userviews/cart', { title: 'Cart', category: [], data: { total: 0 }, cart, wishlist });
+      }
+
+      const categories = await Category.find();
+      const productOffers = await ProductOffer.find();
+      const categoryOffers = await CategoryOffer.find(); // Fetch category offers
+      const totalPrice = await calculateTotalPrice(cart.items, productOffers, categoryOffers); // Pass categoryOffers to calculateTotalPrice
+
+      if (isNaN(totalPrice)) {
+        console.error('Total price is not a number:', totalPrice);
+        return res.status(500).json({ error: 'Internal Server Error' });
+      }
+
+      cart.total = totalPrice;
+      await cart.save();
+
+      const data = {
+        total: totalPrice,
+      };
+
+      let product; // Define product variable
+
+      // Check if cart.items is defined and has at least one item
+      if (cart.items && cart.items.length > 0 && cart.items[0].product) {
+        // If the condition is met, assign the product of the first item to the product variable
+        product = cart.items[0].product;
+        console.log('Product:', product); // Log the product object
+      }
+
+      // Render the template with the appropriate data
+      res.render('userviews/cart', { title: 'Cart', category: categories, cart, data, productOffers, product, wishlist });
+    } catch (error) {
+      console.error('Error:', error);
+      res.status(500).json({ error: 'Internal Server Error' });
     }
-
-    const categories = await Category.find();
-    const productOffers = await ProductOffer.find();
-    const categoryOffers = await CategoryOffer.find(); // Fetch category offers
-    const totalPrice = await calculateTotalPrice(cart.items, productOffers, categoryOffers); // Pass categoryOffers to calculateTotalPrice
-
-    if (isNaN(totalPrice)) {
-      console.error('Total price is not a number:', totalPrice);
-      return res.status(500).json({ error: 'Internal Server Error' });
-    }
-
-    cart.total = totalPrice;
-    await cart.save();
-
-    const data = {
-      total: totalPrice,
-    };
-
-    let product; // Define product variable
-
-    // Check if cart.items is defined and has at least one item
-    if (cart.items && cart.items.length > 0 && cart.items[0].product) {
-      // If the condition is met, assign the product of the first item to the product variable
-      product = cart.items[0].product;
-    }
-
-    // Render the template with the appropriate data
-    res.render('userviews/cart', { title: 'Cart', category: categories, cart, data, productOffers, product, wishlist });
-  } catch (error) {
-    console.error('Error:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
-  }
-},
+  },
 
 
   // Add to cart 
@@ -130,7 +131,7 @@ module.exports = {
 
       const productOffers = await ProductOffer.find();
       const total = await calculateTotalPrice(updatedItem.items, productOffers);
-      
+
       res.json({ quantity: updatedQuantity, total });
     } catch (error) {
       console.error('Error updating quantity:', error);

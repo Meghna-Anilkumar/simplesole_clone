@@ -166,9 +166,12 @@ a:hover{
                     <div class="row border-top border-bottom">
                         <div class="row main align-items-center">
                             <div class="col-2">
-                                <a href="/products/<%= product._id %>">
-                                <img class="img-fluid" src="<%= item.product.images[0] %>">
-                                </a>
+                                <% if (product && product._id) { %>
+                                    <a href="/products/<%= product._id %>">
+                                        <img class="img-fluid" src="<%= item.product.images[0] %>">
+                                    </a>
+                                <% } %>
+                                
                             </div>
                             <div class="col">
                                 <div class="row text-muted"><%= item.product.name %></div>
