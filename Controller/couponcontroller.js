@@ -79,6 +79,7 @@ module.exports = {
             const { couponCode } = req.body
             const userId = req.session.user._id
             const user = await User.findById(userId)
+            console.log(user.usedCoupons, 'uuuuuuuuuuu')
 
             if (!user) {
                 return res.status(404).json({ error: 'User not found' });
@@ -100,21 +101,27 @@ module.exports = {
                 return res.status(400).json({ error: 'Minimum purchase amount not met for this coupon' });
             }
 
+            // In the route where you handle coupon application
+            if (user.usedCoupons && user.usedCoupons.includes(coupon._id)) {
+                return res.status(400).json({ error: 'Coupon already used' });
+            }
+
+
             console.log(coupon.discountRate, 'kkkkkkk')
 
             const discount = (cart.total * coupon.discountRate) / 100;
             const newTotal = cart.total - discount;
             cart.newTotal = newTotal;
-            console.log(newTotal,'lllllllll')
+            console.log(newTotal, 'lllllllll')
             await cart.save()
 
             req.session.couponCode = couponCode
-            req.session.discount=discount
+            req.session.discount = discount
 
-            console.log(couponCode,'hhhhhh')
-            console.log(discount,'kkkkkkkkk')
+            console.log(couponCode, 'hhhhhh')
+            console.log(discount, 'kkkkkkkkk')
 
-            return res.json({ success: true, newTotal: newTotal, coupon: coupon,discount: discount });
+            return res.json({ success: true, newTotal: newTotal, coupon: coupon, discount: discount });
         } catch (error) {
             console.error(error);
             return res.status(500).json({ error: 'Internal server error' });

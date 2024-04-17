@@ -32,12 +32,18 @@ module.exports = {
     try {
       const { paymentMethod, appliedCouponCode } = req.body;
       console.log('Received data:', req.body);
-      const user = req.session.user;
+      const userId = req.session.user._id;
+      const user = await User.findById(userId)
       const cart = await Cart.findOne({ user }).populate('items.product').exec();
 
       console.log(appliedCouponCode, 'lllllllllll')
 
       console.log(user, 'pppppp')
+
+      if (appliedCouponCode) {
+        user.usedCoupons.push(appliedCouponCode);
+        await user.save();
+    }
 
 
       const newOrder = new Order({
@@ -49,6 +55,7 @@ module.exports = {
         discountAmount: req.session.discount || 0,
       });
 
+    
       await Promise.all(
         cart.items.map(async (item) => {
           const product = await Product.findById(item.product._id);
@@ -70,13 +77,26 @@ module.exports = {
       else if (paymentMethod === 'WALLET') {
         const userWallet = await Wallet.findOne({ user });
         if (!userWallet || userWallet.balance < cart.total) {
-          const user = req.session.user
+          const userId = req.session.user._id;
+          const user = await User.findById(userId)
           const order = await Order.find()
           const categories = await Category.find();
           const addresses = await Address.find({ user: user });
           const cart = await Cart.findOne({ user }).populate('items.product').exec();
-          return res.render('userviews/checkout', { title: 'checkout page', category: categories, cart, addresses: addresses, order, error: 'Insufficient balance in the wallet' });
+          const wishlist = await Wishlist.findOne({ user}).populate('items.product');
+  
+          return res.render('userviews/checkout', { title: 'checkout page',wishlist, category: categories, cart, addresses: addresses, order, error: 'Insufficient balance in the wallet' });
         }
+
+        console.log(appliedCouponCode, 'lllllllllll')
+
+        console.log(user, 'pppppp')
+  
+        if (appliedCouponCode) {
+          user.usedCoupons.push(appliedCouponCode);
+          await user.save();
+      }
+  
 
         const newOrder = new Order({
           user: req.session.user,
