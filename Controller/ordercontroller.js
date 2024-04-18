@@ -439,7 +439,6 @@ module.exports = {
         res.setHeader('Content-disposition', `attachment; filename=${fileName}`);
         res.setHeader('Content-type', 'application/pdf');
 
-        // Pipe the PDF document to the response stream
         doc.pipe(res);
 
         // Add invoice details to the PDF
@@ -459,7 +458,7 @@ module.exports = {
             y += 20; // Move to the next row
         });
 
-        // Add user and shipping details
+    
         doc.text(`User Name: ${user.name}`).moveDown();
         doc.text(`Shipped Address: ${order.shippingAddress.buildingname}, ${order.shippingAddress.street}, ${order.shippingAddress.city}, ${order.shippingAddress.state}, ${order.shippingAddress.pincode}`).moveDown();
         doc.text(`Ordered Date: ${order.orderdate.toDateString()}`).moveDown();
@@ -468,7 +467,7 @@ module.exports = {
 
         doc.fontSize(16).text('Thank you for Shopping!', { align: 'center' }).moveDown();
 
-        // Finalize the PDF and send the response
+     
         doc.end();
 
     } catch (error) {
