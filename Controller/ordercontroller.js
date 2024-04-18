@@ -423,80 +423,59 @@ module.exports = {
 
   downloadinvoice: async (req, res) => {
     try {
-      const orderId = req.params.orderId;
-      const user = req.session.user;
-  
-      const order = await Order.findById(orderId).populate('items.product').populate('shippingAddress');
-      if (!order) {
-        return res.status(404).send('Order not found');
-      }
-  
-      // Define invoice data
-      const invoiceData = {
-        //"documentTitle": "RECEIPT", // Defaults to INVOICE
-        //"locale": "en-US", // Defaults to en-US, other locales are also available
-        //"currency": "USD", // See documentation 'Locales and Currency' for more info
-        "taxNotation": "vat", // VAT = value added tax
-        "marginTop": 25,
-        "marginRight": 25,
-        "marginLeft": 25,
-        "marginBottom": 25,
-        "logo": "https://public.easyinvoice.cloud/img/logo_en_original.png", // or base64
-        //"background": "https://public.easyinvoice.cloud/img/watermark-draft.jpg", // or base64 //background image
-        "sender": {
-            "company": "Simple Sole",
-            "address": "Sample Street 123",
-            "zip": "1234 AB",
-            "city": "Sampletown",
-            "country": "Samplecountry"
-            //"custom1": "custom value 1",
-            //"custom2": "custom value 2",
-            //"custom3": "custom value 3"
-        },
-        "client": {
-            "company": user.name,
-            "address": order.shippingAddress.buildingname + ', ' + order.shippingAddress.street + ', ' + order.shippingAddress.city + ', ' + order.shippingAddress.state + ', ' + order.shippingAddress.pincode,
-            "zip": order.shippingAddress.pincode,
-            "city": order.shippingAddress.city,
-            "country": order.shippingAddress.country
-            //"custom1": "custom value 1",
-            //"custom2": "custom value 2",
-            //"custom3": "custom value 3"
-        },
-        "invoiceNumber": orderId,
-        "invoiceDate": new Date().toLocaleDateString(),
-        "products": [],
-        "bottomNotice": "Thank you for shopping",
-        //"footer": "This is footer text. It can be used to add company bank details or other information."
-      };
-  
-      // Add products to invoice data
-      order.items.forEach(item => {
-        invoiceData.products.push({
-          "quantity": item.quantity,
-          "description": item.product.name,
-          "tax": 6,
-          "price": order.totalAmount
-        });
-      });
-  
-      // Generate PDF
-      const result = await easyinvoice.createInvoice(invoiceData);
-  
-      // Set response headers for file download
-      const fileName = `invoice_${orderId}.pdf`;
-      res.setHeader('Content-disposition', `attachment; filename=${fileName}`);
-      res.setHeader('Content-type', 'application/pdf');
-  
-      // Send the PDF buffer as response
-      res.send(Buffer.from(result.pdf, 'base64'));
-  
-    } catch (error) {
-      console.error('Error generating PDF:', error);
-      res.status(500).send('Internal Server Error');
-    }
-  },
+        const orderId = req.params.orderId;
+        const user = req.session.user;
 
+        const order = await Order.findById(orderId).populate('items.product').populate('shippingAddress');
+        if (!order) {
+            return res.status(404).send('Order not found');
+        }
+
+        // Create a new PDF document
+        const doc = new PDFDocument({ margin: 25 });
+
+        // Set response headers for file download
+        const fileName = `invoice_${orderId}.pdf`;
+        res.setHeader('Content-disposition', `attachment; filename=${fileName}`);
+        res.setHeader('Content-type', 'application/pdf');
+
+        // Pipe the PDF document to the response stream
+        doc.pipe(res);
+
+        // Add invoice details to the PDF
+        doc.fontSize(18).text(`Invoice for Order ID: ${order.orderId}`, { align: 'center' }).moveDown();
+        doc.fontSize(12).text(`Status: ${order.orderStatus}`).moveDown();
+
+        // Add table headers
+        doc.font('Helvetica-Bold').text('Product', 100, 200).text('Quantity', 250, 200).text('Price', 350, 200).text('Total', 450, 200);
+
+        // Add table rows
+        let y = 230; // Initial y-coordinate for the first row
+        order.items.forEach(item => {
+            doc.font('Helvetica').text(item.product.name, 100, y)
+                .text(item.quantity.toString(), 250, y)
+                .text(`₹${item.product.price}`, 350, y)
+                .text(`₹${order.totalAmount}`, 450, y);
+            y += 20; // Move to the next row
+        });
+
+        // Add user and shipping details
+        doc.text(`User Name: ${user.name}`).moveDown();
+        doc.text(`Shipped Address: ${order.shippingAddress.buildingname}, ${order.shippingAddress.street}, ${order.shippingAddress.city}, ${order.shippingAddress.state}, ${order.shippingAddress.pincode}`).moveDown();
+        doc.text(`Ordered Date: ${order.orderdate.toDateString()}`).moveDown();
+
+        doc.text(`Subtotal: ₹${order.totalAmount}`).moveDown();
+
+        doc.fontSize(16).text('Thank you for Shopping!', { align: 'center' }).moveDown();
+
+        // Finalize the PDF and send the response
+        doc.end();
+
+    } catch (error) {
+        console.error('Error generating PDF:', error);
+        res.status(500).send('Internal Server Error');
+    }
+}
 
 }
 
