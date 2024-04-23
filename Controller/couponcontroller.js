@@ -101,7 +101,6 @@ module.exports = {
                 return res.status(400).json({ error: 'Minimum purchase amount not met for this coupon' });
             }
 
-            // In the route where you handle coupon application
             if (user.usedCoupons && user.usedCoupons.includes(coupon._id)) {
                 return res.status(400).json({ error: 'Coupon already used' });
             }

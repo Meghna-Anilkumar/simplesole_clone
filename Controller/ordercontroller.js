@@ -142,7 +142,7 @@ module.exports = {
   processPayment: async (req, res) => {
     try {
       const { paymentMethod } = req.body;
-      const user = req.session.user;
+      const user = req.session.user
       const cart = await Cart.findOne({ user }).populate('items.product').exec();
 
       
@@ -161,7 +161,9 @@ module.exports = {
             console.error(err);
             return res.status(500).json({ error: 'Razorpay order creation failed' });
           }
-          console.log('Razorpay order created successfully');
+          console.log('Razorpay order created successfully')
+          console.log(req.session.discount,'kkkkkkkk')
+          console.log(couponCode,'yyyyyyyy')
 
           const newOrder = new Order({
             user: user,
@@ -199,33 +201,13 @@ module.exports = {
   myorders: async (req, res) => {
     try {
       const user = req.session.user;
-      const page = parseInt(req.query.page) || 1; // Default page is 1
-      const perPage = 5; // Number of orders per page
-      const skip = (page - 1) * perPage;
-  
-      const orders = await Order.find({ user })
-        .populate('items.product')
-        .sort({ orderdate: -1 }) // Sort by order date, latest first
-        .skip(skip)
-        .limit(perPage)
-        .exec();
-  
-      // Additional code to count total number of orders for pagination
-      const totalOrders = await Order.countDocuments({ user });
-  
+      const orders = await Order.find({ user }).populate('items.product').exec();
+
       const categories = await Category.find();
       const wishlist = await Wishlist.findOne({ user: user }).populate('items.product');
       const cart = await Cart.findOne({ user: user }).populate('items.product').exec();
-  
-      res.render('userviews/myorders', { 
-        title: 'My Orders', 
-        orders, 
-        category: categories, 
-        wishlist, 
-        cart,
-        currentPage: page,
-        totalPages: Math.ceil(totalOrders / perPage)
-      });
+
+      res.render('userviews/myorders', { title: 'My Orders', orders, category: categories, wishlist, cart });
     } catch (error) {
       console.error(error);
       res.status(500).json({ error: 'Internal Server Error' });

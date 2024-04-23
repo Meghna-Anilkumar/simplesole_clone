@@ -58,7 +58,7 @@ router.post('/process-payment', isAuth.checkAuth, ordercontroller.processPayment
 router.get('/successpage', isAuth.checkAuth, ordercontroller.getsuccesspage)
 
 //my orders
-router.get('/myorders', isAuth.checkAuth, ordercontroller.myorders)
+router.get('/orders', isAuth.checkAuth, ordercontroller.myorders)
 router.get('/orderdetails/:orderId', isAuth.checkAuth, ordercontroller.orderdetails)
 router.post('/confirmCancellation/:orderId', ordercontroller.confirmcancellation)
 router.post('/confirmItemCancellation/:orderId/:index', ordercontroller.confirmItemCancellation)

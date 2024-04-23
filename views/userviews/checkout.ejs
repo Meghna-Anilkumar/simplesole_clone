@@ -751,7 +751,6 @@
 
       try {
         if (applied) {
-          // Remove coupon logic
           const response = await fetch('/removeCoupon', {
             method: 'POST',
             headers: {
@@ -763,13 +762,10 @@
             applyCouponBtn.innerText = 'Apply';
             applyCouponBtn.dataset.applied = 'false';
             newTotalSpan.innerText = data.newTotal;
-            discountSpan.innerText = '0'; // Set discount to 0 when coupon is removed
-
-            // Update the value of the hidden input field
+            discountSpan.innerText = '0'; 
             appliedCouponCodeInput.value = '';
           }
         } else {
-          // Apply coupon logic
           const response = await fetch('/applyCoupon', {
             method: 'POST',
             headers: {
@@ -782,9 +778,8 @@
             applyCouponBtn.innerText = 'Remove';
             applyCouponBtn.dataset.applied = 'true';
             newTotalSpan.innerText = data.newTotal;
-            discountSpan.innerText = data.discount; // Set the discount value returned from server
+            discountSpan.innerText = data.discount; 
 
-            // Update the value of the hidden input field
             appliedCouponCodeInput.value = couponCode;
           }
           else {
