@@ -78,7 +78,7 @@
               </div>
               <div class="col-md-4">
                 <p>Product Name: <%= item.product.name %></p>
-                <p>Price: &#8377;<%= item.product.price %></p>
+                <p>Price: &#8377;<%= item.price %></p>
                 <p>Quantity: <%= item.quantity %></p>
               </div>
             </div>
@@ -124,9 +124,17 @@
         </div>
         <div class="card-footer border-0 px-4 py-4"
         style="background-color: #a8729a; border-bottom-left-radius: 10px; border-bottom-right-radius: 10px;">
-        <h5 class="d-flex align-items-center justify-content-end text-white text-uppercase mb-0">Total Amount:&#8377; <%= order.totalAmount%></h5>
-      </div>
-  
+        <h5 class="text-white text-uppercase mb-0">
+           
+            <% if (order.couponApplied) { %>
+                <div>Coupon Applied: <%= order.couponApplied %></div>
+                <div>Coupon Discount: &#8377; <%= order.discountAmount %></div>
+            <% } %>
+            
+            <div>Total Amount: &#8377; <%= order.totalAmount %></div>
+        </h5>
+    </div>
+    
       </div>
 
     </div>

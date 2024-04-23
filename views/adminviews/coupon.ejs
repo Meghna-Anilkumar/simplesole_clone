@@ -203,20 +203,50 @@
 
 <script>
     function validateCouponForm() {
-        const couponCodeInput = document.getElementById("couponCode");
-        const couponCodeError = document.getElementById("couponCodeError");
-        const couponCode = couponCodeInput.value.trim();
+    const couponCodeInput = document.getElementById("couponCode");
+    const discountRateInput = document.getElementById("discountRate");
+    const expiryDateInput = document.getElementById("expiryDate");
+    const couponCodeError = document.getElementById("couponCodeError");
+    const currentDate = new Date();
     
-        // Check if the coupon code contains whitespace characters
-        if (couponCode === "") {
-            couponCodeError.textContent = "Coupon code cannot be empty.";
-            return false; // Prevent form submission
-        } else if (couponCode.indexOf(" ") !== -1) {
-            couponCodeError.textContent = "Coupon code cannot contain spaces.";
-            return false; // Prevent form submission
-        }
-    
-        return true; // Allow form submission
+    // Set time of currentDate to midnight to ignore time component
+    currentDate.setHours(0, 0, 0, 0);
+
+    const couponCode = couponCodeInput.value.trim();
+    const discountRate = parseFloat(discountRateInput.value);
+    const expiryDate = new Date(expiryDateInput.value);
+
+    // Check if the coupon code contains whitespace characters
+    if (couponCode === "") {
+        couponCodeError.textContent = "Coupon code cannot be empty.";
+        return false; // Prevent form submission
+    } else if (couponCode.indexOf(" ") !== -1) {
+        couponCodeError.textContent = "Coupon code cannot contain spaces.";
+        return false; // Prevent form submission
     }
+
+    // Check if the discount rate is valid
+    if (discountRate > 100 || discountRate<1) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Oops...',
+            text: 'Discount rate should be between 1 and 100',
+        });
+        return false; // Prevent form submission
+    }
+
+    // Check if the expiry date is valid
+    if (expiryDate < currentDate) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Oops...',
+            text: 'Expiry date cannot be before current date.',
+        });
+        return false; // Prevent form submission
+    }
+
+    return true; // Allow form submission
+}
+
     </script>
     

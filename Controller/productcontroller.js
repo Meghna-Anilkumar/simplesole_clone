@@ -7,6 +7,8 @@ const Wishlist = require('../models/wishlist')
 const ProductOffer = require('../models/productoffermodel')
 const CategoryOffer = require('../models/categoryoffer')
 const Cart = require('../models/cartSchema');
+const {compressImages} = require('../utils/compress');
+
 
 
 module.exports = {
@@ -24,23 +26,43 @@ module.exports = {
   //get all products
   getproducts: async (req, res) => {
     try {
-      const product = await Product.find().populate({
-        path: 'category',
-        select: 'name',
-      }).exec();
+      const perPage = 10; // Number of products per page
+      let currentPage = parseInt(req.query.page) || 1; // Get the page from query parameters or default to 1
+  
+      const totalCount = await Product.countDocuments(); // Total count of products
+      const totalPages = Math.ceil(totalCount / perPage); // Calculate total pages
+  
+      // Calculate the number of products to skip
+      const skip = (currentPage - 1) * perPage;
+  
+      const products = await Product.find()
+        .populate({
+          path: 'category',
+          select: 'name',
+        })
+        .skip(skip)
+        .limit(perPage)
+        .exec();
+  
       res.render('adminviews/products', {
         title: 'Products',
-        product: product
+        product: products,
+        totalPages: totalPages,
+        currentPage: currentPage,
+        startIndex: skip + 1, // Pass the start index of current page to the view
       });
     } catch (err) {
       res.json({ message: err.message });
     }
   },
-
+  
+  
 
   //insert a new product into database
   addnewproduct: async (req, res) => {
     try {
+      await compressImages(req.files);
+
       const product = new Product({
         name: req.body.name,
         description: req.body.description,

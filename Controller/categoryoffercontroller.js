@@ -64,7 +64,7 @@ module.exports = {
 
             const categoryOfferId = req.params.id;
 
-            const categoryProducts = await Product.find({ category: categoryId });
+            const categoryProducts = await Product.find({ category: categoryId })
 
             for (const product of categoryProducts) {
                 const averageProductPrice = product.price;
@@ -81,7 +81,7 @@ module.exports = {
                 discountPercentage: discountPercentage,
                 startDate: startDate,
                 expiryDate: expiryDate
-            }, { new: true });
+            }, { new: true })
 
             res.redirect('/categoryoffer');
         } catch (error) {
@@ -96,14 +96,14 @@ module.exports = {
         const categoryOfferId = req.params.id;
 
         try {
-            const deletedCategoryOffer = await CategoryOffer.findByIdAndDelete(categoryOfferId);
+            const deletedCategoryOffer = await CategoryOffer.findByIdAndDelete(categoryOfferId)
 
             if (!deletedCategoryOffer) {
                 return res.status(404).json({ error: 'Category offer not found' });
             }
 
-            const categoryId = deletedCategoryOffer.category;
-            const categoryProducts = await Product.find({ category: categoryId });
+            const categoryId = deletedCategoryOffer.category
+            const categoryProducts = await Product.find({ category: categoryId })
 
             
             for (const product of categoryProducts) {

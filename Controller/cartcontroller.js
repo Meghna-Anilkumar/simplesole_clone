@@ -76,7 +76,13 @@ module.exports = {
         const categories = await Category.find();
         return res.render('userviews/productdetails', { error: 'Item already in the cart', title: 'Product details', category: categories });
       } else {
-        cart.items.push({ product: productId, quantity: parseInt(quantity) });
+        let price = product.price;
+            if (product.categoryofferprice) {
+                price = product.categoryofferprice;
+            } else if (product.productOffer) {
+                price = product.productOffer.newPrice;
+            }
+        cart.items.push({ product: productId, quantity: parseInt(quantity),price:price });
       }
 
       await cart.save();

@@ -147,24 +147,61 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0-alpha1/js/bootstrap.bundle.min.js"
     integrity="sha512-..." crossorigin="anonymous"></script>
 
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+
   <script>
     document.addEventListener('DOMContentLoaded', function () {
       const submitOfferBtn = document.getElementById('submitOfferBtn');
-      const offerDetailsContainer = document.getElementById('offerDetailsContainer');
-
+      const offerDetailsContainer = document.getElementById('offerDetails');
+  
       submitOfferBtn.addEventListener('click', async function () {
         const productDropdown = document.getElementById('productDropdown');
         const offerPercentage = document.getElementById('offerPercentage');
         const startDate = document.getElementById('startDate');
         const endDate = document.getElementById('endDate');
-
+  
+        // Validate offer percentage
+        const offerPercentageValue = parseInt(offerPercentage.value);
+        if (isNaN(offerPercentageValue) || offerPercentageValue < 1 || offerPercentageValue > 100) {
+          // Display SweetAlert for invalid offer percentage
+          Swal.fire({
+            icon: 'error',
+            title: 'Invalid Offer Percentage',
+            text: 'Percentage offer should be between 1 and 100'
+          });
+          return; // Stop further execution
+        }
+  
+        // Validate start date
+        if (startDate.value === "") {
+          // Display SweetAlert for missing start date
+          Swal.fire({
+            icon: 'error',
+            title: 'Missing Start Date',
+            text: 'Please select a start date'
+          });
+          return; // Stop further execution
+        }
+  
+        // Validate end date
+        if (endDate.value === "") {
+          // Display SweetAlert for missing end date
+          Swal.fire({
+            icon: 'error',
+            title: 'Missing End Date',
+            text: 'Please select an end date'
+          });
+          return; // Stop further execution
+        }
+  
         const formData = {
           productId: productDropdown.value,
           discountPercentage: offerPercentage.value,
           startDate: startDate.value,
           expiryDate: endDate.value
         };
-
+  
         try {
           const response = await fetch('/save-product-offer', {
             method: 'POST',
@@ -173,21 +210,25 @@
             },
             body: JSON.stringify(formData)
           });
-
+  
           if (response.ok) {
             const data = await response.json();
             console.log(data.message);
-
-            offerDetailsContainer.innerHTML = `
-          <div class="alert alert-success" role="alert">
-            Offer details:
-            Product ID: ${data.productId}<br>
-            Discount Percentage: ${data.discountPercentage}%<br>
-            Start Date: ${data.startDate}<br>
-            End Date: ${data.expiryDate}
-          </div>
-        `;
-
+  
+            offerDetailsContainer.innerHTML += `
+              <div class="offer-box">
+                <p>Product: ${data.product.name}</p>
+                <p>Discount Percentage: ${data.discountPercentage}%</p>
+                <p>Start Date: ${data.startDate}</p>
+                <p>Expiry Date: ${data.expiryDate}</p>
+                <button class="btn btn-primary edit-offer-btn" data-toggle="modal" data-target="#editOfferModal"
+                  data-offer-id="${data._id}" data-product-id="${data.product._id}"
+                  data-discount-percentage="${data.discountPercentage}" data-start-date="${data.startDate}"
+                  data-expiry-date="${data.expiryDate}">Edit</button>
+                <button class="btn btn-danger delete-offer-btn" data-offer-id="${data._id}">Delete</button>
+              </div>
+            `;
+  
             const modal = new bootstrap.Modal(document.getElementById('addProductOfferModal'));
             modal.hide();
           } else {
@@ -199,8 +240,8 @@
         window.location.reload();
       });
     });
-
   </script>
+  
 
 
 <script>
@@ -251,13 +292,47 @@
       const editStartDate = document.getElementById('editStartDate');
       const editEndDate = document.getElementById('editEndDate');
 
+      // Validate offer percentage
+      const offerPercentageValue = parseInt(editOfferPercentage.value);
+      if (isNaN(offerPercentageValue) || offerPercentageValue < 1 || offerPercentageValue > 100) {
+        // Display SweetAlert for invalid offer percentage
+        Swal.fire({
+          icon: 'error',
+          title: 'Invalid Offer Percentage',
+          text: 'Percentage offer should be between 1 and 100'
+        });
+        return; // Stop further execution
+      }
+
+      // Validate start date
+      if (editStartDate.value === "") {
+        // Display SweetAlert for missing start date
+        Swal.fire({
+          icon: 'error',
+          title: 'Missing Start Date',
+          text: 'Please select a start date'
+        });
+        return; // Stop further execution
+      }
+
+      // Validate end date
+      if (editEndDate.value === "") {
+        // Display SweetAlert for missing end date
+        Swal.fire({
+          icon: 'error',
+          title: 'Missing End Date',
+          text: 'Please select an end date'
+        });
+        return; // Stop further execution
+      }
+
       const formData = {
         offerId: editOfferId,
         productId: editProductDropdown.value,
         discountPercentage: editOfferPercentage.value,
         startDate: editStartDate.value,
         expiryDate: editEndDate.value
-      }
+      };
 
       try {
         const response = await fetch('/update-product-offer', {

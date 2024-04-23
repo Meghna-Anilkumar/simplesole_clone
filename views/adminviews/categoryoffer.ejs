@@ -138,64 +138,77 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0-alpha1/js/bootstrap.bundle.min.js" integrity="sha512-..." crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
 
 <script>
   document.addEventListener('DOMContentLoaded', function () {
-    const submitCategoryOfferBtn = document.getElementById('submitCategoryOfferBtn');
-    const categoryOfferDetailsContainer = document.getElementById('categoryOfferDetails');
+  const submitCategoryOfferBtn = document.getElementById('submitCategoryOfferBtn');
+  const categoryOfferDetailsContainer = document.getElementById('categoryOfferDetails');
 
-    submitCategoryOfferBtn.addEventListener('click', async function () {
-      const categoryDropdown = document.getElementById('categoryDropdown');
-      const discountPercentage = document.getElementById('discountPercentage');
-      const startDate = document.getElementById('startDate');
-      const expiryDate = document.getElementById('expiryDate');
+  submitCategoryOfferBtn.addEventListener('click', async function () {
+    const categoryDropdown = document.getElementById('categoryDropdown');
+    const discountPercentage = document.getElementById('discountPercentage');
+    const startDate = document.getElementById('startDate');
+    const expiryDate = document.getElementById('expiryDate');
 
-      const formData = {
-        categoryId: categoryDropdown.value,
-        discountPercentage: discountPercentage.value,
-        startDate: startDate.value,
-        expiryDate: expiryDate.value
-      }; 
+    // Validate discount percentage
+    const discountValue = parseInt(discountPercentage.value);
+    if (isNaN(discountValue) || discountValue < 1 || discountValue > 100) {
+      // Display SweetAlert for invalid discount percentage
+      Swal.fire({
+        icon: 'error',
+        title: 'Invalid Discount Percentage',
+        text: 'Percentage discount should be between 1 and 100'
+      });
+      return; // Stop further execution
+    }
 
-      try {
-        const response = await fetch('/save-category-offer', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(formData)
-        });
+    const formData = {
+      categoryId: categoryDropdown.value,
+      discountPercentage: discountPercentage.value,
+      startDate: startDate.value,
+      expiryDate: expiryDate.value
+    }; 
 
-        if (response.ok) {
-          const data = await response.json();
-          console.log(data.message);
+    try {
+      const response = await fetch('/save-category-offer', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(formData)
+      });
 
-          categoryOfferDetailsContainer.innerHTML += `
-            <div class="offer-box">
-              <p>Category: ${data.category.name}</p>
-              <p>Discount Percentage: ${data.discountPercentage}%</p>
-              <p>Start Date: ${data.startDate}</p>
-              <p>Expiry Date: ${data.expiryDate}</p>
-              <button class="btn btn-primary edit-category-offer-btn" data-toggle="modal" data-target="#editCategoryOfferModal"
-                data-category-offer-id="${data._id}" data-category-id="${data.category._id}"
-                data-discount-percentage="${data.discountPercentage}" data-start-date="${data.startDate}"
-                data-expiry-date="${data.expiryDate}">Edit</button>
-              <button class="btn btn-danger delete-category-offer-btn" data-category-offer-id="${data._id}">Delete</button>
-            </div>
-          `;
-          
-          const modal = new bootstrap.Modal(document.getElementById('addCategoryOfferModal'));
-          modal.hide();
-        } else {
-          console.error('Failed to save category offer');
-        }
-      } catch (error) {
-        console.error('Error:', error);
+      if (response.ok) {
+        const data = await response.json();
+        console.log(data.message);
+
+        categoryOfferDetailsContainer.innerHTML += `
+          <div class="offer-box">
+            <p>Category: ${data.category.name}</p>
+            <p>Discount Percentage: ${data.discountPercentage}%</p>
+            <p>Start Date: ${data.startDate}</p>
+            <p>Expiry Date: ${data.expiryDate}</p>
+            <button class="btn btn-primary edit-category-offer-btn" data-toggle="modal" data-target="#editCategoryOfferModal"
+              data-category-offer-id="${data._id}" data-category-id="${data.category._id}"
+              data-discount-percentage="${data.discountPercentage}" data-start-date="${data.startDate}"
+              data-expiry-date="${data.expiryDate}">Edit</button>
+            <button class="btn btn-danger delete-category-offer-btn" data-category-offer-id="${data._id}">Delete</button>
+          </div>
+        `;
+        
+        const modal = new bootstrap.Modal(document.getElementById('addCategoryOfferModal'));
+        modal.hide();
+      } else {
+        console.error('Failed to save category offer');
       }
-      window.location.reload(); 
-    })
+    } catch (error) {
+      console.error('Error:', error);
+    }
+    window.location.reload(); 
   })
-
+})
 </script>
 
 
@@ -239,6 +252,40 @@
       const editStartDate = document.getElementById('editStartDate');
       const editExpiryDate = document.getElementById('editExpiryDate');
 
+      // Validate discount percentage
+      const discountValue = parseInt(editDiscountPercentage.value);
+      if (isNaN(discountValue) || discountValue < 1 || discountValue > 100) {
+        // Display SweetAlert for invalid discount percentage
+        Swal.fire({
+          icon: 'error',
+          title: 'Invalid Discount Percentage',
+          text: 'Percentage discount should be between 1 and 100'
+        });
+        return; // Stop further execution
+      }
+
+      // Validate start date
+      if (editStartDate.value === "") {
+        // Display SweetAlert for missing start date
+        Swal.fire({
+          icon: 'error',
+          title: 'Missing Start Date',
+          text: 'Please select a start date'
+        });
+        return; // Stop further execution
+      }
+
+      // Validate expiry date
+      if (editExpiryDate.value === "") {
+        // Display SweetAlert for missing expiry date
+        Swal.fire({
+          icon: 'error',
+          title: 'Missing Expiry Date',
+          text: 'Please select an expiry date'
+        });
+        return; // Stop further execution
+      }
+
       const formData = {
         categoryId: editCategoryDropdown.value,
         discountPercentage: editDiscountPercentage.value,
@@ -268,6 +315,7 @@
     });
   });
 </script>
+
 
 <script>
   document.addEventListener('DOMContentLoaded', function () {

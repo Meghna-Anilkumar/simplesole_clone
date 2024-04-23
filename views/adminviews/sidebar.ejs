@@ -53,6 +53,11 @@
       width: 100%;
       height: 90px;
     }
+
+    .sidebar a.active {
+  background-color: #495057;
+  color: #ffffff;
+}
   </style>
 </head>
 
@@ -63,15 +68,15 @@
       <img src="/images/SIMPLESOLE.png" alt="Logo">
     </div>
     <br>
-    <a href="/dashboard">Dashboard</a>
-    <a href="/products">Products</a>
-    <a href="/categories">Categories</a>
-    <a href="/adminorders">Orders</a>
-    <a href="/customers">Customers</a>
-    <a href="/coupon">Coupons</a>
-    <!-- <a href="/bestsellers">Bestsellers</a> -->
-    <a href="/productoffer">Product Offer</a>
-    <a href="/categoryoffer">Category Offer</a>
+    <a href="/dashboard" class="<%= title === 'Dashboard' ? 'active' : '' %>">Dashboard</a>
+    <a href="/products" class="<%= title === 'Products' ? 'active' : '' %>">Products</a>
+    <a href="/categories" class="<%= title === 'Categories' ? 'active' : '' %>">Categories</a>
+    <a href="/adminorders" class="<%= title === 'Orders' ? 'active' : '' %>">Orders</a>
+    <a href="/customers" class="<%= title === 'Customers' ? 'active' : '' %>">Customers</a>
+    <a href="/coupon" class="<%= title === 'Coupons' ? 'active' : '' %>">Coupons</a>
+    <a href="/productoffer" class="<%= title === 'Product Offer' ? 'active' : '' %>">Product Offer</a>
+    <a href="/categoryoffer" class="<%= title === 'Category Offer' ? 'active' : '' %>">Category Offer</a>
+    <!-- <a href="/returnrequests" class="<%= title === 'Return requests' ? 'active' : '' %>">Return requests</a> -->
     <a href="/adminlogout">Logout</a>
    
 

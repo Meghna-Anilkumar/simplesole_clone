@@ -295,7 +295,7 @@ module.exports = {
 
       const regex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*()_+{}\[\]:;<>,.?~\\-]).{8,}$/;
       if (!regex.test(newPassword)) {
-        return res.status(400).json({ error: 'Invalid new password format' });
+        return res.status(400).json({ error: 'Password should contain atleast 8 characters,an uppercase letter,a lowercase letter and a special character' });
       }
 
       user.password = newPassword;

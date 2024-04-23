@@ -60,11 +60,11 @@
           <label class="col-md-4 control-label" for="product_categorie">CATEGORY</label>
           <div class="col-md-4">
             <select id="product_categorie" name="category" class="form-control">
-              <% category.forEach(cat=> { %>
-                <option value="<%= cat._id %>">
+              <% category.forEach(cat => { %>
+                <option value="<%= cat._id %>" <% if (product.category.equals(cat._id)) { %>selected<% } %>>
                   <%= cat.name %>
                 </option>
-                <% }); %>
+              <% }); %>
             </select>
           </div>
         </div>

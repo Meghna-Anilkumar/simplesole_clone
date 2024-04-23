@@ -104,9 +104,10 @@
 
 
         <div class="form-group">
-          <label class="col-md-4 control-label" for="filebutton">images</label>
+          <label class="col-md-4 control-label" for="filebutton">IMAGES</label>
           <div class="col-md-4">
-            <input id="filebutton" name="images" class="input-file" type="file" multiple onchange="previewImages(this)">
+            <input id="filebutton" name="images" class="input-file" type="file" multiple 
+            accept="image/*" onchange="previewImages(this)">
           </div>
         </div>
         <div class="image-preview" id="imagePreview"></div>
@@ -121,6 +122,7 @@
         </fieldset>
       </form>
     </div>
+
 
     <script>
       function previewImages(input) {
@@ -160,68 +162,89 @@
       }
     </script>
 
-    <script>
-      document.getElementById('singlebutton').addEventListener('click', function (event) {
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-        var nameInput = document.getElementById('product_name');
-        if (!validateName(nameInput.value)) {
-          alert('Please enter a valid name.');
-          event.preventDefault();
-          return;
-        }
+<script>
+  document.getElementById('singlebutton').addEventListener('click', function (event) {
 
-
-        var priceInput = document.getElementById('price');
-        if (!validatePrice(priceInput.value)) {
-          alert('Please enter a valid price.');
-          event.preventDefault();
-          return;
-        }
-
-
-        var stockInput = document.getElementById('stock');
-        if (!validateStock(stockInput.value)) {
-          alert('Please enter a valid stock.');
-          event.preventDefault();
-          return;
-        }
-
-
-        var sizeInput = document.getElementById('size');
-        if (!validateSize(sizeInput.value)) {
-          alert('Please enter a valid size.');
-          event.preventDefault();
-          return;
-        }
+    var nameInput = document.getElementById('product_name');
+    if (!validateName(nameInput.value)) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Invalid input',
+        text: 'Please enter a valid name.'
       });
+      event.preventDefault();
+      return;
+    }
 
-      function validateName(name) {
+    var priceInput = document.getElementById('price');
+    if (!validatePrice(priceInput.value)) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Invalid input',
+        text: 'Please enter a valid price.'
+      });
+      event.preventDefault();
+      return;
+    }
 
-        if (name.trim() === "") {
-          return false;
-        }
-        return true;
-      }
+    var stockInput = document.getElementById('stock');
+    if (!validateStock(stockInput.value)) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Invalid input',
+        text: 'Please enter a valid stock.'
+      });
+      event.preventDefault();
+      return;
+    }
 
-      function validatePrice(price) {
+    var sizeInput = document.getElementById('size');
+    if (!validateSize(sizeInput.value)) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Invalid input',
+        text: 'Please enter a valid size.'
+      });
+      event.preventDefault();
+      return;
+    }
 
-        var numericPrice = parseFloat(price);
-        return !isNaN(numericPrice) && numericPrice > 0;
-      }
+    var imageInput = document.getElementById('filebutton');
+    if (!validateImage(imageInput)) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Invalid input',
+        text: 'Please select at least one image.'
+      });
+      event.preventDefault();
+      return;
+    }
+  });
 
-      function validateStock(stock) {
+  function validateName(name) {
+    return name.trim() !== "";
+  }
 
-        var numericStock = parseInt(stock, 10);
-        return !isNaN(numericStock) && numericStock >= 0 && Number.isInteger(numericStock);
-      }
+  function validatePrice(price) {
+    var numericPrice = parseFloat(price);
+    return !isNaN(numericPrice) && numericPrice > 0;
+  }
 
-      function validateSize(size) {
+  function validateStock(stock) {
+    var numericStock = parseInt(stock, 10);
+    return !isNaN(numericStock) && numericStock >= 0 && Number.isInteger(numericStock);
+  }
 
-        return true;
-      }
+  function validateSize(size) {
+    return true;
+  }
 
-    </script>
-
+  function validateImage(input) {
+    return input.files.length > 0;
+  }
+</script>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
   </body>

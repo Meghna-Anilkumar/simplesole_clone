@@ -53,6 +53,7 @@ module.exports = {
         totalAmount: cart.newTotal || cart.total,
         paymentMethod,
         discountAmount: req.session.discount || 0,
+        couponApplied:req.body.appliedCouponCode
       });
 
     
@@ -105,6 +106,8 @@ module.exports = {
           totalAmount: cart.newTotal || cart.total,
           paymentMethod,
           discountAmount: req.session.discount || 0,
+          couponApplied:req.body.appliedCouponCode
+
         });
 
         await Promise.all(
@@ -142,6 +145,7 @@ module.exports = {
       const user = req.session.user;
       const cart = await Cart.findOne({ user }).populate('items.product').exec();
 
+      
       if (paymentMethod === 'RAZORPAY') {
         console.log('hiiiiiii');
         const amountInPaise = Math.round(cart.newTotal || cart.total * 100);
@@ -168,6 +172,7 @@ module.exports = {
             paymentStatus: 'paid',
             razorpayOrderId: razorpayOrder.id,
             discountAmount: req.session.discount || 0,
+            couponApplied:req.body.appliedCouponCode
           })
 
           await newOrder.save()
@@ -194,18 +199,39 @@ module.exports = {
   myorders: async (req, res) => {
     try {
       const user = req.session.user;
-      const orders = await Order.find({ user }).populate('items.product').exec();
-
+      const page = parseInt(req.query.page) || 1; // Default page is 1
+      const perPage = 5; // Number of orders per page
+      const skip = (page - 1) * perPage;
+  
+      const orders = await Order.find({ user })
+        .populate('items.product')
+        .sort({ orderdate: -1 }) // Sort by order date, latest first
+        .skip(skip)
+        .limit(perPage)
+        .exec();
+  
+      // Additional code to count total number of orders for pagination
+      const totalOrders = await Order.countDocuments({ user });
+  
       const categories = await Category.find();
       const wishlist = await Wishlist.findOne({ user: user }).populate('items.product');
       const cart = await Cart.findOne({ user: user }).populate('items.product').exec();
-
-      res.render('userviews/myorders', { title: 'My Orders', orders, category: categories, wishlist, cart });
+  
+      res.render('userviews/myorders', { 
+        title: 'My Orders', 
+        orders, 
+        category: categories, 
+        wishlist, 
+        cart,
+        currentPage: page,
+        totalPages: Math.ceil(totalOrders / perPage)
+      });
     } catch (error) {
       console.error(error);
       res.status(500).json({ error: 'Internal Server Error' });
     }
   },
+
 
   //orderdetails
   orderdetails: async (req, res) => {
@@ -379,9 +405,9 @@ module.exports = {
   returnorder: async (req, res) => {
     const { orderId } = req.params;
     const { returnReason } = req.body;
-    console.log('Received return request for order:', orderId);
+    console.log('Received return request for order:', orderId)
     try {
-      console.log('Attempting to find order in the database');
+      console.log('Attempting to find order in the database')
       const order = await Order.findById(orderId);
 
       if (!order) {
@@ -390,14 +416,13 @@ module.exports = {
       }
 
       if (order.orderStatus === 'DELIVERED') {
-
         await Promise.all(order.items.map(async (item) => {
           const product = await Product.findById(item.product._id);
           if (product) {
             product.returnedQuantity += item.quantity;
             await product.save();
           }
-        }));
+        }))
 
         const userWallet = await Wallet.findOne({ user: order.user });
         if (userWallet) {
@@ -410,13 +435,13 @@ module.exports = {
         order.returnReason = returnReason || '';
         await order.save();
 
-        return res.json({ message: 'Order returned successfully' });
+        return res.json({ message: 'Order returned successfully' })
       } else {
-        return res.status(400).json({ error: 'Order cannot be returned because it is not delivered yet' });
+        return res.status(400).json({ error: 'Order cannot be returned because it is not delivered yet' })
       }
     } catch (error) {
-      console.error(error);
-      res.status(500).json({ error: 'Internal server error' });
+      console.error(error)
+      res.status(500).json({ error: 'Internal server error' })
     }
   },
 
@@ -431,31 +456,27 @@ module.exports = {
             return res.status(404).send('Order not found');
         }
 
-        // Create a new PDF document
         const doc = new PDFDocument({ margin: 25 });
 
-        // Set response headers for file download
         const fileName = `invoice_${orderId}.pdf`;
         res.setHeader('Content-disposition', `attachment; filename=${fileName}`);
         res.setHeader('Content-type', 'application/pdf');
 
         doc.pipe(res);
 
-        // Add invoice details to the PDF
         doc.fontSize(18).text(`Invoice for Order ID: ${order.orderId}`, { align: 'center' }).moveDown();
         doc.fontSize(12).text(`Status: ${order.orderStatus}`).moveDown();
 
-        // Add table headers
         doc.font('Helvetica-Bold').text('Product', 100, 200).text('Quantity', 250, 200).text('Price', 350, 200).text('Total', 450, 200);
 
-        // Add table rows
-        let y = 230; // Initial y-coordinate for the first row
+       
+        let y = 230; 
         order.items.forEach(item => {
             doc.font('Helvetica').text(item.product.name, 100, y)
                 .text(item.quantity.toString(), 250, y)
                 .text(`₹${item.product.price}`, 350, y)
                 .text(`₹${order.totalAmount}`, 450, y);
-            y += 20; // Move to the next row
+            y += 20; 
         });
 
     

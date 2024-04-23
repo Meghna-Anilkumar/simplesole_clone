@@ -37,7 +37,7 @@
               <% product .forEach((row,index)=> { %>
                 <tr class="align-middle">
                   <td>
-                    <%=index+1 %>
+                    <%= startIndex + index %>
                   </td>
                   <td><img src="<%=row.images.length > 0 ? row.images[0] : '' %>" width="50" class="img-thumbnail"></td>
                   <td>
@@ -75,6 +75,24 @@
               <h1 class="text-center text-secondary mt-5">No products found</h1>
               <% } %>
     </form>
+
+    <!-- Pagination -->
+<nav aria-label="Page navigation">
+  <ul class="pagination justify-content-center">
+    <% if(currentPage > 1) { %>
+      <li class="page-item"><a class="page-link" href="?page=<%= currentPage - 1 %>">Previous</a></li>
+    <% } %>
+    
+    <% for(let i = 1; i <= totalPages; i++) { %>
+      <li class="page-item <%= i === currentPage ? 'active' : '' %>"><a class="page-link" href="?page=<%= i %>"><%= i %></a></li>
+    <% } %>
+
+    <% if(currentPage < totalPages) { %>
+      <li class="page-item"><a class="page-link" href="?page=<%= currentPage + 1 %>">Next</a></li>
+    <% } %>
+  </ul>
+</nav>
+
   </div>
 
   </div>
