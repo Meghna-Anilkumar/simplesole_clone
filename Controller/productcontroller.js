@@ -26,25 +26,46 @@ module.exports = {
   //get all products
   getproducts: async (req, res) => {
     try {
-      const product = await Product.find().populate({
-        path: 'category',
-        select: 'name',
-      }).exec();
+      const page = parseInt(req.query.page) || 1;
+      const pageSize = parseInt(req.query.pageSize) || 10; // Default page size
+      const skip = (page - 1) * pageSize;
+  
+      const product = await Product.find()
+        .populate({
+          path: 'category',
+          select: 'name',
+        })
+        .skip(skip)
+        .limit(pageSize)
+        .exec();
+  
+      const totalProducts = await Product.countDocuments();
+  
       res.render('adminviews/products', {
         title: 'Products',
-        product: product
+        product: product,
+        currentPage: page,
+        pageSize: pageSize,
+        totalProducts: totalProducts,
+        nextPage: page + 1, // Calculate the next page index
       });
     } catch (err) {
       res.json({ message: err.message });
     }
   },
   
+  
 
   //insert a new product into database
   addnewproduct: async (req, res) => {
     try {
+      // Check if files were uploaded
+      if (!req.files || req.files.length === 0) {
+        throw new Error("Please upload at least one image.");
+      }
+  
       await compressImages(req.files);
-
+  
       const product = new Product({
         name: req.body.name,
         description: req.body.description,
@@ -54,19 +75,22 @@ module.exports = {
         size: req.body.size,
         color: req.body.color,
         images: req.files.map(file => file.filename)
-      })
-      await product.save()
+      });
+  
+      await product.save();
+  
       req.session.message = {
         type: 'success',
         message: 'Product added successfully'
       };
-
+  
       res.redirect('/products');
     } catch (error) {
       console.error(error);
       res.json({ message: error.message, type: 'danger' });
     }
   },
+  
 
   //edit a product
   editproduct: async (req, res) => {

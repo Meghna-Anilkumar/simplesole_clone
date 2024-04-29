@@ -1,22 +1,21 @@
 const mongoose = require('mongoose');
 
-const walletSchema = new mongoose.Schema({
+const wallethistorySchema = new mongoose.Schema({
     user: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User', 
         required: true,
         unique: true,
     },
-    balance: {
-        type: Number,
-        default: 0,
-    },
     transactiontype:{
         type:String,
         default:'CREDIT'
     },
+    amount:{
+        type:Number,
+    }
 });
 
-const Wallet = mongoose.model('Wallet', walletSchema);
+const Wallethistory = mongoose.model('Wallethistory', wallethistorySchema);
 
-module.exports = Wallet;
+module.exports = Wallethistory;

@@ -29,6 +29,13 @@ module.exports = {
             if (isNaN(minimumPurchaseAmount)) {
                 throw new Error('Invalid minPurchaseAmount');
             }
+    
+            // Check if a coupon with the same code already exists
+            const existingCoupon = await Coupon.findOne({ couponCode });
+            if (existingCoupon) {
+                throw new Error('Coupon with the same code already exists');
+            }
+    
             const newCoupon = new Coupon({
                 couponCode,
                 discountRate,
@@ -47,7 +54,7 @@ module.exports = {
             res.status(500).send('Error creating coupon');
         }
     },
-
+    
 
     //to display all coupons in the coupon page
     getCoupons: async (req, res) => {

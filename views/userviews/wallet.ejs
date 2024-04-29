@@ -63,31 +63,39 @@
     <div class="wallet-container">
         <h2 style="color: rgb(255, 63, 108);">My Wallet</h2>
         <div class="wallet-balance">
-            <h2><i class="fas fa-wallet"></i>Wallet Balance: ₹ <%= walletBalance %></h2>
+            <h2><i class="fas fa-wallet"></i> Wallet Balance: ₹ <%= walletBalance %></h2>
         </div>
+        
+        <h2 style="color: rgb(255, 63, 108);">Wallet History</h2>
+        <% if (walletHistory.length > 0) { %>
+            <div class="transaction-details">
+                <% walletHistory.forEach(transaction => { %>
+                    <div class="transaction-box">
+                        <div class="transaction-row">
+                            <div class="label">Type:</div>
+                            <div class="value"><%= transaction.transactiontype %></div>
+                        </div>
+                        <div class="transaction-row">
+                            <div class="label">Amount:</div>
+                            <div class="value"><%= transaction.amount %></div>
+                        </div>
+                        <div class="transaction-row">
+                            <!-- <div class="label">Date:</div> -->
+                            <!-- <div class="value">
+                                <% if (transaction.createdAt) { %>
+                                    <%= transaction.createdAt.toDateString() %>
+                                <% } else { %>
+                                    N/A
+                                <% } %>
+                            </div> -->
+                        </div>
+                    </div>
+                <% }); %>
+            </div>
+        <% } else { %>
+            <p>No wallet history available.</p>
+        <% } %>
     </div>
-
-    <!-- <div class="transaction-details">
-        <h2>Transaction Details</h2>
-        <div class="transaction-box">
-            <div class="transaction-row">
-                <div class="label">Type:</div>
-                <div class="value"><%=wallet.transactiontype %></div>
-            </div>
-            <div class="transaction-row">
-                <div class="label">Amount:</div>
-                <div class="value"> </div>
-            </div>
-            <div class="transaction-row">
-                <div class="label">Date:</div>
-                <div class="value"> </div>
-            </div>
-            <div class="transaction-row">
-                <div class="label">From:</div>
-                <div class="value"> </div>
-            </div>
-        </div>
-    </div> -->
 </main>
 
-<%-include('./footer')%>
+<%- include('./footer') %>

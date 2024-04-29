@@ -108,7 +108,7 @@ module.exports = {
             
             for (const product of categoryProducts) {
                 await Product.findByIdAndUpdate(product._id, {
-                    categoryofferprice: product.price 
+                    categoryofferprice:0
                 });
             }
 

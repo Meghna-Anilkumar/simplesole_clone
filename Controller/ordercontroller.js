@@ -17,7 +17,7 @@ const PDFDocument = require('pdfkit');
 const ejs = require('ejs');
 const Wishlist = require('../models/wishlist')
 const puppeteer = require('puppeteer');
-
+const Wallethistory = require('../models/wallethistory')
 
 
 //Razorpay instance
@@ -43,7 +43,7 @@ module.exports = {
       if (appliedCouponCode) {
         user.usedCoupons.push(appliedCouponCode);
         await user.save();
-    }
+      }
 
 
       const newOrder = new Order({
@@ -53,10 +53,10 @@ module.exports = {
         totalAmount: cart.newTotal || cart.total,
         paymentMethod,
         discountAmount: req.session.discount || 0,
-        couponApplied:req.body.appliedCouponCode
+        couponApplied: req.body.appliedCouponCode
       });
 
-    
+
       await Promise.all(
         cart.items.map(async (item) => {
           const product = await Product.findById(item.product._id);
@@ -84,20 +84,20 @@ module.exports = {
           const categories = await Category.find();
           const addresses = await Address.find({ user: user });
           const cart = await Cart.findOne({ user }).populate('items.product').exec();
-          const wishlist = await Wishlist.findOne({ user}).populate('items.product');
-  
-          return res.render('userviews/checkout', { title: 'checkout page',wishlist, category: categories, cart, addresses: addresses, order, error: 'Insufficient balance in the wallet' });
+          const wishlist = await Wishlist.findOne({ user }).populate('items.product');
+
+          return res.render('userviews/checkout', { title: 'checkout page', wishlist, category: categories, cart, addresses: addresses, order, error: 'Insufficient balance in the wallet' });
         }
 
         console.log(appliedCouponCode, 'lllllllllll')
 
         console.log(user, 'pppppp')
-  
+
         if (appliedCouponCode) {
           user.usedCoupons.push(appliedCouponCode);
           await user.save();
-      }
-  
+        }
+
 
         const newOrder = new Order({
           user: req.session.user,
@@ -106,7 +106,7 @@ module.exports = {
           totalAmount: cart.newTotal || cart.total,
           paymentMethod,
           discountAmount: req.session.discount || 0,
-          couponApplied:req.body.appliedCouponCode
+          couponApplied: req.body.appliedCouponCode
 
         });
 
@@ -145,7 +145,7 @@ module.exports = {
       const user = req.session.user
       const cart = await Cart.findOne({ user }).populate('items.product').exec();
 
-      
+
       if (paymentMethod === 'RAZORPAY') {
         console.log('hiiiiiii');
         const amountInPaise = Math.round(cart.newTotal || cart.total * 100);
@@ -162,8 +162,8 @@ module.exports = {
             return res.status(500).json({ error: 'Razorpay order creation failed' });
           }
           console.log('Razorpay order created successfully')
-          console.log(req.session.discount,'kkkkkkkk')
-          console.log(couponCode,'yyyyyyyy')
+          console.log(req.session.discount, 'kkkkkkkk')
+          console.log(couponCode, 'yyyyyyyy')
 
           const newOrder = new Order({
             user: user,
@@ -174,7 +174,7 @@ module.exports = {
             paymentStatus: 'paid',
             razorpayOrderId: razorpayOrder.id,
             discountAmount: req.session.discount || 0,
-            couponApplied:req.body.appliedCouponCode
+            couponApplied: req.body.appliedCouponCode
           })
 
           await newOrder.save()
@@ -233,7 +233,7 @@ module.exports = {
       }
 
       const categories = await Category.find();
-      res.render('userviews/orderdetails', { title: 'My Orders', order, category: categories ,wishlist,cart})
+      res.render('userviews/orderdetails', { title: 'My Orders', order, category: categories, wishlist, cart })
     } catch (error) {
       console.error(error)
       res.status(500).json({ error: 'Internal Server Error' })
@@ -264,12 +264,20 @@ module.exports = {
         }));
 
         if (order.paymentMethod === 'Online Payment' || order.paymentMethod === 'Wallet' || order.paymentMethod === 'RAZORPAY') {
-
           const userWallet = await Wallet.findOne({ user: order.user });
           if (userWallet) {
             userWallet.balance += order.totalAmount;
-            transactiontype = 'CREDIT'
+            transactiontype = 'CREDIT';
             await userWallet.save();
+
+            const newWalletHistory = new Wallethistory({
+              user: order.user,
+              transactiontype: 'CREDIT',
+              amount: order.totalAmount
+            });
+
+            // Save the new wallet history entry
+            await newWalletHistory.save();
           }
         }
 
@@ -363,7 +371,10 @@ module.exports = {
 
       const categories = await Category.find();
       const walletBalance = wallet.balance;
-      const transactiontype = wallet.transactiontype;
+
+      // Fetch wallet history for the user
+      const walletHistory = await Wallethistory.find({ user: user }).sort({ createdAt: -1 });
+
       const wishlist = await Wishlist.findOne({ user: user }).populate('items.product');
       const cart = await Cart.findOne({ user: user }).populate('items.product').exec();
 
@@ -373,15 +384,15 @@ module.exports = {
         category: categories,
         user,
         walletBalance,
-        transactiontype,
-        wishlist, cart
+        walletHistory, // Pass walletHistory to the template
+        wishlist,
+        cart
       });
     } catch (error) {
       console.error('Error fetching wallet balance:', error);
       return res.status(500).send('Internal Server Error');
     }
   },
-
 
   //return order
   returnorder: async (req, res) => {
@@ -408,7 +419,7 @@ module.exports = {
 
         const userWallet = await Wallet.findOne({ user: order.user });
         if (userWallet) {
-          userWallet.balance -= order.totalAmount;
+          userWallet.balance += order.totalAmount;
           transactiontype = 'CREDIT'
           await userWallet.save();
         }
@@ -430,54 +441,54 @@ module.exports = {
 
   downloadinvoice: async (req, res) => {
     try {
-        const orderId = req.params.orderId;
-        const user = req.session.user;
+      const orderId = req.params.orderId;
+      const user = req.session.user;
 
-        const order = await Order.findById(orderId).populate('items.product').populate('shippingAddress');
-        if (!order) {
-            return res.status(404).send('Order not found');
-        }
+      const order = await Order.findById(orderId).populate('items.product').populate('shippingAddress');
+      if (!order) {
+        return res.status(404).send('Order not found');
+      }
 
-        const doc = new PDFDocument({ margin: 25 });
+      const doc = new PDFDocument({ margin: 25 });
 
-        const fileName = `invoice_${orderId}.pdf`;
-        res.setHeader('Content-disposition', `attachment; filename=${fileName}`);
-        res.setHeader('Content-type', 'application/pdf');
+      const fileName = `invoice_${orderId}.pdf`;
+      res.setHeader('Content-disposition', `attachment; filename=${fileName}`);
+      res.setHeader('Content-type', 'application/pdf');
 
-        doc.pipe(res);
+      doc.pipe(res);
 
-        doc.fontSize(18).text(`Invoice for Order ID: ${order.orderId}`, { align: 'center' }).moveDown();
-        doc.fontSize(12).text(`Status: ${order.orderStatus}`).moveDown();
+      doc.fontSize(18).text(`Invoice for Order ID: ${order.orderId}`, { align: 'center' }).moveDown();
+      doc.fontSize(12).text(`Status: ${order.orderStatus}`).moveDown();
 
-        doc.font('Helvetica-Bold').text('Product', 100, 200).text('Quantity', 250, 200).text('Price', 350, 200).text('Total', 450, 200);
+      doc.font('Helvetica-Bold').text('Product', 100, 200).text('Quantity', 250, 200).text('Price', 350, 200).text('Total', 450, 200);
 
-       
-        let y = 230; 
-        order.items.forEach(item => {
-            doc.font('Helvetica').text(item.product.name, 100, y)
-                .text(item.quantity.toString(), 250, y)
-                .text(`₹${item.product.price}`, 350, y)
-                .text(`₹${order.totalAmount}`, 450, y);
-            y += 20; 
-        });
 
-    
-        doc.text(`User Name: ${user.name}`).moveDown();
-        doc.text(`Shipped Address: ${order.shippingAddress.buildingname}, ${order.shippingAddress.street}, ${order.shippingAddress.city}, ${order.shippingAddress.state}, ${order.shippingAddress.pincode}`).moveDown();
-        doc.text(`Ordered Date: ${order.orderdate.toDateString()}`).moveDown();
+      let y = 230;
+      order.items.forEach(item => {
+        doc.font('Helvetica').text(item.product.name, 100, y)
+          .text(item.quantity.toString(), 250, y)
+          .text(`₹${item.product.price}`, 350, y)
+          .text(`₹${order.totalAmount}`, 450, y);
+        y += 20;
+      });
 
-        doc.text(`Subtotal: ₹${order.totalAmount}`).moveDown();
 
-        doc.fontSize(16).text('Thank you for Shopping!', { align: 'center' }).moveDown();
+      doc.text(`User Name: ${user.name}`).moveDown();
+      doc.text(`Shipped Address: ${order.shippingAddress.buildingname}, ${order.shippingAddress.street}, ${order.shippingAddress.city}, ${order.shippingAddress.state}, ${order.shippingAddress.pincode}`).moveDown();
+      doc.text(`Ordered Date: ${order.orderdate.toDateString()}`).moveDown();
 
-     
-        doc.end();
+      doc.text(`Subtotal: ₹${order.totalAmount}`).moveDown();
+
+      doc.fontSize(16).text('Thank you for Shopping!', { align: 'center' }).moveDown();
+
+
+      doc.end();
 
     } catch (error) {
-        console.error('Error generating PDF:', error);
-        res.status(500).send('Internal Server Error');
+      console.error('Error generating PDF:', error);
+      res.status(500).send('Internal Server Error');
     }
-}
+  }
 
 }
 
