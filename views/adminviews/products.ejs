@@ -34,7 +34,7 @@
           <% product.forEach((row,index)=> { %>
             <tr class="align-middle">
               <td>
-                <%= (currentPage - 1) * pageSize + index + 1 %>
+                <%= (page - 1) * pageSize + index + 1 %>
               </td>
               <td><img src="<%=row.images.length > 0 ? row.images[0] : '' %>" width="50" class="img-thumbnail"></td>
               <td>
@@ -75,13 +75,13 @@
           <% const totalPages = Math.ceil(totalProducts / pageSize); %>
           <% if (totalPages > 1) { %>
             <% for (let i = 1; i <= totalPages; i++) { %>
-              <li class="page-item <%= currentPage === i ? 'active' : '' %>">
+              <li class="page-item <%= page === i ? 'active' : '' %>">
                 <a class="page-link" href="/products?page=<%= i %>&pageSize=<%= pageSize %>">
                   <%= i %>
                 </a>
               </li>
             <% } %>
-            <% if (currentPage < totalPages) { %>
+            <% if (page < totalPages) { %>
               <li class="page-item">
                 <a class="page-link" href="/products?page=<%= nextPage %>&pageSize=<%= pageSize %>">
                   Next

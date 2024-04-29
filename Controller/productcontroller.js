@@ -47,7 +47,7 @@ module.exports = {
       res.render('adminviews/products', {
         title: 'Products',
         product: product,
-        currentPage: page,
+        page: page,
         pageSize: pageSize,
         totalProducts: totalProducts,
         nextPage: nextPage, // Pass nextPage to the template
