@@ -7,7 +7,7 @@ const Wishlist = require('../models/wishlist')
 const ProductOffer = require('../models/productoffermodel')
 const CategoryOffer = require('../models/categoryoffer')
 const Cart = require('../models/cartSchema');
-const { compressImages } = require('../utils/compress');
+const {compressImages} = require('../utils/compress');
 
 
 
@@ -26,49 +26,29 @@ module.exports = {
   //get all products
   getproducts: async (req, res) => {
     try {
-      const page = parseInt(req.query.page) || 1;
-      const pageSize = parseInt(req.query.pageSize) || 10; // Default page size
-      const skip = (page - 1) * pageSize;
-
-      const product = await Product.find()
-        .populate({
-          path: 'category',
-          select: 'name',
-        })
-        .skip(skip)
-        .limit(pageSize)
-        .exec();
-
-      const totalProducts = await Product.countDocuments();
-
-      // Calculate the next page index
-      const nextPage = page + 1;
-
+      const product = await Product.find().populate({
+        path: 'category',
+        select: 'name',
+      }).exec();
       res.render('adminviews/products', {
         title: 'Products',
-        product: product,
-        page: page,
-        pageSize: pageSize,
-        totalProducts: totalProducts,
-        nextPage: nextPage, // Pass nextPage to the template
+        product: product
       });
     } catch (err) {
       res.json({ message: err.message });
     }
   },
-
-
+  
 
   //insert a new product into database
   addnewproduct: async (req, res) => {
     try {
-      // Check if files were uploaded
       if (!req.files || req.files.length === 0) {
         throw new Error("Please upload at least one image.");
       }
-
+  
       await compressImages(req.files);
-
+  
       const product = new Product({
         name: req.body.name,
         description: req.body.description,
@@ -79,22 +59,21 @@ module.exports = {
         color: req.body.color,
         images: req.files.map(file => file.filename)
       });
-
+  
       await product.save();
-
+  
       req.session.message = {
         type: 'success',
         message: 'Product added successfully'
       };
-
+  
       res.redirect('/products');
     } catch (error) {
       console.error(error);
       res.json({ message: error.message, type: 'danger' });
     }
   },
-
-
+  
   //edit a product
   editproduct: async (req, res) => {
     try {
@@ -181,7 +160,7 @@ module.exports = {
         images: updatedImages,
       };
 
-      let categoryOfferPrice = updatedProduct.price;
+      let categoryOfferPrice = updatedProduct.price; 
       const categoryOffer = await CategoryOffer.findOne({ category: updatedProduct.category }).exec();
       if (categoryOffer) {
         const discountPercentage = categoryOffer.discountPercentage;
@@ -359,7 +338,8 @@ module.exports = {
         currentPage: page,
         totalPages: totalPages,
         wishlist: req.session.wishlist,
-        cart: cart
+        cart:cart,
+        searchQuery: req.query.query
       });
     } catch (error) {
       console.error(error);
@@ -373,23 +353,25 @@ module.exports = {
   searchproducts: async (req, res) => {
     try {
       const searchQuery = req.query.query;
-
+  
       const allProducts = await Product.find();
       const category = await Category.find().exec();
-
+  
       const searchResults = await Product.find({ name: { $regex: new RegExp(searchQuery, 'i') } });
-
+  
       res.render('userviews/allproducts', {
         title: 'Search Results',
         allProducts: allProducts,
         searchResults: searchResults,
-        category: category
-      })
+        category: category,
+        searchQuery: searchQuery // Pass the searchQuery to the template
+      });
     } catch (error) {
       console.error(error);
       res.status(500).send('Internal Server Error');
     }
   },
+  
 
   //filter products
   filterproducts: async (req, res) => {

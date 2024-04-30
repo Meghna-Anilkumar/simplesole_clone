@@ -148,8 +148,6 @@ module.exports = {
             const cart = await Cart.findOne({ user }).populate('items.product').exec();
 
             cart.newTotal = cart.total
-            // const discount = req.session.discount || 0;
-            // // cart.newTotal += discount; 
 
             await cart.save();
             await user.save();

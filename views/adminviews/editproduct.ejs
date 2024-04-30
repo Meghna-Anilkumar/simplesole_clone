@@ -98,7 +98,7 @@
         <div class="form-group">
           <label class="col-md-4 control-label" for="filebutton">images</label>
           <div class="col-md-4">
-            <input id="filebutton" name="images" class="input-file" type="file" multiple onchange="previewImages(this)">
+            <input id="filebutton" name="images" class="input-file" type="file" multiple accept="image/*" onchange="previewImages(this)">
           </div>
         </div>
         <input type="hidden" name="old_images" value="<%=product.images.join(',')%>">

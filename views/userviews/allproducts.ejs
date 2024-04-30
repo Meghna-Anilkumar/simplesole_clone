@@ -657,10 +657,11 @@
 
   <br><br><br><br>
   <div id="search-bar" class="container">
-  <form action="/search" method="GET" class="search-form">
-    <input type="text" name="query" id="searchInput" placeholder="Search for products">
-    <button type="submit" class="css-huh2rh">Search</button>
-  </form>
+    <form action="/search" method="GET" class="search-form">
+      <input type="text" name="query" id="searchInput" placeholder="Search for products" value="<%= searchQuery || '' %>">
+      <button type="submit" class="css-huh2rh">Search</button>
+    </form>
+    
 
   <select id="colorFilter">
     <option value="">All Colors</option>
