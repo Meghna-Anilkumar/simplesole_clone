@@ -74,6 +74,8 @@ router.post('/removefromwishlist', wishlistcontroller.removefromwishlist)
 
 //wallet
 router.get('/wallet', ordercontroller.getwalletpage)
+router.post('/razorpay/wallet',usercontroller.walletrazorpay)
+router.post('/wallet/topup',usercontroller.topupwallet)
 
 //coupons
 router.get('/coupons', couponcontroller.coupons)

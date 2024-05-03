@@ -610,12 +610,13 @@
     }
 
     #searchInput {
-  padding: 8px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  margin-right: 8px;
-  width: 50%; /* Adjust the width as needed */
-}
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      margin-right: 8px;
+      width: 50%;
+      /* Adjust the width as needed */
+    }
 
 
     #applySort {
@@ -639,151 +640,159 @@
     }
 
     #productList {
-    display: flex;
-    flex-wrap: wrap; 
-    justify-content: space-between; 
-  }
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+    }
 
-  .card-img-top{
-    width: 100%; 
-    margin-bottom: 20px;
-  }
-  #content {
-  margin-top: 20px; /* Adjust the value as needed */
-  margin-bottom: 20px; /* Keep the original bottom margin or adjust as needed */
-}
-    
+    .card-img-top {
+      width: 100%;
+      margin-bottom: 20px;
+    }
+
+    #content {
+      margin-top: 20px;
+      /* Adjust the value as needed */
+      margin-bottom: 20px;
+      /* Keep the original bottom margin or adjust as needed */
+    }
   </style>
 
   <br><br><br><br>
   <div id="search-bar" class="container">
     <form action="/search" method="GET" class="search-form">
-      <input type="text" name="query" id="searchInput" placeholder="Search for products" value="<%= searchQuery || '' %>">
+      <input type="text" name="query" id="searchInput" placeholder="Search for products"
+        value="<%= searchQuery || '' %>">
       <button type="submit" class="css-huh2rh">Search</button>
     </form>
-    
 
-  <select id="colorFilter">
-    <option value="">All Colors</option>
-    <option value="red">black</option>
-    <option value="blue">brown</option>
-    <option value="white">white</option>
-    <option value="lilac">lilac</option>
-    <!-- Add more color options as needed -->
-  </select>
 
-  <select id="sizeFilter">
-    <option value="">All Sizes</option>
-    <option value="4">4</option>
-    <option value="5">5</option>
-    <option value="6">6</option>
-    <!-- Add more size options as needed -->
-  </select>
+    <select id="colorFilter">
+      <option value="">All Colors</option>
+      <option value="red">black</option>
+      <option value="blue">brown</option>
+      <option value="white">white</option>
+      <option value="lilac">lilac</option>
+      <!-- Add more color options as needed -->
+    </select>
 
-  <form action="/seeallproducts" method="GET" id="sortForm">
-    <div id="sort-by">
-      <label for="sortOption">Sort by:</label>
-      <select id="sortOption" name="sortOption">
-        <option value="priceLowToHigh">Price: Low to High</option>
-        <option value="priceHighToLow">Price: High to Low</option>
-      </select>
-      <button id="applySort" class="css-huh2rh">Apply</button>
-    </div>
-  </form>
-</div>
+    <select id="sizeFilter">
+      <option value="">All Sizes</option>
+      <option value="4">4</option>
+      <option value="5">5</option>
+      <option value="6">6</option>
+      <!-- Add more size options as needed -->
+    </select>
 
-<div id="productList" class="container">
-  <!-- Product cards will be dynamically inserted here -->
-</div>
+    <form action="/seeallproducts" method="GET" id="sortForm">
+      <div id="sort-by">
+        <label for="sortOption">Sort by:</label>
+        <select id="sortOption" name="sortOption">
+          <option value="priceLowToHigh">Price: Low to High</option>
+          <option value="priceHighToLow">Price: High to Low</option>
+        </select>
+        <button id="applySort" class="css-huh2rh">Apply</button>
+      </div>
+    </form>
+  </div>
 
-<!-- HTML code for displaying products with category offers -->
-<div id="content" class="my-3">
-  <div id="products">
-    <div class="row mx-0">
-      <% allProducts.filter(product => !product.category.blocked && !product.blocked).forEach(product => { %>
-        <div class="col-lg-3 col-md-6">
-          <div class="card d-flex flex-column align-items-center">
-            <div class="product-name">
-              <%= product.name %>
-            </div>
-            <!-- Check if there's an offer for the product -->
-            <% const productOffer = productOffers.find(offer => offer.product._id.toString() === product._id.toString()); %>
-            <!-- Check if there's a category offer for the product's category -->
-            <% const categoryOffer = categoryOffers.find(offer => offer.category._id.toString() === product.category.toString()); %>
-            <% if (productOffer || categoryOffer) { %>
-              <!-- Display discount badge if offer exists -->
-              <div class="discount-badge">
-                <% if (productOffer) { %>
-                  <% const discountPercentage = ((product.price - productOffer.newPrice) / product.price) * 100; %>
-                  <div class="font-weight-bold discount-percentage">
-                    <%= Math.round(discountPercentage) %>% OFF
-                  </div>
-                <% } else if (categoryOffer) { %>
-                  <% const discountPercentage = categoryOffer.discountPercentage; %>
-                  <div class="font-weight-bold discount-percentage">
-                    <%= discountPercentage %>% OFF
-                  </div>
-                <% } %>
+  <div id="productList" class="container">
+    <!-- Product cards will be dynamically inserted here -->
+  </div>
+
+  <!-- HTML code for displaying products with category offers -->
+  <div id="content" class="my-3">
+    <div id="products">
+      <div class="row mx-0">
+        <% allProducts.filter(product=> !product.category.blocked && !product.blocked).forEach(product => { %>
+          <div class="col-lg-3 col-md-6">
+            <div class="card d-flex flex-column align-items-center">
+              <div class="product-name">
+                <%= product.name %>
               </div>
-            <% } %>
-            <a href="/products/<%= product._id %>">
-              <div class="card-img">
-                <img src="/<%= product.images[0] %>" alt="<%= product.name %>">
-              </div>
-            </a>
-            <div class="card-body pt-5">
-              <!-- Display product price -->
-              <% if (productOffer) { %>
-                <div class="d-flex align-items-center price">
-                  <div class="font-weight-bold">Price: <s>₹<%= product.price %></s></div>
-                  <div class="font-weight-bold ml-2"> ₹<%= productOffer.newPrice %>
-                  </div>
-                </div>
-              <% } else if (categoryOffer) { %>
-                <div class="d-flex align-items-center price">
-                  <div class="font-weight-bold">Price: <s>₹<%= product.price %></s></div>
-                  <div class="font-weight-bold ml-2"> ₹<%= (product.price * (100 - categoryOffer.discountPercentage) / 100).toFixed(2) %>
-                  </div>
-                </div>
-              <% } else { %>
-                <div class="d-flex align-items-center price">
-                  <div class="font-weight-bold">Price: ₹<%= product.price %>
-                  </div>
-                </div>
-              <% } %>
+              <!-- Check if there's an offer for the product -->
+              <% const productOffer=productOffers.find(offer=> offer.product._id.toString() === product._id.toString());
+                %>
+                <!-- Check if there's a category offer for the product's category -->
+                <% const categoryOffer=categoryOffers.find(offer=> offer.category._id.toString() ===
+                  product.category.toString()); %>
+                  <% if (productOffer || categoryOffer) { %>
+                    <!-- Display discount badge if offer exists -->
+                    <div class="discount-badge">
+                      <% if (productOffer) { %>
+                        <% const discountPercentage=((product.price - productOffer.newPrice) / product.price) * 100; %>
+                          <div class="font-weight-bold discount-percentage">
+                            <%= Math.round(discountPercentage) %>% OFF
+                          </div>
+                          <% } else if (categoryOffer) { %>
+                            <% const discountPercentage=categoryOffer.discountPercentage; %>
+                              <div class="font-weight-bold discount-percentage">
+                                <%= discountPercentage %>% OFF
+                              </div>
+                              <% } %>
+                    </div>
+                    <% } %>
+                      <a href="/products/<%= product._id %>">
+                        <div class="card-img">
+                          <img src="/<%= product.images[0] %>" alt="<%= product.name %>">
+                        </div>
+                      </a>
+                      <div class="card-body pt-5">
+                        <!-- Display product price -->
+                        <% if (productOffer) { %>
+                          <div class="d-flex align-items-center price">
+                            <div class="font-weight-bold">Price: <s>₹<%= product.price %></s></div>
+                            <div class="font-weight-bold ml-2"> ₹<%= productOffer.newPrice %>
+                            </div>
+                          </div>
+                          <% } else if (categoryOffer) { %>
+                            <div class="d-flex align-items-center price">
+                              <div class="font-weight-bold">Price: <s>₹<%= product.price %></s></div>
+                              <div class="font-weight-bold ml-2"> ₹<%= (product.price * (100 -
+                                  categoryOffer.discountPercentage) / 100).toFixed(2) %>
+                              </div>
+                            </div>
+                            <% } else { %>
+                              <div class="d-flex align-items-center price">
+                                <div class="font-weight-bold">Price: ₹<%= product.price %>
+                                </div>
+                              </div>
+                              <% } %>
+                      </div>
             </div>
           </div>
-        </div>
-      <% }) %>
+          <% }) %>
+      </div>
     </div>
   </div>
-</div>
 
   </div>
   <!-- HTML code for displaying pagination controls -->
-<div class="container text-center my-4">
-  <nav aria-label="Page navigation">
-    <ul class="pagination justify-content-center">
-      <li class="page-item <%= currentPage === 1 ? 'disabled' : '' %>">
-        <a class="page-link" href="?page=<%= currentPage - 1 %>" aria-label="Previous">
-          <span aria-hidden="true">&laquo;</span>
-          <span class="sr-only">Previous</span>
-        </a>
-      </li>
-      <% for (let i = 1; i <= totalPages; i++) { %>
-        <li class="page-item <%= currentPage === i ? 'active' : '' %>">
-          <a class="page-link" href="?page=<%= i %>"><%= i %></a>
+  <div class="container text-center my-4">
+    <nav aria-label="Page navigation">
+      <ul class="pagination justify-content-center">
+        <li class="page-item <%= currentPage === 1 ? 'disabled' : '' %>">
+          <a class="page-link" href="?page=<%= currentPage - 1 %>" aria-label="Previous">
+            <span aria-hidden="true">&laquo;</span>
+            <span class="sr-only">Previous</span>
+          </a>
         </li>
-      <% } %>
-      <li class="page-item <%= currentPage === totalPages ? 'disabled' : '' %>">
-        <a class="page-link" href="?page=<%= currentPage + 1 %>" aria-label="Next">
-          <span aria-hidden="true">&raquo;</span>
-          <span class="sr-only">Next</span>
-        </a>
-      </li>
-    </ul>
-  </nav>
-</div>
+        <% for (let i=1; i <=totalPages; i++) { %>
+          <li class="page-item <%= currentPage === i ? 'active' : '' %>">
+            <a class="page-link" href="?page=<%= i %>">
+              <%= i %>
+            </a>
+          </li>
+          <% } %>
+            <li class="page-item <%= currentPage === totalPages ? 'disabled' : '' %>">
+              <a class="page-link" href="?page=<%= currentPage + 1 %>" aria-label="Next">
+                <span aria-hidden="true">&raquo;</span>
+                <span class="sr-only">Next</span>
+              </a>
+            </li>
+      </ul>
+    </nav>
+  </div>
 
 
   <script>
@@ -792,71 +801,71 @@
     });
 
   </script>
-<script>
-  // Function to fetch all products and update product listing
-  function fetchAllProducts() {
-    // Send AJAX request to backend route for all products
-    fetch(`/allProducts`)
-      .then(response => response.json())
-      .then(data => {
-        // Update product listing with all products
-        updateProductList(data);
-      })
-      .catch(error => console.error('Error fetching all products:', error));
-  }
+  <script>
+    // Function to fetch all products and update product listing
+    function fetchAllProducts() {
+      // Send AJAX request to backend route for all products
+      fetch(`/allProducts`)
+        .then(response => response.json())
+        .then(data => {
+          // Update product listing with all products
+          updateProductList(data);
+        })
+        .catch(error => console.error('Error fetching all products:', error));
+    }
 
-  // Function to fetch filtered products and update product listing
-  function fetchFilteredProducts(colorFilter, sizeFilter) {
-    // Send AJAX request to backend route for filtered products
-    fetch(`/filteredProducts?color=${colorFilter}&size=${sizeFilter}`)
-      .then(response => response.json())
-      .then(data => {
-        updateProductList(data);
-      })
-      .catch(error => console.error('Error fetching filtered products:', error));
-  }
+    // Function to fetch filtered products and update product listing
+    function fetchFilteredProducts(colorFilter, sizeFilter) {
+      // Send AJAX request to backend route for filtered products
+      fetch(`/filteredProducts?color=${colorFilter}&size=${sizeFilter}`)
+        .then(response => response.json())
+        .then(data => {
+          updateProductList(data);
+        })
+        .catch(error => console.error('Error fetching filtered products:', error));
+    }
 
-  // Function to update product listing based on data
-  function updateProductList(products) {
-    const productList = document.getElementById('products');
-    productList.innerHTML = '';
+    // Function to update product listing based on data
+    function updateProductList(products) {
+      const productList = document.getElementById('products');
+      productList.innerHTML = '';
 
-    products.forEach(product => {
-      const imageURL = `/${product.images[0]}`;
-      const productCard = `
+      products.forEach(product => {
+        const imageURL = `/${product.images[0]}`;
+        const productCard = `
       <div class="filter-products col-lg-3 col-md-6">
-              <div class="card d-flex flex-column align-items-center">
-                <div class="product-name">${product.name}</div>
-                <div class="price">Price: $${product.price}</div>
-                <div class="image"> <img src="${imageURL}" class="card-img-top" alt="${product.name}"></div>
-                <!-- Add more product details as needed -->
-              </div>
-            </div>`;
-      productList.insertAdjacentHTML('beforeend', productCard);
+        <div class="card d-flex flex-column align-items-center">
+          <div class="product-name">${product.name}</div>
+          <div class="price">Price: $${product.price}</div>
+          <div class="image"> <img src="${imageURL}" class="card-img-top" alt="${product.name}"></div>
+          <!-- Add more product details as needed -->
+        </div>
+      </div>`;
+        productList.insertAdjacentHTML('beforeend', productCard);
+      });
+    }
+
+    // Event listeners for filter options
+    document.getElementById('colorFilter').addEventListener('change', function () {
+      const colorFilter = this.value;
+      const sizeFilter = document.getElementById('sizeFilter').value;
+      if (colorFilter || sizeFilter) {
+        fetchFilteredProducts(colorFilter, sizeFilter);
+      } else {
+        fetchAllProducts();
+      }
     });
-  }
 
-  // Event listeners for filter options
-  document.getElementById('colorFilter').addEventListener('change', function() {
-    const colorFilter = this.value;
-    const sizeFilter = document.getElementById('sizeFilter').value;
-    if (colorFilter || sizeFilter) {
-      fetchFilteredProducts(colorFilter, sizeFilter);
-    } else {
-      fetchAllProducts();
-    }
-  });
+    document.getElementById('sizeFilter').addEventListener('change', function () {
+      const sizeFilter = this.value;
+      const colorFilter = document.getElementById('colorFilter').value;
+      if (colorFilter || sizeFilter) {
+        fetchFilteredProducts(colorFilter, sizeFilter);
+      } else {
+        fetchAllProducts();
+      }
+    });
 
-  document.getElementById('sizeFilter').addEventListener('change', function() {
-    const sizeFilter = this.value;
-    const colorFilter = document.getElementById('colorFilter').value;
-    if (colorFilter || sizeFilter) {
-      fetchFilteredProducts(colorFilter, sizeFilter);
-    } else {
-      fetchAllProducts();
-    }
-  });
-
-  // Initial fetch for all products (without filters)
-  fetchAllProducts();
-</script>
+    // Initial fetch for all products (without filters)
+    fetchAllProducts();
+  </script>

@@ -193,12 +193,15 @@ module.exports = {
             let wallet = await Wallet.findOneAndUpdate(
               { user: referredUser._id },
               { $inc: { balance: 100 } },
-              { new: true }
+              { new: true },
+              {transactiontype:'REFERRAL'}
+
             );
             if (!wallet) {
               wallet = new Wallet({
                 user: referredUser._id,
                 balance: 100,
+                transactiontype:'REFERRAL'
               });
               await wallet.save();
             }

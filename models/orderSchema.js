@@ -85,7 +85,11 @@ const orderSchema = new mongoose.Schema({
 
      couponApplied:{
         type:String
-     }
+     },
+
+     transactiontype:{
+        type:String,
+    },
 
     
 

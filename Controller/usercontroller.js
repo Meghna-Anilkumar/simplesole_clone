@@ -11,7 +11,15 @@ const nodemailer = require('nodemailer');
 const otpGenerator = require('otp-generator');
 const Wishlist = require('../models/wishlist')
 const Cart = require('../models/cartSchema');
+const Razorpay = require('razorpay');
+require('dotenv').config()
+const Wallet = require('../models/wallet')
 
+
+const razorpay = new Razorpay({
+  key_id: process.env.key_id,
+  key_secret: process.env.key_secret
+});
 
 module.exports = {
 
@@ -49,7 +57,7 @@ module.exports = {
     try {
       const categories = await Category.find();
       const wishlist = [];
-      const cart=[]
+      const cart = []
       res.render('userviews/login', { title: 'Login', category: categories, wishlist: wishlist, cart: cart });
     } catch (error) {
       console.error(error);
@@ -65,10 +73,10 @@ module.exports = {
       const user = await User.findOne({ email: email });
 
       if (!user || user.blocked) {
-        const wishlist=[]
-        const cart=[]
+        const wishlist = []
+        const cart = []
         const categories = await Category.find();
-        return res.render('userviews/login', { error: 'User does not exist', title: 'Login', category: categories,wishlist,cart });
+        return res.render('userviews/login', { error: 'User does not exist', title: 'Login', category: categories, wishlist, cart });
       }
 
       const isMatch = await bcrypt.compare(password, user.password);
@@ -79,10 +87,10 @@ module.exports = {
         console.log('Redirecting to /');
         return res.redirect('/');
       } else {
-        const wishlist=[]
-        const cart=[]
+        const wishlist = []
+        const cart = []
         const categories = await Category.find();
-        return res.render('userviews/login', { error: 'Incorrect password', title: 'Login', category: categories,wishlist,cart });
+        return res.render('userviews/login', { error: 'Incorrect password', title: 'Login', category: categories, wishlist, cart });
       };
 
     } catch (error) {
@@ -94,10 +102,10 @@ module.exports = {
   //to signup
   signup: async (req, res) => {
     const categories = await Category.find();
-    const wishlist=[]
-    const cart=[]
+    const wishlist = []
+    const cart = []
     res.render('userviews/signup',
-      { title: 'Signup page', category: categories,wishlist,cart }
+      { title: 'Signup page', category: categories, wishlist, cart }
     )
   },
 
@@ -118,7 +126,7 @@ module.exports = {
         const wishlist = [];
         const cart = req.session.cart || { items: [] }
         const categories = await Category.find();
-        return res.render('userviews/login', { title: 'Login', category: categories,wishlist:wishlist,cart:cart });
+        return res.render('userviews/login', { title: 'Login', category: categories, wishlist: wishlist, cart: cart });
       }
     } catch (error) {
       console.error('Error updating profile details:', error);
@@ -129,9 +137,9 @@ module.exports = {
 
   //already have an account
   Login: async (req, res) => {
-    const wishlist=[]
-    const cart=[]
-    res.render('userviews/login',{wishlist,cart})
+    const wishlist = []
+    const cart = []
+    res.render('userviews/login', { wishlist, cart })
   },
 
 
@@ -165,14 +173,14 @@ module.exports = {
       if (req.session.isAuth) {
         const userId = req.session.user ? req.session.user._id : null;
         const id = req.params.id;
-  
+
         const wishlist = await Wishlist.findOne({ user: userId }).populate('items.product');
         const cart = await Cart.findOne({ user: userId }).populate('items.product');
         const userData = await UserDetails.findOne({ user: userId });
         const addresses = await Address.find({ user: userId });
         const categories = await Category.find();
         const result = await Address.findById(id);
-  
+
         res.render('userviews/address', {
           title: 'Address',
           category: categories,
@@ -261,7 +269,7 @@ module.exports = {
       const addresses = await Address.find({ user: userId });
       const wishlist = await Wishlist.findOne({ user: userId }).populate('items.product');
       const cart = await Cart.findOne({ user: userId }).populate('items.product').exec();
-  
+
       res.render('userviews/changepassword', {
         title: 'Change password',
         category: categories,
@@ -274,7 +282,7 @@ module.exports = {
       res.status(500).json({ message: 'Internal Server Error' });
     }
   },
-  
+
 
   //change password
   changepassword: async (req, res) => {
@@ -318,7 +326,7 @@ module.exports = {
       const userId = req.session.user ? req.session.user._id : null;
       const wishlist = await Wishlist.findOne({ user: userId }).populate('items.product');
       const cart = await Cart.findOne({ user: userId }).populate('items.product').exec();
-  
+
       res.render('userviews/emailforgotpassword', {
         title: 'Verify email',
         category,
@@ -330,7 +338,7 @@ module.exports = {
       res.status(500).json({ message: 'Internal Server Error' });
     }
   },
-  
+
 
 
   //send otp to verify email on forgot password
@@ -368,8 +376,8 @@ module.exports = {
       console.log(otp)
       const categories = await Category.find()
       const wishlist = []
-        const cart = []
-      res.render('userviews/otp', { email, category: categories ,wishlist,cart});
+      const cart = []
+      res.render('userviews/otp', { email, category: categories, wishlist, cart });
 
     } catch (error) {
       console.error(error);
@@ -404,14 +412,73 @@ module.exports = {
       await existingUser.save();
 
       const categories = await Category.find();
-      const wishlist=[]
-      const cart=[]
-      return res.render('userviews/login', { title: 'Login', category: categories,wishlist,cart });
+      const wishlist = []
+      const cart = []
+      return res.render('userviews/login', { title: 'Login', category: categories, wishlist, cart });
     } catch (error) {
       console.error(error);
       res.status(500).json({ error: 'Internal Server Error' });
     }
   },
+
+
+  walletrazorpay: async (req, res) => {
+    const amount = req.body.amount; // Amount in paisa
+    const currency = 'INR';
+
+    const options = {
+      amount: amount,
+      currency: currency,
+      receipt: 'receipt#1',
+      payment_capture: 1
+    };
+
+    razorpay.orders.create(options, (err, order) => {
+      if (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Failed to create Razorpay order' });
+      } else {
+        res.json(order);
+      }
+    });
+
+  },
+
+  topupwallet: async (req, res) => {
+    try {
+        const amount = 100 // Amount in paisa
+        console.log(amount,'mmmmmmmmmmmmmmm')
+
+        // Retrieve user information from the session
+        const user = req.session.user;
+        
+        // Check if user information is available in the session
+        if (!user || !user._id) {
+            return res.status(401).json({ error: 'User session not found or invalid' });
+        }
+
+        const userId = user._id;
+
+        // Find the user's wallet
+        const wallet = await Wallet.findOne({ user: userId });
+
+        // Check if wallet exists
+        if (!wallet) {
+            return res.status(404).json({ error: 'User wallet not found' });
+        }
+
+        // Update the wallet balance
+        wallet.balance += amount;
+        wallet.transactiontype = 'Top-up'; // Set transaction type
+        await wallet.save();
+
+        res.status(200).json({ message: 'Wallet balance updated successfully', newBalance: wallet.balance });
+    } catch (error) {
+        console.error('Error updating wallet balance:', error);
+        res.status(500).json({ error: 'Failed to update wallet balance' });
+    }
+},
+
 
 
 }

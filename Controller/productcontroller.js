@@ -348,30 +348,29 @@ module.exports = {
   },
 
 
-
   //search products
   searchproducts: async (req, res) => {
     try {
       const searchQuery = req.query.query;
-  
+
       const allProducts = await Product.find();
       const category = await Category.find().exec();
-  
+
       const searchResults = await Product.find({ name: { $regex: new RegExp(searchQuery, 'i') } });
-  
+
       res.render('userviews/allproducts', {
         title: 'Search Results',
         allProducts: allProducts,
         searchResults: searchResults,
         category: category,
-        searchQuery: searchQuery // Pass the searchQuery to the template
-      });
+        searchQuery: searchQuery
+      })
     } catch (error) {
       console.error(error);
       res.status(500).send('Internal Server Error');
     }
   },
-  
+
 
   //filter products
   filterproducts: async (req, res) => {

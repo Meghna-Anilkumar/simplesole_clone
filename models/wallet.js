@@ -13,7 +13,7 @@ const walletSchema = new mongoose.Schema({
     },
     transactiontype:{
         type:String,
-        default:'CREDIT'
+        
     },
 });
 

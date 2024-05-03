@@ -57,6 +57,27 @@
     .transaction-row .value {
         flex: 1;
     }
+
+    /* Button styling */
+.top-up-button {
+    background-color: #4CAF50; /* Green */
+    border: none;
+    color: white;
+    padding: 10px 20px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 16px;
+    margin: 4px 2px;
+    cursor: pointer;
+    border-radius: 8px;
+    transition-duration: 0.4s;
+}
+
+.top-up-button:hover {
+    background-color: #45a049; /* Darker Green */
+}
+
 </style>
 
 <main>
@@ -64,38 +85,109 @@
         <h2 style="color: rgb(255, 63, 108);">My Wallet</h2>
         <div class="wallet-balance">
             <h2><i class="fas fa-wallet"></i> Wallet Balance: ₹ <%= walletBalance %></h2>
+            <!-- Add top-up button here -->
+            <!-- HTML -->
+<button class="top-up-button" onclick="openRazorpay()">Top Up</button>
+
         </div>
         
-        <h2 style="color: rgb(255, 63, 108);">Wallet History</h2>
-        <% if (walletHistory.length > 0) { %>
-            <div class="transaction-details">
-                <% walletHistory.forEach(transaction => { %>
-                    <div class="transaction-box">
-                        <div class="transaction-row">
-                            <div class="label">Type:</div>
-                            <div class="value"><%= transaction.transactiontype %></div>
+        <div class="transaction-details">
+            <% if (orders.length > 0) { %>
+                <% orders.forEach(order => { %>
+                    <% if (order.paymentMethod === 'WALLET') { %>
+                        <div class="transaction-box">
+                            <div class="transaction-row">
+                                <div class="label">Transaction Type:</div>
+                                <div class="value"><%= order.transactiontype %></div>
+                            </div>
+                            <div class="transaction-row">
+                                <div class="label">Amount:</div>
+                                <div class="value">₹ <%= order.totalAmount %></div>
+                            </div>
                         </div>
-                        <div class="transaction-row">
-                            <div class="label">Amount:</div>
-                            <div class="value"><%= transaction.amount %></div>
+                    <% } else if ((order.orderStatus === 'CANCELLED' && order.paymentMethod !== 'CASH_ON_DELIVERY') || order.orderStatus === 'RETURNED') { %>
+                        <!-- Display wallet history for cancelled COD orders or returned orders -->
+                        <div class="transaction-box">
+                            <!-- Add your wallet history details here -->
+                            <!-- For example: -->
+                            <div class="transaction-row">
+                                <div class="label">Order Status:</div>
+                                <div class="value"><%= order.orderStatus %></div>
+                            </div>
+                            <!-- Add more transaction details here as needed -->
                         </div>
-                        <div class="transaction-row">
-                            <!-- <div class="label">Date:</div> -->
-                            <!-- <div class="value">
-                                <% if (transaction.createdAt) { %>
-                                    <%= transaction.createdAt.toDateString() %>
-                                <% } else { %>
-                                    N/A
-                                <% } %>
-                            </div> -->
-                        </div>
-                    </div>
+                    <% } %>
                 <% }); %>
-            </div>
-        <% } else { %>
-            <p>No wallet history available.</p>
-        <% } %>
+            <% } else { %>
+                <p>No wallet transactions found.</p>
+            <% } %>
+        </div>
     </div>
 </main>
+
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<!-- Script -->
+<script>
+    function openRazorpay() {
+        fetch('/razorpay/wallet', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                amount: 10000, 
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            var options = {
+                "key": data.key_id,
+                "amount": data.amount,
+                "currency": "INR",
+                "name": "Your Wallet",
+                "description": "Top-up",
+                "image": "https://example.com/your_logo.png",
+                "order_id": data.id,
+                "handler": function (response) {
+                    // Handle Razorpay response (payment success)
+                    console.log(response);
+                    // Call function to update wallet balance after successful payment
+                    updateWalletBalance(response.amount);
+                },
+                "prefill": {
+                    "name": "John Doe",
+                    "email": "john@example.com",
+                    "contact": "9999999999"
+                },
+                "theme": {
+                    "color": "#F37254"
+                }
+            };
+            var rzp1 = new Razorpay(options);
+            rzp1.open();
+        })
+        .catch(error => console.error('Error:', error));
+    }
+
+    // Function to update wallet balance after successful payment
+    function updateWalletBalance(amount) {
+        fetch('/wallet/topup', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                amount: amount
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            // Optionally update UI to reflect new balance
+            console.log("Wallet balance updated successfully:", data);
+        })
+        .catch(error => console.error('Error updating wallet balance:', error));
+    }
+</script>
+
 
 <%- include('./footer') %>

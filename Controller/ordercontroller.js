@@ -17,7 +17,6 @@ const PDFDocument = require('pdfkit');
 const ejs = require('ejs');
 const Wishlist = require('../models/wishlist')
 const puppeteer = require('puppeteer');
-const Wallethistory = require('../models/wallethistory')
 
 
 //Razorpay instance
@@ -106,7 +105,8 @@ module.exports = {
           totalAmount: cart.newTotal || cart.total,
           paymentMethod,
           discountAmount: req.session.discount || 0,
-          couponApplied: req.body.appliedCouponCode
+          couponApplied: req.body.appliedCouponCode,
+          transactiontype: 'DEBIT'
 
         });
 
@@ -121,7 +121,7 @@ module.exports = {
         );
 
         userWallet.balance -= cart.total;
-        transactiontype = 'DEBIT'
+
         await userWallet.save()
 
         await newOrder.save()
@@ -163,7 +163,7 @@ module.exports = {
           }
           console.log('Razorpay order created successfully')
           console.log(req.session.discount, 'kkkkkkkk')
-          console.log(couponCode, 'yyyyyyyy')
+          // console.log(couponCode, 'yyyyyyyy')
 
           const newOrder = new Order({
             user: user,
@@ -263,22 +263,17 @@ module.exports = {
           }
         }));
 
-        if (order.paymentMethod === 'Online Payment' || order.paymentMethod === 'Wallet' || order.paymentMethod === 'RAZORPAY') {
+        console.log(order.paymentMethod,'tttttttttt')
+
+        if (order.paymentMethod === 'Online Payment' || order.paymentMethod === 'WALLET' || order.paymentMethod === 'RAZORPAY') {
+
           const userWallet = await Wallet.findOne({ user: order.user });
           if (userWallet) {
             userWallet.balance += order.totalAmount;
-            transactiontype = 'CREDIT';
+            // transactiontype = 'CREDIT'
             await userWallet.save();
-
-            const newWalletHistory = new Wallethistory({
-              user: order.user,
-              transactiontype: 'CREDIT',
-              amount: order.totalAmount
-            });
-
-            // Save the new wallet history entry
-            await newWalletHistory.save();
           }
+          order.transactiontype='CREDIT'
         }
 
         order.orderStatus = 'CANCELLED';
@@ -325,9 +320,9 @@ module.exports = {
             const userWallet = await Wallet.findOne({ user: order.user });
             if (userWallet) {
               userWallet.balance += cancelledItemTotal;
-              transactiontype = 'CREDIT'
               await userWallet.save();
             }
+            order.transactiontype='CREDIT'
           }
         } else {
           return res.status(500).json({ error: 'Product price is undefined' });
@@ -369,11 +364,11 @@ module.exports = {
         await wallet.save();
       }
 
-      const categories = await Category.find();
+      const category = await Category.find();
       const walletBalance = wallet.balance;
 
       // Fetch wallet history for the user
-      const walletHistory = await Wallethistory.find({ user: user }).sort({ createdAt: -1 });
+      const walletHistory = await Order.find({ user: user, paymentMethod: 'WALLET' }).sort({ orderdate: -1 });
 
       const wishlist = await Wishlist.findOne({ user: user }).populate('items.product');
       const cart = await Cart.findOne({ user: user }).populate('items.product').exec();
@@ -381,10 +376,10 @@ module.exports = {
       return res.render('userviews/wallet', {
         title: 'Wallet',
         wallet,
-        category: categories,
+        category,
         user,
         walletBalance,
-        walletHistory, // Pass walletHistory to the template
+        orders: walletHistory, // Pass walletHistory as 'orders' to the template
         wishlist,
         cart
       });
@@ -393,6 +388,8 @@ module.exports = {
       return res.status(500).send('Internal Server Error');
     }
   },
+
+
 
   //return order
   returnorder: async (req, res) => {
@@ -426,6 +423,7 @@ module.exports = {
 
         order.orderStatus = 'RETURNED';
         order.returnReason = returnReason || '';
+        order.transactiontype='CREDIT'
         await order.save();
 
         return res.json({ message: 'Order returned successfully' })
@@ -480,7 +478,6 @@ module.exports = {
       doc.text(`Subtotal: ₹${order.totalAmount}`).moveDown();
 
       doc.fontSize(16).text('Thank you for Shopping!', { align: 'center' }).moveDown();
-
 
       doc.end();
 
