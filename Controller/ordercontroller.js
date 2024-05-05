@@ -263,7 +263,7 @@ module.exports = {
           }
         }));
 
-        console.log(order.paymentMethod,'tttttttttt')
+        console.log(order.paymentMethod, 'tttttttttt')
 
         if (order.paymentMethod === 'Online Payment' || order.paymentMethod === 'WALLET' || order.paymentMethod === 'RAZORPAY') {
 
@@ -273,7 +273,7 @@ module.exports = {
             // transactiontype = 'CREDIT'
             await userWallet.save();
           }
-          order.transactiontype='CREDIT'
+          order.transactiontype = 'CREDIT'
         }
 
         order.orderStatus = 'CANCELLED';
@@ -322,7 +322,7 @@ module.exports = {
               userWallet.balance += cancelledItemTotal;
               await userWallet.save();
             }
-            order.transactiontype='CREDIT'
+            order.transactiontype = 'CREDIT'
           }
         } else {
           return res.status(500).json({ error: 'Product price is undefined' });
@@ -367,8 +367,7 @@ module.exports = {
       const category = await Category.find();
       const walletBalance = wallet.balance;
 
-      // Fetch wallet history for the user
-      const walletHistory = await Order.find({ user: user, paymentMethod: 'WALLET' }).sort({ orderdate: -1 });
+      const walletHistory = await Order.find({ user: user }).sort({ orderdate: -1 });
 
       const wishlist = await Wishlist.findOne({ user: user }).populate('items.product');
       const cart = await Cart.findOne({ user: user }).populate('items.product').exec();
@@ -379,7 +378,7 @@ module.exports = {
         category,
         user,
         walletBalance,
-        orders: walletHistory, // Pass walletHistory as 'orders' to the template
+        orders: walletHistory, 
         wishlist,
         cart
       });
@@ -406,27 +405,10 @@ module.exports = {
       }
 
       if (order.orderStatus === 'DELIVERED') {
-        await Promise.all(order.items.map(async (item) => {
-          const product = await Product.findById(item.product._id);
-          if (product) {
-            product.returnedQuantity += item.quantity;
-            await product.save();
-          }
-        }))
-
-        const userWallet = await Wallet.findOne({ user: order.user });
-        if (userWallet) {
-          userWallet.balance += order.totalAmount;
-          transactiontype = 'CREDIT'
-          await userWallet.save();
-        }
-
-        order.orderStatus = 'RETURNED';
+        order.orderStatus = 'RETURN REQUESTED';
         order.returnReason = returnReason || '';
-        order.transactiontype='CREDIT'
         await order.save();
 
-        return res.json({ message: 'Order returned successfully' })
       } else {
         return res.status(400).json({ error: 'Order cannot be returned because it is not delivered yet' })
       }
@@ -435,6 +417,7 @@ module.exports = {
       res.status(500).json({ error: 'Internal server error' })
     }
   },
+
 
 
   downloadinvoice: async (req, res) => {

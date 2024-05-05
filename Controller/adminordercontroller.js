@@ -3,6 +3,7 @@ const express = require('express')
 const app = express()
 app.use(bodyParser.json())
 const Order = require('../models/orderSchema')
+const Wallet = require('../models/wallet')
 
 module.exports = {
 
@@ -46,6 +47,72 @@ module.exports = {
       res.status(500).json({ error: 'Internal Server Error' });
     }
 
+  },
+
+  //get return requests page
+  getreturnrequestspage: async (req, res) => {
+    try {
+      const returnRequests = await Order.find({ orderStatus: 'RETURN REQUESTED' }).populate('user', 'items returnReason');
+      console.log(returnRequests,'kkkkkk')
+      // res.json(returnRequests);
+      res.render('adminviews/returnrequests',{title:'Return requests', returnRequests: returnRequests })
+    } catch (error) {
+      console.error('Error fetching return requests:', error);
+      res.status(500).json({ message: 'Internal Server Error' });
+    }
+
+  },
+
+  //  route to accept a return request
+  acceptreturn: async (req, res) => {
+    const orderId = req.params.orderId;
+    try {
+        await Order.findByIdAndUpdate(orderId, { orderStatus: 'RETURNED' });
+
+        // Get the order details
+        const order = await Order.findById(orderId).populate('items.product').populate('user');
+
+        // Update product quantities
+        await Promise.all(order.items.map(async (item) => {
+            const product = item.product;
+            if (product) {
+                product.stock += item.quantity;
+                await product.save();
+            }
+        }));
+
+        // Update user wallet balance
+        const userWallet = await Wallet.findOne({ user: order.user });
+        if (userWallet) {
+            userWallet.balance += order.totalAmount;
+            await userWallet.save();
+        }
+
+        // Update order transaction type
+        order.transactiontype = 'CREDIT BY RETURN';
+        await order.save();
+
+        console.log('Order returned successfully:', orderId);
+        res.json({ message: 'Order returned successfully' });
+    } catch (error) {
+        console.error('Error accepting return request:', error);
+        res.status(500).json({ message: 'Internal Server Error' });
+    }
+},
+
+
+  // route to reject a return request
+  rejectreturn:async(req,res)=>{
+    const orderId = req.params.orderId;
+    try {
+        // Update the order status to reflect rejection
+        await Order.findByIdAndUpdate(orderId, { orderStatus: 'RETURN REJECTED' });
+        console.log('rejected ',orderId)
+        res.sendStatus(200);
+    } catch (error) {
+        console.error('Error rejecting return request:', error);
+        res.status(500).json({ message: 'Internal Server Error' });
+    }
   },
 
 

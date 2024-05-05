@@ -79,27 +79,33 @@
           <td><%= order.paymentMethod %></td>
           <td><%= order.totalAmount %></td>
           <td>
-            <% if (order.orderStatus === 'CANCELLED') { %>
-              <span style="color: red;">Order Cancelled</span>
+            <% if (order.orderStatus === 'RETURN REQUESTED') { %>
+               Return Requested
+            <% } else if (order.orderStatus === 'CANCELLED') { %>
+                <span style="color: red;">Order Cancelled</span>
             <% } else if (order.orderStatus === 'DELIVERED') { %>
-              <span style="color: green;">Delivered</span>
+                <span style="color: green;">Delivered</span>
             <% } else if (order.orderStatus === 'RETURNED') { %>
-              <span style="color: red;">Returned</span>
+                <span style="color: red;">Returned</span>
+            <% } else if (order.orderStatus === 'RETURN REJECTED') { %>
+                <span style="color: red;">Return Rejected</span>
             <% } else { %>
-              <select name="orderStatus" id="orderStatus_<%= order._id %>"
-                onchange="updateOrderStatus('<%= order._id %>')"
-                <%= order.orderStatus === 'CANCELLED' || order.orderStatus === 'DELIVERED' || order.orderStatus === 'RETURNED' ? 'disabled' : '' %>>
-                <option value="PENDING" <%= order.orderStatus === 'PENDING' ? 'selected' : '' %>>Pending</option>
-                <option value="PROCESSING" <%= order.orderStatus === 'PROCESSING' ? 'selected' : '' %>>Processing</option>
-                <option value="SHIPPED" <%= order.orderStatus === 'SHIPPED' ? 'selected' : '' %>>Shipped</option>
-                <option value="DELIVERED" <%= order.orderStatus === 'DELIVERED' ? 'selected' : '' %>>Delivered</option>
-              </select>
+                <select name="orderStatus" id="orderStatus_<%= order._id %>"
+                    onchange="updateOrderStatus('<%= order._id %>')"
+                    <%= order.orderStatus === 'CANCELLED' || order.orderStatus === 'DELIVERED' || order.orderStatus === 'RETURNED' || order.orderStatus === 'RETURN REJECTED' ? 'disabled' : '' %>>
+                    <option value="PENDING" <%= order.orderStatus === 'PENDING' ? 'selected' : '' %>>Pending</option>
+                    <option value="PROCESSING" <%= order.orderStatus === 'PROCESSING' ? 'selected' : '' %>>Processing</option>
+                    <option value="SHIPPED" <%= order.orderStatus === 'SHIPPED' ? 'selected' : '' %>>Shipped</option>
+                    <option value="DELIVERED" <%= order.orderStatus === 'DELIVERED' ? 'selected' : '' %>>Delivered</option>
+                </select>
             <% } %>
-          </td>
+        </td>
+        
           <td><a href="/ordersview/<%= order._id %>">View</a></td>
         </tr>
       <% }); %>
     </tbody>
+    
   </table>
 
   <div class="pagination">

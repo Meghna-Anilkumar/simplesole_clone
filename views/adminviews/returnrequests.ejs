@@ -1,0 +1,136 @@
+<%-include('./sidebar') %>
+<style>
+    /* CSS styles for the content */
+    .content {
+        padding: 20px;
+    }
+
+    /* CSS styles for the table */
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 20px;
+    }
+
+    th, td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: left;
+    }
+
+    th {
+        background-color: #f2f2f2;
+    }
+
+    /* CSS styles for the buttons */
+    .btn {
+        background-color: #4caf50; /* Green */
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        text-align: center;
+        text-decoration: none;
+        font-size: 14px;
+        border-radius: 5px;
+        cursor: pointer;
+    }
+
+    .accept-btn {
+        background-color: #4caf50; /* Green */
+    }
+
+    .reject-btn {
+        background-color: #f44336; /* Red */
+    }
+
+    /* Hover effect for buttons */
+    .btn:hover {
+        opacity: 0.8;
+    }
+</style>
+
+<div class="content">
+    <h2>Return Requests</h2>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Order ID</th>
+                <th>Return Reason</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            <% returnRequests.forEach(returnRequest => { %>
+                <tr>
+                    <td><%= returnRequest.orderId %></td>
+                    <td><%= returnRequest.returnReason %></td>
+                    <td>
+                        <button class="btn accept-btn" data-order-id="<%= returnRequest._id %>">Accept</button>
+                        <button class="btn reject-btn" data-order-id="<%= returnRequest._id %>">Reject</button>
+                    </td>
+                </tr>
+            <% }); %>
+        </tbody>
+    </table>
+</div>
+
+<script>
+    // JavaScript code for handling button clicks
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('.accept-btn').forEach(function(button) {
+            button.addEventListener('click', function() {
+                var orderId = this.dataset.orderId;
+                handleAccept(orderId);
+            });
+        });
+
+        document.querySelectorAll('.reject-btn').forEach(function(button) {
+            button.addEventListener('click', function() {
+                var orderId = this.dataset.orderId;
+                handleReject(orderId);
+            });
+        });
+
+        // Function to handle accepting return request
+        function handleAccept(orderId) {
+            fetch('/returnrequests/' + orderId + '/accept', {
+                method: 'POST',
+            })
+            .then(function(response) {
+                if (!response.ok) {
+                    throw new Error('Error accepting return request');
+                }
+                // Reload the page or update UI as needed
+                location.reload();
+            })
+            .catch(function(error) {
+                console.error('Error accepting return request:', error);
+                // Display error message to user
+                alert('Error accepting return request. Please try again.');
+            });
+        }
+
+        // Function to handle rejecting return request
+        function handleReject(orderId) {
+            fetch('/returnrequests/' + orderId + '/reject', {
+                method: 'POST',
+            })
+            .then(function(response) {
+                if (!response.ok) {
+                    throw new Error('Error rejecting return request');
+                }
+                // Reload the page or update UI as needed
+                location.reload();
+            })
+            .catch(function(error) {
+                console.error('Error rejecting return request:', error);
+                // Display error message to user
+                alert('Error rejecting return request. Please try again.');
+            });
+        }
+    });
+</script>
+
+</body>
+</html>

@@ -99,6 +99,21 @@ module.exports = {
     }
   },
 
+  croppedimageupload: async (req, res) => {
+    try {
+      if (!req.files || req.files.length === 0) {
+        return res.status(400).json({ error: 'No file uploaded' });
+      }
+  
+      // Assuming you want to handle each file separately
+      const filenames = req.files.map(file => file.filename);
+      res.status(200).json({ filenames: filenames });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  },
+
   // Update user route (update button click event)
   updateproduct: async (req, res) => {
     try {

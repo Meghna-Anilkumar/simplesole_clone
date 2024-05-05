@@ -94,7 +94,7 @@
         <div class="transaction-details">
             <% if (orders.length > 0) { %>
                 <% orders.forEach(order => { %>
-                    <% if (order.paymentMethod === 'WALLET') { %>
+                    <% if (order.paymentMethod === 'WALLET' || order.orderStatus === 'RETURNED') { %>
                         <div class="transaction-box">
                             <div class="transaction-row">
                                 <div class="label">Transaction Type:</div>
@@ -105,14 +105,17 @@
                                 <div class="value">₹ <%= order.totalAmount %></div>
                             </div>
                         </div>
-                    <% } else if ((order.orderStatus === 'CANCELLED' && order.paymentMethod !== 'CASH_ON_DELIVERY') || order.orderStatus === 'RETURNED') { %>
+                    <% } else if ((order.orderStatus === 'CANCELLED' && order.paymentMethod !== 'CASH_ON_DELIVERY') ) { %>
                         <!-- Display wallet history for cancelled COD orders or returned orders -->
                         <div class="transaction-box">
-                            <!-- Add your wallet history details here -->
-                            <!-- For example: -->
                             <div class="transaction-row">
-                                <div class="label">Order Status:</div>
-                                <div class="value"><%= order.orderStatus %></div>
+                                <div class="label">Transaction Type:</div>
+                                <div class="value"><%= order.transactiontype %></div>
+                            </div>
+                            <div class="transaction-row">
+                                <div class="label">Amount:</div>
+                                <div class="value">₹ <%= order.totalAmount %></div>
+                            </div>
                             </div>
                             <!-- Add more transaction details here as needed -->
                         </div>
