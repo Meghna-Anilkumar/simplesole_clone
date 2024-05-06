@@ -295,8 +295,12 @@ module.exports = {
   
       // Add orders data
       orders.forEach(order => {
-        let productNames = order.items.map(item => item.product.name).join('\n');
-        let quantities = order.items.map(item => item.quantity).join('\n');
+        let productNames = '';
+        let quantities = '';
+        if (order.items && order.items.length > 0) {
+          productNames = order.items.map(item => item.product ? item.product.name : 'Unknown Product').join('\n');
+          quantities = order.items.map(item => item.quantity).join('\n');
+        }
         doc.font('Helvetica').text(`${order.orderId}    ${order.user ? order.user.name : 'Unknown Customer'}    ${order.orderdate.toISOString().split('T')[0]}    ${productNames}    ${quantities}    ${order.paymentMethod}    ${order.totalAmount}`);
       });
   
@@ -308,7 +312,6 @@ module.exports = {
       res.status(500).send('Internal Server Error');
     }
   },
-
 
   
 
