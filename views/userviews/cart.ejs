@@ -80,7 +80,8 @@ a{
     font-size: 0.7rem;
 }
 img{
-    width: 3.5rem;
+    width: 150px; /* Adjust width */
+    height: 150px; /* Adjust height */
 }
 .back-to-shop{
     margin-top: 4.5rem;
@@ -161,14 +162,14 @@ a:hover{
                     </div>
                 </div>
             </div>  
-            <% if (cart && cart.items) { %>  
+            <% if (cart && cart.items && cart.items.length > 0) { %>  
                 <% cart.items.forEach(item => { %>
                     <div class="row border-top border-bottom">
                         <div class="row main align-items-center">
                             <div class="col-2">
                                 <% if (product && product._id) { %>
                                     <a href="/products/<%= product._id %>">
-                                        <img class="img-fluid" src="<%= item.product.images[0] %>">
+                                        <img class="img-fluid" src="<%= item.product.images[0] %>" style="width: 150px; height: 150px;">
                                     </a>
                                 <% } %>
                                 
@@ -211,33 +212,44 @@ a:hover{
                     </div>
                 <% }); %>
             <% } else { %>
-                <p style="color: blue; font-weight: bold ;" >NO ITEMS IN YOUR CART</p>
+                <!-- Display this section when cart is empty -->
+                <div class="row justify-content-center align-items-center" style="height: 200px;">
+                    <div class="col text-center">
+                        <!-- <p style="font-size: 1.2rem; color: blue; font-weight: bold;">Your cart is empty!</p> -->
+                        <img src="emptycart.jpg" alt="Empty Cart Image" style="width: 750px; height: 250px; margin-left: 65px;">
+                        <div class="back-to-shop">
+                            <a href="/home">&leftarrow;</a><span class="text-muted">Back to shop</span>
+                        </div>
+                    </div>
+                </div>
             <% } %>
 
-            <div class="back-to-shop">
-                <a href="/home">&leftarrow;</a><span class="text-muted">Back to shop</span>
-            </div>
         </div>
-        <div class="col-md-4 summary">
-            <div><h5><b>Cart Summary</b></h5></div>
-            <hr>
-            <div class="row">
-                <div class="col" style="padding-left:0;">PRICE(<%= cart && cart.items ? cart.items.length : 0 %> ITEMS)</div>
-                <div id="totalPrice" class="col text-right">&#8377;<%= data.total %></div>
+        <% if (cart && cart.items && cart.items.length > 0) { %>
+            <div class="col-md-4 summary">
+                <div><h5><b>Cart Summary</b></h5></div>
+                <hr>
+                <div class="row">
+                    <div class="col" style="padding-left:0;">PRICE(<%= cart && cart.items ? cart.items.length : 0 %> ITEMS)</div>
+                    <div id="totalPrice" class="col text-right">&#8377;<%= data.total %></div>
+                </div>
+                <form>
+                    
+                </form>
+                <div class="row" style="border-top: 1px solid rgba(0,0,0,.1); padding: 2vh 0;">
+                    <div class="col">TOTAL PRICE</div>
+                    <div class="col text-right">&#8377;<%= data.total %></div>
+                </div>
+                <a id="proceedToCheckoutButton" href='<%= cart && cart.items && cart.items.length > 0 ? "/proceedtocheckout" : "#" %>'>
+                    <button class="btn" <%= cart && cart.items && cart.items.length === 0 ? 'disabled' : '' %>>PROCEED TO CHECKOUT</button>
+                </a>
             </div>
-            <form>
-                
-            </form>
-            <div class="row" style="border-top: 1px solid rgba(0,0,0,.1); padding: 2vh 0;">
-                <div class="col">TOTAL PRICE</div>
-                <div class="col text-right">&#8377;<%= data.total %></div>
-            </div>
-            <a id="proceedToCheckoutButton" href='<%= cart && cart.items && cart.items.length > 0 ? "/proceedtocheckout" : "#" %>'>
-                <button class="btn" <%= cart && cart.items && cart.items.length === 0 ? 'disabled' : '' %>>PROCEED TO CHECKOUT</button>
-              </a>
-        </div>
+        <% } %>
     </div>
 </div>
+
+
+
 
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@10"></script>
@@ -312,4 +324,5 @@ a:hover{
 </script>
 
 </div>
+
 <%-include('./footer')%>

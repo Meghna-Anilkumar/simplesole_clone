@@ -33,6 +33,25 @@ module.exports = {
       req.body.password == credential.password
     ) {
       req.session.isadminlogged = true
+
+      const paymentMethodCounts = await Order.aggregate([
+        { $group: { _id: '$paymentMethod', count: { $sum: 1 } } },
+      ]);
+  
+      const paymentMethodData = {
+        labels: paymentMethodCounts.map(method => method._id),
+        data: paymentMethodCounts.map(method => method.count),
+      };
+  
+
+      const orderStatusCounts = await Order.aggregate([
+        { $group: { _id: '$orderStatus', count: { $sum: 1 } } },
+      ]);
+  
+      const orderStatusData = {
+        labels: orderStatusCounts.map(status => status._id),
+        data: orderStatusCounts.map(status => status.count),
+      };
       const totalUsers = await User.countDocuments();
       const totalOrders = await Order.countDocuments()
       const totalProductQuantity = await Order.aggregate([
@@ -79,7 +98,9 @@ module.exports = {
         productQuantity: productQuantity,
         totalUsers: totalUsers,
         topSellingProducts: topSellingProducts,
-        topSellingCategories: topSellingCategories
+        topSellingCategories: topSellingCategories,
+        orderStatusData: orderStatusData,
+        paymentMethodData: paymentMethodData
       });
     }
     else {
@@ -89,6 +110,25 @@ module.exports = {
 
   //get dashboard
   dashboard: async (req, res) => {
+
+    const paymentMethodCounts = await Order.aggregate([
+      { $group: { _id: '$paymentMethod', count: { $sum: 1 } } },
+    ]);
+
+    const paymentMethodData = {
+      labels: paymentMethodCounts.map(method => method._id),
+      data: paymentMethodCounts.map(method => method.count),
+    };
+
+    const orderStatusCounts = await Order.aggregate([
+      { $group: { _id: '$orderStatus', count: { $sum: 1 } } },
+    ]);
+
+    const orderStatusData = {
+      labels: orderStatusCounts.map(status => status._id),
+      data: orderStatusCounts.map(status => status.count),
+    };
+
     const totalUsers = await User.countDocuments();
     const totalOrders = await Order.countDocuments()
     const totalProductQuantity = await Order.aggregate([
@@ -136,7 +176,9 @@ module.exports = {
       productQuantity: productQuantity,
       totalUsers: totalUsers,
       topSellingProducts: topSellingProducts,
-      topSellingCategories: topSellingCategories
+      topSellingCategories: topSellingCategories,
+      orderStatusData: orderStatusData,
+      paymentMethodData: paymentMethodData,
     });
   },
 
@@ -266,6 +308,8 @@ module.exports = {
       res.status(500).send('Internal Server Error');
     }
   },
+
+
   
 
 }

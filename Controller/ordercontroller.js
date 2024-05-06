@@ -378,7 +378,7 @@ module.exports = {
         category,
         user,
         walletBalance,
-        orders: walletHistory, 
+        orders: walletHistory,
         wishlist,
         cart
       });

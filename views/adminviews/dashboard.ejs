@@ -13,7 +13,8 @@
   }
 
   .dashboard-card {
-    flex: 1;
+    display:flex;
+    justify-content: space-between;
     margin: 15px;
     padding: 20px;
     width: calc(33.33% - 30px); 
@@ -27,6 +28,8 @@
     padding: 10px;
     border-radius: 5px;
   }
+
+ 
 </style>
 
 <div class="content">
@@ -75,6 +78,13 @@
     </div>
   </div>
 
+  <div class="dashboard-card">
+    <input type="hidden" id="orderStatusData" value='<%- JSON.stringify(orderStatusData) %>'>
+    <canvas id="orderStatusChart" width="400" height="400"></canvas>
+    <input type="hidden" id="paymentMethodData" value='<%- JSON.stringify(paymentMethodData) %>'>
+    <canvas id="paymentMethodChart" width="800" height="400"></canvas>
+  </div>
+
   <h1>Sales Report</h1>
   <form id="dateRangeForm">
     <label for="fromDate">From Date:</label>
@@ -90,11 +100,8 @@
     <button type="submit">Generate Report</button>
     <button type="button" onclick="generatePDF()">Generate PDF</button>
   </form>
-  
-  <div>
-    <canvas id="salesChart" width="800" height="400"></canvas>
-  </div>
-</div>
+ 
+
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -181,3 +188,89 @@
   document.getElementById('generatePDFButton').addEventListener('click', generatePDF);
 </script>
 
+
+<script>
+  // Get the hidden input element with id 'orderStatusData'
+const orderStatusDataInput = document.getElementById('orderStatusData');
+
+// Get the value of the hidden input element
+const orderStatusDataValue = orderStatusDataInput.value;
+
+// Parse the JSON data
+const orderStatusData = JSON.parse(orderStatusDataValue);
+
+// Get the context
+const orderStatusChart = document.getElementById('orderStatusChart').getContext('2d');
+
+// Render the chart using the parsed orderStatusData
+new Chart(orderStatusChart, {
+  type: 'pie',
+  data: {
+    labels: orderStatusData.labels,
+    datasets: [{
+      data: orderStatusData.data,
+      backgroundColor: [
+        'rgba(255, 99, 132, 0.7)',
+        'rgba(54, 162, 235, 0.7)',
+        'rgba(255, 206, 86, 0.7)',
+        'rgba(75, 192, 192, 0.7)',
+        // Add more colors if needed
+      ],
+      borderColor: [
+        'rgba(255, 99, 132, 1)',
+        'rgba(54, 162, 235, 1)',
+        'rgba(255, 206, 86, 1)',
+        'rgba(75, 192, 192, 1)',
+        // Add more colors if needed
+      ],
+      borderWidth: 1
+    }]
+  },
+  options: {
+    // Add options if needed
+  }
+});
+
+</script>
+
+<script>
+  // Get the hidden input element with id 'paymentMethodData'
+const paymentMethodDataInput = document.getElementById('paymentMethodData');
+
+// Get the value of the hidden input element
+const paymentMethodDataValue = paymentMethodDataInput.value;
+
+// Parse the JSON data
+const paymentMethodData = JSON.parse(paymentMethodDataValue);
+
+// Get the context
+const paymentMethodChart = document.getElementById('paymentMethodChart').getContext('2d');
+
+// Render the chart using the parsed paymentMethodData
+new Chart(paymentMethodChart, {
+  type: 'pie',
+  data: {
+    labels: paymentMethodData.labels,
+    datasets: [{
+      data: paymentMethodData.data,
+      backgroundColor: [
+        'rgba(255, 99, 132, 0.7)',
+        'rgba(54, 162, 235, 0.7)',
+        'rgba(255, 206, 86, 0.7)',
+        // Add more colors if needed
+      ],
+      borderColor: [
+        'rgba(255, 99, 132, 1)',
+        'rgba(54, 162, 235, 1)',
+        'rgba(255, 206, 86, 1)',
+        // Add more colors if needed
+      ],
+      borderWidth: 1
+    }]
+  },
+  options: {
+    // Add options if needed
+  }
+});
+
+</script>
