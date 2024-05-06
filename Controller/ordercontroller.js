@@ -201,13 +201,39 @@ module.exports = {
   myorders: async (req, res) => {
     try {
       const user = req.session.user;
-      const orders = await Order.find({ user }).populate('items.product').exec();
-
-      const categories = await Category.find();
-      const wishlist = await Wishlist.findOne({ user: user }).populate('items.product');
-      const cart = await Cart.findOne({ user: user }).populate('items.product').exec();
-
-      res.render('userviews/myorders', { title: 'My Orders', orders, category: categories, wishlist, cart });
+      const page = parseInt(req.query.page) || 1; // Current page number
+      const limit = parseInt(req.query.limit) || 10; // Number of orders per page
+  
+      const skip = (page - 1) * limit; // Number of orders to skip
+  
+      const ordersPromise = Order.find({ user })
+        .populate('items.product')
+        .sort({ orderdate: -1 }) // Sort by order date descending
+        .skip(skip)
+        .limit(limit)
+        .exec();
+  
+      const totalOrdersPromise = Order.countDocuments({ user }).exec();
+  
+      const [orders, totalOrders] = await Promise.all([ordersPromise, totalOrdersPromise]);
+  
+      const totalPages = Math.ceil(totalOrders / limit);
+  
+      // Other data fetching logic (categories, wishlist, cart) can remain the same
+      const categories=await Category.find()
+      const wishlist=await Wishlist.find(user)
+      const cart=await Cart.find(user)
+  
+      res.render('userviews/myorders', {
+        title: 'My Orders',
+        orders,
+        category: categories, // Assuming categories are fetched elsewhere
+        wishlist,
+        cart,
+        currentPage: page,
+        totalPages: totalPages,
+        limit: limit,
+      });
     } catch (error) {
       console.error(error);
       res.status(500).json({ error: 'Internal Server Error' });
