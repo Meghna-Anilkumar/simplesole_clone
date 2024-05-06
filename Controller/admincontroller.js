@@ -37,17 +37,17 @@ module.exports = {
       const paymentMethodCounts = await Order.aggregate([
         { $group: { _id: '$paymentMethod', count: { $sum: 1 } } },
       ]);
-  
+
       const paymentMethodData = {
         labels: paymentMethodCounts.map(method => method._id),
         data: paymentMethodCounts.map(method => method.count),
       };
-  
+
 
       const orderStatusCounts = await Order.aggregate([
         { $group: { _id: '$orderStatus', count: { $sum: 1 } } },
       ]);
-  
+
       const orderStatusData = {
         labels: orderStatusCounts.map(status => status._id),
         data: orderStatusCounts.map(status => status.count),
@@ -263,25 +263,25 @@ module.exports = {
   generatepdf: async (req, res) => {
     try {
       const { fromDate, toDate, interval } = req.query;
-  
+
       const orders = await Order.find({ orderdate: { $gte: fromDate, $lte: toDate } })
         .populate('user')
         .populate('items.product');
-  
+
       const overallSalesCount = orders.length;
       const overallOrderAmount = orders.reduce((total, order) => total + order.totalAmount, 0);
       const overallDiscountAmount = orders.reduce((total, order) => total + order.discountAmount, 0);
-  
+
       const doc = new PDFDocument();
-  
+
       // Set response headers for file download
       const fileName = `sales_report_${fromDate}_${toDate}.pdf`;
       res.setHeader('Content-disposition', `attachment; filename=${fileName}`);
       res.setHeader('Content-type', 'application/pdf');
-  
+
       // Pipe the PDF document directly to the response
       doc.pipe(res);
-  
+
       // Add content to PDF
       doc.fontSize(16).text(`Sales Report (${fromDate} to ${toDate})`, { align: 'center' });
       doc.moveDown();
@@ -289,10 +289,10 @@ module.exports = {
       doc.fontSize(12).text(`Overall Order Amount: ${overallOrderAmount}`);
       doc.fontSize(12).text(`Overall Discount Amount: ${overallDiscountAmount}`);
       doc.moveDown();
-  
+
       // Add table header
       doc.font('Helvetica-Bold').text('Order ID    Customer    Order Date    Product    Quantity    Payment Method    Total Amount');
-  
+
       // Add orders data
       orders.forEach(order => {
         let productNames = '';
@@ -303,16 +303,16 @@ module.exports = {
         }
         doc.font('Helvetica').text(`${order.orderId}    ${order.user ? order.user.name : 'Unknown Customer'}    ${order.orderdate.toISOString().split('T')[0]}    ${productNames}    ${quantities}    ${order.paymentMethod}    ${order.totalAmount}`);
       });
-  
+
       // Finalize the PDF
       doc.end();
-  
+
     } catch (error) {
       console.error('Error generating PDF:', error);
       res.status(500).send('Internal Server Error');
     }
   },
 
-  
+
 
 }

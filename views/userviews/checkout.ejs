@@ -392,39 +392,47 @@
     }
 
     .coupon-container {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
-  }
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+    }
 
-  .coupon {
-    border: 2px solid #ff69b4; /* Pink border color */
-    background-color: #fff; /* White background color */
-    padding: 10px;
-    margin-bottom: 10px;
-    border-radius: 8px;
-    max-width: 200px; /* Limiting the maximum width */
-  }
+    .coupon {
+      border: 2px solid #ff69b4;
+      /* Pink border color */
+      background-color: #fff;
+      /* White background color */
+      padding: 10px;
+      margin-bottom: 10px;
+      border-radius: 8px;
+      max-width: 200px;
+      /* Limiting the maximum width */
+    }
 
-  .coupon p {
-    margin: 5px 0;
-  }
-  .payment__type.disabled label {
-    color: #999; /* Change label color */
-    cursor: not-allowed; /* Change cursor */
-  }
+    .coupon p {
+      margin: 5px 0;
+    }
 
-  .payment__type label {
-    color: #333; /* Default label color */
-    cursor: pointer; /* Default cursor */
-  }
+    .payment__type.disabled label {
+      color: #999;
+      /* Change label color */
+      cursor: not-allowed;
+      /* Change cursor */
+    }
 
-  /* Style for error message */
-  .error-message {
-    color: red;
-    font-size: 14px;
-    margin-top: 5px;
-  }
+    .payment__type label {
+      color: #333;
+      /* Default label color */
+      cursor: pointer;
+      /* Default cursor */
+    }
+
+    /* Style for error message */
+    .error-message {
+      color: red;
+      font-size: 14px;
+      margin-top: 5px;
+    }
   </style>
 
   <div class="container">
@@ -440,12 +448,12 @@
     <div class="notification">
       Complete Your Purchase
     </div>
-    <% if (typeof error !== 'undefined') { %>
+    <% if (typeof error !=='undefined' ) { %>
       <div class="alert alert-danger alert-dismissible fade show" role="alert">
         <%= error %>
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
       </div>
-    <% } %> 
+      <% } %>
   </div>
   <div class="container">
     <br>
@@ -463,28 +471,30 @@
       </div>
       <div class="row">
         <div class="col" style="padding-left:0;">
-         COUPON DISCOUNT
+          COUPON DISCOUNT
         </div>
         <div class="col text-right">
           -<span id="discount">0</span>
         </div>
-      
+
       </div>
-<BR>
+      <BR>
       <p>APPLY COUPON</p>
-                <input id="code" placeholder="Enter coupon code" name="couponcode">
-                <button id="applyCouponBtn" class="button-base-button" data-applied="false">Apply</button>
+      <input id="code" placeholder="Enter coupon code" name="couponcode">
+      <button id="applyCouponBtn" class="button-base-button" data-applied="false">Apply</button>
 
 
       <div class="row" style="border-top: 1px solid rgba(0,0,0,.1); padding: 2vh 0;">
         <div class="col">TOTAL PRICE</div>
-        <div class="col text-right">&#8377;<span id="newTotal"><%= cart.total %></span></div>
+        <div class="col text-right">&#8377;<span id="newTotal">
+            <%= cart.total %>
+          </span></div>
 
-        </div>
       </div>
     </div>
   </div>
-<br>
+  </div>
+  <br>
   <div class="container">
     <button id="viewCouponsBtn" class="button-base-button">View Available Coupons</button>
     <div class="coupon-container" id="couponsContainer">
@@ -502,7 +512,7 @@
     <%- include('./addaddress') %>
 
   </div>
-<br>
+  <br>
 
   <div class="container">
     <!-- <div class="actions"> -->
@@ -526,14 +536,15 @@
         <div class="payment__title">
           Select Payment Method
         </div>
-      
+
         <div class="payment__types">
           <div class="payment__type payment__type--cc active <% if (cart.total > 1000) { %> disabled <% } %>">
-            <input type="radio" name="paymentMethod" id="paymentCC" value="CASH_ON_DELIVERY" <% if (cart.total > 1000) { %> disabled <% } %>>
-            <label for="paymentCC"><i class="icon icon-credit-card"></i>CASH ON DELIVERY</label>
-            <% if (cart.total > 1000) { %>
-              <div class="error-message">COD not available for orders above 1000</div>
-            <% } %>
+            <input type="radio" name="paymentMethod" id="paymentCC" value="CASH_ON_DELIVERY" <% if (cart.total> 1000) {
+            %> disabled <% } %>>
+              <label for="paymentCC"><i class="icon icon-credit-card"></i>CASH ON DELIVERY</label>
+              <% if (cart.total> 1000) { %>
+                <div class="error-message">COD not available for orders above 1000</div>
+                <% } %>
           </div>
           <div class="payment__type payment__type--paypal">
             <input type="radio" name="paymentMethod" id="paymentWallet" value="WALLET">
@@ -545,7 +556,7 @@
           </div>
         </div>
         <br>
-      
+
         <button type="submit" class="button-base-button" id="placeorderButton">Place your Order
           <i class="icon icon-arrow-right-circle"></i>
         </button>
@@ -670,11 +681,11 @@
                 if (data.success) {
                 }
               })
-             
+
               .catch((error) => {
                 console.error("Error sending payment details to the server:", error);
               });
-              window.location.href ='/successpage'
+            window.location.href = '/successpage'
             return this;
           },
           notes: {
@@ -696,109 +707,108 @@
         })
         rzp1.open()
       }
-  document.getElementById('placeorderButton').closest('form').submit()
+      document.getElementById('placeorderButton').closest('form').submit()
 
-});
-    
+    });
+
   </script>
-   <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 
 
-   <script>
+  <script>
     document.addEventListener("DOMContentLoaded", async function () {
-        const viewCouponsBtn = document.getElementById('viewCouponsBtn');
-        const couponsContainer = document.getElementById('couponsContainer');
+      const viewCouponsBtn = document.getElementById('viewCouponsBtn');
+      const couponsContainer = document.getElementById('couponsContainer');
 
-        viewCouponsBtn.addEventListener('click', async () => {
-            try {
-                const response = await fetch('/coupons');
-                const coupons = await response.json();
+      viewCouponsBtn.addEventListener('click', async () => {
+        try {
+          const response = await fetch('/coupons');
+          const coupons = await response.json();
 
-                couponsContainer.innerHTML = '';
+          couponsContainer.innerHTML = '';
 
-                coupons.forEach(coupon => {
-                    const couponDiv = document.createElement('div');
-                    couponDiv.classList.add('coupon');
-                    couponDiv.innerHTML = `
+          coupons.forEach(coupon => {
+            const couponDiv = document.createElement('div');
+            couponDiv.classList.add('coupon');
+            couponDiv.innerHTML = `
                         <p>Coupon Code: ${coupon.couponCode}</p>
                         <p>Discount Rate: ${coupon.discountRate}%</p>
                         <p>Minimum Purchase Amount: ${coupon.minimumPurchaseAmount}</p>
                         <p>Expiry Date: ${formatDate(coupon.expiryDate)}</p>
                     `;
-                    couponsContainer.appendChild(couponDiv);
-                });
-            } catch (error) {
-                console.error('Error fetching coupons:', error);
-            }
-        });
+            couponsContainer.appendChild(couponDiv);
+          });
+        } catch (error) {
+          console.error('Error fetching coupons:', error);
+        }
+      });
     });
 
     function formatDate(date) {
-        return new Date(date).toLocaleDateString();
+      return new Date(date).toLocaleDateString();
     }
-</script>
+  </script>
 
-<script>
-  document.addEventListener("DOMContentLoaded", async function () {
-    const applyCouponBtn = document.getElementById('applyCouponBtn');
-    const newTotalSpan = document.getElementById('newTotal');
-    const discountSpan = document.getElementById('discount'); 
-    const appliedCouponCodeInput = document.getElementById('appliedCouponCode');
+  <script>
+    document.addEventListener("DOMContentLoaded", async function () {
+      const applyCouponBtn = document.getElementById('applyCouponBtn');
+      const newTotalSpan = document.getElementById('newTotal');
+      const discountSpan = document.getElementById('discount');
+      const appliedCouponCodeInput = document.getElementById('appliedCouponCode');
 
-    applyCouponBtn.addEventListener('click', async () => {
-      const couponCode = document.getElementById('code').value;
-      const applied = applyCouponBtn.dataset.applied === 'true';
+      applyCouponBtn.addEventListener('click', async () => {
+        const couponCode = document.getElementById('code').value;
+        const applied = applyCouponBtn.dataset.applied === 'true';
 
-      try {
-        if (applied) {
-          const response = await fetch('/removeCoupon', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            }
-          });
-          const data = await response.json();
-          if (data.success) {
-            applyCouponBtn.innerText = 'Apply';
-            applyCouponBtn.dataset.applied = 'false';
-            newTotalSpan.innerText = data.newTotal;
-            discountSpan.innerText = '0'; 
-            appliedCouponCodeInput.value = '';
-          }
-        } else {
-          const response = await fetch('/applyCoupon', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ couponCode })
-          });
-          const data = await response.json();
-          if (data.success) {
-            applyCouponBtn.innerText = 'Remove';
-            applyCouponBtn.dataset.applied = 'true';
-            newTotalSpan.innerText = data.newTotal;
-            discountSpan.innerText = data.discount; 
-
-            appliedCouponCodeInput.value = couponCode;
-          }
-          else {
-            Swal.fire({
-              text: 'Coupon not applicable.',
-              icon: 'error',
+        try {
+          if (applied) {
+            const response = await fetch('/removeCoupon', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              }
             });
+            const data = await response.json();
+            if (data.success) {
+              applyCouponBtn.innerText = 'Apply';
+              applyCouponBtn.dataset.applied = 'false';
+              newTotalSpan.innerText = data.newTotal;
+              discountSpan.innerText = '0';
+              appliedCouponCodeInput.value = '';
+            }
+          } else {
+            const response = await fetch('/applyCoupon', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ couponCode })
+            });
+            const data = await response.json();
+            if (data.success) {
+              applyCouponBtn.innerText = 'Remove';
+              applyCouponBtn.dataset.applied = 'true';
+              newTotalSpan.innerText = data.newTotal;
+              discountSpan.innerText = data.discount;
+              appliedCouponCodeInput.value = couponCode;
+            }
+            else {
+              Swal.fire({
+                text: 'Coupon not applicable.',
+                icon: 'error',
+              });
+            }
           }
+        } catch (error) {
+          console.error('Error applying/removing coupon:', error);
+          Swal.fire({
+            text: 'Error applying/removing coupon. Please try again later.',
+            icon: 'error',
+          });
         }
-      } catch (error) {
-        console.error('Error applying/removing coupon:', error);
-        Swal.fire({
-          text: 'Error applying/removing coupon. Please try again later.',
-          icon: 'error',
-        });
-      }
+      });
     });
-  });
-</script>
+  </script>
 
 
   </div>

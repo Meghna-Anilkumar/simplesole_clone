@@ -32,6 +32,7 @@ module.exports = {
       const { paymentMethod, appliedCouponCode } = req.body;
       console.log('Received data:', req.body);
       const userId = req.session.user._id;
+      req.session.coupon=appliedCouponCode
       const user = await User.findById(userId)
       const cart = await Cart.findOne({ user }).populate('items.product').exec();
 
@@ -70,6 +71,7 @@ module.exports = {
         await newOrder.save();
         cart.items = [];
         cart.total = 0;
+        cart.newTotal=0
         await cart.save();
         return res.render('userviews/successpage');
       }
@@ -96,7 +98,6 @@ module.exports = {
           user.usedCoupons.push(appliedCouponCode);
           await user.save();
         }
-
 
         const newOrder = new Order({
           user: req.session.user,
@@ -127,8 +128,8 @@ module.exports = {
         await newOrder.save()
         cart.items = []
         cart.total = 0
+        cart.newTotal=0
         await cart.save()
-
         return res.render('userviews/successpage');
       }
 
@@ -141,13 +142,11 @@ module.exports = {
 
   processPayment: async (req, res) => {
     try {
-      const { paymentMethod } = req.body;
+      const { paymentMethod} = req.body;
       const user = req.session.user
       const cart = await Cart.findOne({ user }).populate('items.product').exec();
 
-
       if (paymentMethod === 'RAZORPAY') {
-        console.log('hiiiiiii');
         const amountInPaise = Math.round(cart.newTotal || cart.total * 100);
         const razorpayOptions = {
           amount: amountInPaise,
@@ -163,7 +162,6 @@ module.exports = {
           }
           console.log('Razorpay order created successfully')
           console.log(req.session.discount, 'kkkkkkkk')
-          // console.log(couponCode, 'yyyyyyyy')
 
           const newOrder = new Order({
             user: user,
@@ -174,12 +172,13 @@ module.exports = {
             paymentStatus: 'paid',
             razorpayOrderId: razorpayOrder.id,
             discountAmount: req.session.discount || 0,
-            couponApplied: req.body.appliedCouponCode
+            couponApplied: req.session.couponCode
           })
 
           await newOrder.save()
           cart.items = []
           cart.total = 0
+          cart.newTotal=0
           await cart.save()
 
           await Cart.findOneAndDelete({ user: user });
@@ -203,27 +202,27 @@ module.exports = {
       const user = req.session.user;
       const page = parseInt(req.query.page) || 1; // Current page number
       const limit = parseInt(req.query.limit) || 10; // Number of orders per page
-  
+
       const skip = (page - 1) * limit; // Number of orders to skip
-  
+
       const ordersPromise = Order.find({ user })
         .populate('items.product')
         .sort({ orderdate: -1 }) // Sort by order date descending
         .skip(skip)
         .limit(limit)
         .exec();
-  
+
       const totalOrdersPromise = Order.countDocuments({ user }).exec();
-  
+
       const [orders, totalOrders] = await Promise.all([ordersPromise, totalOrdersPromise]);
-  
+
       const totalPages = Math.ceil(totalOrders / limit);
-  
+
       // Other data fetching logic (categories, wishlist, cart) can remain the same
-      const categories=await Category.find()
-      const wishlist=await Wishlist.find(user)
-      const cart=await Cart.find(user)
-  
+      const categories = await Category.find()
+      const wishlist = await Wishlist.find(user)
+      const cart = await Cart.find(user)
+
       res.render('userviews/myorders', {
         title: 'My Orders',
         orders,

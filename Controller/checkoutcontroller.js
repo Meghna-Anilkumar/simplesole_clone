@@ -18,6 +18,7 @@ module.exports = {
         const cart = await Cart.findOne({ user }).populate('items.product').exec();
         var wishlist = await Wishlist.findOne({ user });
         const discount = req.session.discount || 0;
+        req.session.totalpay=cart.total
         res.render('userviews/checkout', { title: 'checkout page', category: categories, cart, addresses: addresses ,order,wishlist,discount})
     },
 

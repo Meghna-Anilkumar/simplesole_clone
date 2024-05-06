@@ -87,53 +87,52 @@ module.exports = {
             const userId = req.session.user._id
             const user = await User.findById(userId)
             console.log(user.usedCoupons, 'uuuuuuuuuuu')
-
+    
             if (!user) {
                 return res.status(404).json({ error: 'User not found' });
             }
-
+    
             const cart = await Cart.findOne({ user }).populate('items.product').exec()
-
+    
             if (!couponCode) {
                 return res.status(400).json({ error: 'Coupon code is required' })
             }
-
+    
             const coupon = await Coupon.findOne({ couponCode });
-
+    
             if (!coupon) {
                 return res.status(400).json({ error: 'Invalid or expired coupon code' });
             }
-
+    
             if (cart.total < coupon.minimumPurchaseAmount) {
                 return res.status(400).json({ error: 'Minimum purchase amount not met for this coupon' });
             }
-
+    
             if (user.usedCoupons && user.usedCoupons.includes(coupon._id)) {
                 return res.status(400).json({ error: 'Coupon already used' });
             }
-
-
-            console.log(coupon.discountRate, 'kkkkkkk')
-
-            const discount = (cart.total * coupon.discountRate) / 100;
-            const newTotal = cart.total - discount;
-            cart.newTotal = newTotal;
-            console.log(newTotal, 'lllllllll')
-            await cart.save()
+    
+            let discount = 0; // Declare discount variable outside the if block
+            let newTotal = cart.total; // Declare newTotal variable outside the if block
+    
+            if (coupon) {
+                discount = (cart.total * coupon.discountRate) / 100;
+                newTotal = cart.total - discount;
+                cart.newTotal = newTotal;
+                console.log(newTotal, 'lllllllll')
+                await cart.save()
+            }
 
             req.session.couponCode = couponCode
             req.session.discount = discount
-
-            console.log(couponCode, 'hhhhhh')
-            console.log(discount, 'kkkkkkkkk')
-
+    
             return res.json({ success: true, newTotal: newTotal, coupon: coupon, discount: discount });
         } catch (error) {
             console.error(error);
             return res.status(500).json({ error: 'Internal server error' });
         }
     },
-
+    
 
     // Remove coupon
     removeCoupon: async (req, res) => {
