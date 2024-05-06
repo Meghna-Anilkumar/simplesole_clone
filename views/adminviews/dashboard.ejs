@@ -32,6 +32,12 @@
  
 </style>
 
+<div>
+  <% for (var i = 0; i < orderStatusData.labels.length; i++) { %>
+      <p><%= orderStatusData.labels[i] %>: <%= orderStatusData.data[i] %></p>
+  <% } %>
+</div>
+
 <div class="content">
   <h2>Welcome to the Admin Dashboard</h2>
 
@@ -79,9 +85,9 @@
   </div>
 
   <div class="dashboard-card">
-    <input type="hidden" id="orderStatusData" value='<%- JSON.stringify(orderstatusdata) %>'>
+    <input type="hidden" id="orderStatusData" value='<%- JSON.stringify(orderStatusData) %>'>
     <canvas id="orderStatusChart" width="400" height="400"></canvas>
-    <input type="hidden" id="paymentMethodData" value='<%- JSON.stringify(paymentmethoddata) %>'>
+    <input type="hidden" id="paymentMethodData" value='<%- JSON.stringify(paymentMethodData) %>'>
     <canvas id="paymentMethodChart" width="800" height="400"></canvas>
   </div>
 
