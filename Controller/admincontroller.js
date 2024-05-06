@@ -99,8 +99,8 @@ module.exports = {
         totalUsers: totalUsers,
         topSellingProducts: topSellingProducts,
         topSellingCategories: topSellingCategories,
-        orderStatusData: orderStatusData,
-        paymentMethodData: paymentMethodData
+        orderstatusdata: orderStatusData,
+        paymentmethoddata: paymentMethodData
       });
     }
     else {
