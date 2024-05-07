@@ -13,8 +13,83 @@
       background-color: #f4f4f4
     }
 
+
     .container {
-      margin: 40px auto
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      margin: 40px auto;
+    }
+
+    .productList {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+    }
+
+    .filter-products {
+      display: inline-block;
+      margin-bottom: 40px;
+      margin-left: 40px;
+    }
+
+    .filter-products .card {
+      width: 100%;
+      padding: 10px;
+      cursor: pointer;
+      transition: .3s all ease-in-out;
+      height: 350px;
+    }
+
+    .filter-products .card:hover {
+      box-shadow: 2px 2px 15px #fd9a6ce5;
+      transform: scale(1.02);
+    }
+
+    .filter-products .card .product-name {
+      font-weight: 600;
+    }
+
+    .filter-products .card-body {
+      padding-bottom: 0;
+    }
+
+    .filter-products .price {
+      font-size: 0.9rem;
+    }
+
+    .filter-products .card-img img {
+      width: inherit;
+      height: 180px;
+      object-fit: contain;
+    }
+
+    .pagination-container {
+      width: 100%;
+      text-align: center;
+      margin-top: 20px;
+    }
+
+
+    @media (max-width: 991.5px) {
+      .filter-products {
+        width: calc(33.33% - 20px);
+        /* Adjust width as needed for smaller screens */
+      }
+    }
+
+    @media (max-width: 767.5px) {
+      .filter-products {
+        width: calc(50% - 20px);
+        /* Adjust width as needed for smaller screens */
+      }
+    }
+
+    @media (max-width: 525.5px) {
+      .filter-products {
+        width: calc(100% - 20px);
+        /* Adjust width as needed for smaller screens */
+      }
     }
 
     #header {
@@ -26,51 +101,6 @@
     .col-lg-4,
     .col-md-6 {
       padding-right: 0
-    }
-
-    button.btn.btn-hide {
-      height: inherit;
-      background-color: #ff935d;
-      color: #fff;
-      font-size: 0.82rem;
-      padding-left: 40px;
-      padding-right: 40px;
-      border-top-right-radius: 0px;
-      border-bottom-right-radius: 0px
-    }
-
-    .btn:focus {
-      box-shadow: none
-    }
-
-    .box-label .btn {
-      background-color: #fff;
-      padding: 0;
-      font-size: 0.8rem
-    }
-
-    .btn-red {
-      background-color: #e00000ce
-    }
-
-    .btn-orange {
-      background-color: #ffa500
-    }
-
-    .btn-pink {
-      background-color: #e0009dce
-    }
-
-    .btn-green {
-      background-color: #00811c
-    }
-
-    .btn-blue {
-      background-color: #026bc2
-    }
-
-    .btn-brown {
-      background-color: #994a00
     }
 
     .navbar {
@@ -661,10 +691,10 @@
   <br><br><br><br>
   <div id="search-bar" class="container">
     <form id="searchForm" action="/search" method="GET" class="search-form">
-      <input type="text" name="query" id="searchInput" placeholder="Search for products" value="<%= searchQuery || '' %>">
+      <input type="text" name="query" id="searchInput" placeholder="Search for products"
+        value="<%= searchQuery || '' %>">
       <button type="submit" class="css-huh2rh">Search</button>
     </form>
-    
 
 
     <select id="colorFilter">
@@ -804,43 +834,39 @@
   <script>
     // Function to fetch all products and update product listing
     function fetchAllProducts() {
-      // Send AJAX request to backend route for all products
       fetch(`/allProducts`)
         .then(response => response.json())
         .then(data => {
-          // Update product listing with all products
           updateProductList(data);
         })
         .catch(error => console.error('Error fetching all products:', error));
     }
 
-      // Function to fetch filtered products and update product listing
-      function fetchFilteredProducts(colorFilter, sizeFilter, searchQuery) {
-    // Send AJAX request to backend route for filtered products
-    let url = `/filteredProducts?color=${colorFilter}&size=${sizeFilter}`;
-    if (searchQuery) {
-      url += `&query=${searchQuery}`;
+    // Function to fetch filtered products and update product listing
+    function fetchFilteredProducts(colorFilter, sizeFilter, searchQuery) {
+      let url = `/filteredProducts?color=${colorFilter}&size=${sizeFilter}`;
+      if (searchQuery) {
+        url += `&query=${searchQuery}`;
+      }
+      fetch(url)
+        .then(response => response.json())
+        .then(data => {
+          updateProductList(data);
+        })
+        .catch(error => console.error('Error fetching filtered products:', error));
     }
-    fetch(url)
-      .then(response => response.json())
-      .then(data => {
-        updateProductList(data);
-      })
-      .catch(error => console.error('Error fetching filtered products:', error));
-  }
 
-  // Function to handle form submission with search query
-  function handleSearchFormSubmit(event) {
-    event.preventDefault();
-    const searchQuery = document.getElementById('searchInput').value;
-    const colorFilter = document.getElementById('colorFilter').value;
-    const sizeFilter = document.getElementById('sizeFilter').value;
-    fetchFilteredProducts(colorFilter, sizeFilter, searchQuery);
-  }
+    // Function to handle form submission with search query
+    function handleSearchFormSubmit(event) {
+      event.preventDefault();
+      const searchQuery = document.getElementById('searchInput').value;
+      const colorFilter = document.getElementById('colorFilter').value;
+      const sizeFilter = document.getElementById('sizeFilter').value;
+      fetchFilteredProducts(colorFilter, sizeFilter, searchQuery);
+    }
 
-  // Event listener for search form submission
-  document.getElementById('searchForm').addEventListener('submit', handleSearchFormSubmit);
-    // Function to update product listing based on data
+    // Event listener for search form submission
+    document.getElementById('searchForm').addEventListener('submit', handleSearchFormSubmit);
     function updateProductList(products) {
       const productList = document.getElementById('products');
       productList.innerHTML = '';
@@ -851,7 +877,7 @@
       <div class="filter-products col-lg-3 col-md-6">
         <div class="card d-flex flex-column align-items-center">
           <div class="product-name">${product.name}</div>
-          <div class="price">Price: $${product.price}</div>
+          <div class="price">Price: ₹${product.price}</div>
           <div class="image"> <img src="${imageURL}" class="card-img-top" alt="${product.name}"></div>
           <!-- Add more product details as needed -->
         </div>
@@ -880,7 +906,5 @@
         fetchAllProducts();
       }
     });
-
-    // Initial fetch for all products (without filters)
     fetchAllProducts();
   </script>
