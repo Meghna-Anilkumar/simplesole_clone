@@ -33,7 +33,7 @@ module.exports = {
             // Check if a coupon with the same code already exists
             const existingCoupon = await Coupon.findOne({ couponCode });
             if (existingCoupon) {
-                throw new Error('Coupon with the same code already exists');
+                res.json('coupon already exists')
             }
     
             const newCoupon = new Coupon({

@@ -28,20 +28,20 @@ module.exports = {
     try {
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 10;
-  
+
       // Query the database with pagination parameters
       const product = await Product.find()
         .populate({ path: 'category', select: 'name' })
         .skip((page - 1) * limit)
         .limit(limit)
         .exec();
-  
+
       // Count total number of products
       const totalProducts = await Product.countDocuments();
-  
+
       // Calculate total number of pages
       const totalPages = Math.ceil(totalProducts / limit);
-  
+
       res.render('adminviews/products', {
         title: 'Products',
         product: product,
@@ -53,7 +53,7 @@ module.exports = {
       res.json({ message: err.message });
     }
   },
-  
+
 
 
   //insert a new product into database
@@ -383,31 +383,61 @@ module.exports = {
   searchproducts: async (req, res) => {
     try {
       const searchQuery = req.query.query;
-
-      const allProducts = await Product.find();
-      const category = await Category.find().exec();
-
+      const colorFilter = req.query.color;
+      const sizeFilter = req.query.size;
+      
+  
+      // Query products based on search query
       const searchResults = await Product.find({ name: { $regex: new RegExp(searchQuery, 'i') } });
-
+  
+      // Apply additional filters if present
+      let filteredResults = searchResults;
+  
+      if (colorFilter) {
+        filteredResults = filteredResults.filter(product => product.color === colorFilter);
+      }
+  
+      if (sizeFilter) {
+        filteredResults = filteredResults.filter(product => product.size.includes(sizeFilter));
+      }
+  
+      if (minPrice && maxPrice) {
+        filteredResults = filteredResults.filter(product => product.price >= minPrice && product.price <= maxPrice);
+      }
+  
+      // Fetch all categories
+      const category = await Category.find().exec();
+  
       res.render('userviews/allproducts', {
         title: 'Search Results',
-        allProducts: allProducts,
+        allProducts: filteredResults,
         searchResults: searchResults,
         category: category,
         searchQuery: searchQuery
-      })
+      });
     } catch (error) {
       console.error(error);
       res.status(500).send('Internal Server Error');
     }
   },
 
-
-  //filter products
+  // filterproducts route
   filterproducts: async (req, res) => {
     try {
-      let filteredProducts = await Product.find();
+      let filteredProducts;
+      console.log('filtering products')
 
+      // Check if there is a search query
+      if (req.query.query) {
+        const searchQuery = req.query.query;
+        const regex = new RegExp(searchQuery, 'i');
+        filteredProducts = await Product.find({ name: regex });
+      } else {
+        // If no search query, apply filters to all products
+        filteredProducts = await Product.find();
+      }
+
+      // Apply filtering based on other query parameters (color, size)
       if (req.query.color) {
         filteredProducts = filteredProducts.filter(product => product.color === req.query.color);
       }
@@ -427,7 +457,8 @@ module.exports = {
       console.error(error);
       res.status(500).send('Internal Server Error');
     }
-  },
+  }
+
 
 
 };

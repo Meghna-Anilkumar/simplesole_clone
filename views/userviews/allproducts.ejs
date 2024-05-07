@@ -660,11 +660,11 @@
 
   <br><br><br><br>
   <div id="search-bar" class="container">
-    <form action="/search" method="GET" class="search-form">
-      <input type="text" name="query" id="searchInput" placeholder="Search for products"
-        value="<%= searchQuery || '' %>">
+    <form id="searchForm" action="/search" method="GET" class="search-form">
+      <input type="text" name="query" id="searchInput" placeholder="Search for products" value="<%= searchQuery || '' %>">
       <button type="submit" class="css-huh2rh">Search</button>
     </form>
+    
 
 
     <select id="colorFilter">
@@ -814,17 +814,32 @@
         .catch(error => console.error('Error fetching all products:', error));
     }
 
-    // Function to fetch filtered products and update product listing
-    function fetchFilteredProducts(colorFilter, sizeFilter) {
-      // Send AJAX request to backend route for filtered products
-      fetch(`/filteredProducts?color=${colorFilter}&size=${sizeFilter}`)
-        .then(response => response.json())
-        .then(data => {
-          updateProductList(data);
-        })
-        .catch(error => console.error('Error fetching filtered products:', error));
+      // Function to fetch filtered products and update product listing
+      function fetchFilteredProducts(colorFilter, sizeFilter, searchQuery) {
+    // Send AJAX request to backend route for filtered products
+    let url = `/filteredProducts?color=${colorFilter}&size=${sizeFilter}`;
+    if (searchQuery) {
+      url += `&query=${searchQuery}`;
     }
+    fetch(url)
+      .then(response => response.json())
+      .then(data => {
+        updateProductList(data);
+      })
+      .catch(error => console.error('Error fetching filtered products:', error));
+  }
 
+  // Function to handle form submission with search query
+  function handleSearchFormSubmit(event) {
+    event.preventDefault();
+    const searchQuery = document.getElementById('searchInput').value;
+    const colorFilter = document.getElementById('colorFilter').value;
+    const sizeFilter = document.getElementById('sizeFilter').value;
+    fetchFilteredProducts(colorFilter, sizeFilter, searchQuery);
+  }
+
+  // Event listener for search form submission
+  document.getElementById('searchForm').addEventListener('submit', handleSearchFormSubmit);
     // Function to update product listing based on data
     function updateProductList(products) {
       const productList = document.getElementById('products');
