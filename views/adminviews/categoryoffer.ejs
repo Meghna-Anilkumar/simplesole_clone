@@ -170,42 +170,54 @@
       startDate: startDate.value,
       expiryDate: expiryDate.value
     }; 
-
-    try {
-      const response = await fetch('/save-category-offer', {
+// Inside the submitCategoryOfferBtn event listener
+try {
+    const response = await fetch('/save-category-offer', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+            'Content-Type': 'application/json'
         },
         body: JSON.stringify(formData)
-      });
+    });
 
-      if (response.ok) {
+    if (response.ok) {
         const data = await response.json();
         console.log(data.message);
 
-        categoryOfferDetailsContainer.innerHTML += `
-          <div class="offer-box">
-            <p>Category: ${data.category.name}</p>
-            <p>Discount Percentage: ${data.discountPercentage}%</p>
-            <p>Start Date: ${data.startDate}</p>
-            <p>Expiry Date: ${data.expiryDate}</p>
-            <button class="btn btn-primary edit-category-offer-btn" data-toggle="modal" data-target="#editCategoryOfferModal"
-              data-category-offer-id="${data._id}" data-category-id="${data.category._id}"
-              data-discount-percentage="${data.discountPercentage}" data-start-date="${data.startDate}"
-              data-expiry-date="${data.expiryDate}">Edit</button>
-            <button class="btn btn-danger delete-category-offer-btn" data-category-offer-id="${data._id}">Delete</button>
-          </div>
-        `;
-        
-        const modal = new bootstrap.Modal(document.getElementById('addCategoryOfferModal'));
-        modal.hide();
-      } else {
+        if (data.message === 'Category already has an offer') {
+            // Display SweetAlert for existing category offer
+            Swal.fire({
+                icon: 'error',
+                title: 'Category Already Has Offer',
+                text: 'This category already has a category offer.'
+            });
+        } else {
+            // Append new offer details to the offer details container
+            categoryOfferDetailsContainer.innerHTML += `
+                <div class="offer-box">
+                    <p>Category: ${data.category.name}</p>
+                    <p>Discount Percentage: ${data.discountPercentage}%</p>
+                    <p>Start Date: ${data.startDate}</p>
+                    <p>Expiry Date: ${data.expiryDate}</p>
+                    <button class="btn btn-primary edit-category-offer-btn" data-toggle="modal" data-target="#editCategoryOfferModal"
+                        data-category-offer-id="${data._id}" data-category-id="${data.category._id}"
+                        data-discount-percentage="${data.discountPercentage}" data-start-date="${data.startDate}"
+                        data-expiry-date="${data.expiryDate}">Edit</button>
+                    <button class="btn btn-danger delete-category-offer-btn" data-category-offer-id="${data._id}">Delete</button>
+                </div>
+            `;
+
+            // Close the modal
+            const modal = new bootstrap.Modal(document.getElementById('addCategoryOfferModal'));
+            modal.hide();
+        }
+    } else {
         console.error('Failed to save category offer');
-      }
-    } catch (error) {
-      console.error('Error:', error);
     }
+} catch (error) {
+    console.error('Error:', error);
+}
+
     window.location.reload(); 
   })
 })

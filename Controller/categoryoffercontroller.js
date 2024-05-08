@@ -27,16 +27,22 @@ module.exports = {
     savecategoryoffer: async (req, res) => {
         try {
             const { categoryId, discountPercentage, startDate, expiryDate } = req.body;
-
+    
+            // Check if a category offer already exists for the selected category
+            const existingCategoryOffer = await CategoryOffer.findOne({ category: categoryId });
+    
+            if (existingCategoryOffer) {
+                // If a category offer already exists, return an error message
+                return res.status(400).json({ message: 'Category already has an offer' });
+            }
+    
             const categoryProducts = await Product.find({ category: categoryId });
-
+    
             for (const product of categoryProducts) {
-                
                 const categoryOfferPrice = calculateCategoryOfferPrice(product.price, discountPercentage);
-               
                 await Product.findByIdAndUpdate(product._id, { categoryofferprice: categoryOfferPrice });
             }
-
+    
             const categoryOffer = new CategoryOffer({
                 category: categoryId,
                 discountPercentage,
@@ -44,13 +50,14 @@ module.exports = {
                 expiryDate,
             });
             const savedCategoryOffer = await categoryOffer.save();
-
+    
             res.status(200).json(savedCategoryOffer);
         } catch (error) {
             console.error('Error saving category offer:', error);
             res.status(500).json({ error: 'Failed to save category offer' });
         }
     },
+    
 
 
 
@@ -105,10 +112,10 @@ module.exports = {
             const categoryId = deletedCategoryOffer.category
             const categoryProducts = await Product.find({ category: categoryId })
 
-            
+
             for (const product of categoryProducts) {
                 await Product.findByIdAndUpdate(product._id, {
-                    categoryofferprice:0
+                    categoryofferprice: 0
                 });
             }
 

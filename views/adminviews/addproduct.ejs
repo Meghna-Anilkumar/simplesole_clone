@@ -165,188 +165,184 @@
     </div>
 
     <!-- Cropper Modal -->
-    <div id="cropperModal" class="modal">
-      <div class="modal-content">
-        <span class="close">&times;</span>
-        <div id="cropperContainer">
-          <img id="cropperImage" src="#" alt="Crop">
-        </div>
-        <button id="doneButton">Done</button>
+  <div id="cropperModal" class="modal">
+    <div class="modal-content">
+      <span class="close">&times;</span>
+      <div id="cropperContainer">
+        <img id="cropperImage" src="#" alt="Crop">
       </div>
+      <button id="doneButton">Done</button>
     </div>
+  </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/cropperjs/dist/cropper.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/cropperjs/dist/cropper.min.js"></script>
 
-    <script>
-      function previewImages(input) {
-        var previewContainer = document.getElementById('imagePreview');
-        previewContainer.innerHTML = '';
-
-        var files = input.files;
-
-        for (var i = 0; i < files.length; i++) {
-          var file = files[i];
-          var reader = new FileReader();
-
-          reader.onload = function (e) {
-            var previewDiv = document.createElement('div');
-            previewDiv.className = 'preview-container';
-
-            var img = document.createElement('img');
-            img.src = e.target.result;
-            img.style.width = '100px';
-            img.style.height = '100px';
-            img.onclick = function () {
-              openCropperModal(img.src);
-            };
-
-            var deleteButton = document.createElement('button');
-            deleteButton.className = 'delete-button';
-            deleteButton.innerHTML = 'X';
-            deleteButton.onclick = function () {
-              previewContainer.removeChild(previewDiv);
-            };
-
-            previewDiv.appendChild(img);
-            previewDiv.appendChild(deleteButton);
-
-            previewContainer.appendChild(previewDiv);
+  <script>
+    function previewImages(input) {
+      var previewContainer = document.getElementById('imagePreview');
+      previewContainer.innerHTML = '';
+  
+      var files = input.files;
+  
+      for (var i = 0; i < files.length; i++) {
+        var file = files[i];
+        var reader = new FileReader();
+  
+        reader.onload = function (e) {
+          var previewDiv = document.createElement('div');
+          previewDiv.className = 'preview-container';
+  
+          var img = document.createElement('img');
+          img.src = e.target.result;
+          img.style.width = '100px';
+          img.style.height = '100px';
+          img.onclick = function () {
+            openCropperModal(img.src);
           };
-
-          reader.readAsDataURL(file);
-        }
+  
+          var deleteButton = document.createElement('button');
+          deleteButton.className = 'delete-button';
+          deleteButton.innerHTML = 'X';
+          deleteButton.onclick = function () {
+            previewContainer.removeChild(previewDiv);
+          };
+  
+          previewDiv.appendChild(img);
+          previewDiv.appendChild(deleteButton);
+  
+          previewContainer.appendChild(previewDiv);
+        };
+  
+        reader.readAsDataURL(file);
       }
-
-      // Cropper Modal
-      var cropper;
-      var cropperModal = document.getElementById("cropperModal");
-      var cropperImage = document.getElementById("cropperImage");
-
-      function openCropperModal(imageUrl) {
-        cropperModal.style.display = "block";
-        cropperImage.src = imageUrl;
-
-        cropper = new Cropper(cropperImage, {
-          aspectRatio: 1 / 1,
-          viewMode: 1,
-          background: false,
-          scalable: false,
-          zoomable: false,
+    }
+  
+    // Cropper Modal
+    var cropper;
+    var cropperModal = document.getElementById("cropperModal");
+    var cropperImage = document.getElementById("cropperImage");
+  
+    function openCropperModal(imageUrl) {
+      cropperModal.style.display = "block";
+      cropperImage.src = imageUrl;
+  
+      cropper = new Cropper(cropperImage, {
+        aspectRatio: 1 / 1,
+        viewMode: 1,
+        background: false,
+        scalable: false,
+        zoomable: false,
+      });
+    }
+  
+    document.getElementById('doneButton').addEventListener('click', function () {
+      var canvas = cropper.getCroppedCanvas();
+      var croppedImage = canvas.toDataURL();
+  
+      // Update preview with cropped image
+      var previewContainer = document.getElementById('imagePreview');
+      var img = document.createElement('img');
+      img.src = croppedImage;
+      img.style.width = '100px';
+      img.style.height = '100px';
+      previewContainer.appendChild(img);
+  
+      cropperModal.style.display = "none";
+      cropper.destroy();
+    });
+  
+    // Close the cropper modal
+    var closeBtn = document.getElementsByClassName("close")[0];
+    closeBtn.onclick = function () {
+      cropperModal.style.display = "none";
+      cropper.destroy();
+    };
+  
+    // Form validation
+    document.getElementById('singlebutton').addEventListener('click', function (event) {
+      var nameInput = document.getElementById('product_name');
+      if (!validateName(nameInput.value)) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Invalid input',
+          text: 'Please enter a valid name.'
         });
+        event.preventDefault();
+        return;
       }
-
-      document.getElementById('doneButton').addEventListener('click', function () {
-        var canvas = cropper.getCroppedCanvas();
-        canvas.toBlob(function (blob) {
-          var formData = new FormData();
-          formData.append('croppedImage', blob, 'cropped_image.png');
-
-          fetch('/uploadCroppedImage', {
-            method: 'POST',
-            body: formData
-          })
-            .then(response => {
-              if (!response.ok) {
-                throw new Error('Failed to upload cropped image');
-              }
-              return response.json();
-            })
-            .then(data => {
-              // Handle successful upload
-              console.log('Uploaded filename:', data.filename);
-            })
-            .catch(error => {
-              console.error('Error uploading cropped image:', error);
-              // Handle error
-            });
-        }, 'image/png');
-      });
-
-      // Form validation
-      document.getElementById('singlebutton').addEventListener('click', function (event) {
-        var nameInput = document.getElementById('product_name');
-        if (!validateName(nameInput.value)) {
-          Swal.fire({
-            icon: 'error',
-            title: 'Invalid input',
-            text: 'Please enter a valid name.'
-          });
-          event.preventDefault();
-          return;
-        }
-
-        var priceInput = document.getElementById('price');
-        if (!validatePrice(priceInput.value)) {
-          Swal.fire({
-            icon: 'error',
-            title: 'Invalid input',
-            text: 'Please enter a valid price.'
-          });
-          event.preventDefault();
-          return;
-        }
-
-        var stockInput = document.getElementById('stock');
-        if (!validateStock(stockInput.value)) {
-          Swal.fire({
-            icon: 'error',
-            title: 'Invalid input',
-            text: 'Please enter a valid stock.'
-          });
-          event.preventDefault();
-          return;
-        }
-
-        var sizeInput = document.getElementById('size');
-        if (!validateSize(sizeInput.value)) {
-          Swal.fire({
-            icon: 'error',
-            title: 'Invalid input',
-            text: 'Please enter a valid size.'
-          });
-          event.preventDefault();
-          return;
-        }
-
-        var imageInput = document.getElementById('filebutton');
-        if (!validateImage(imageInput)) {
-          Swal.fire({
-            icon: 'error',
-            title: 'Invalid input',
-            text: 'Please select at least one image.'
-          });
-          event.preventDefault();
-          return;
-        }
-      });
-
-      function validateName(name) {
-        return name.trim() !== "";
+  
+      var priceInput = document.getElementById('price');
+      if (!validatePrice(priceInput.value)) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Invalid input',
+          text: 'Please enter a valid price.'
+        });
+        event.preventDefault();
+        return;
       }
-
-      function validatePrice(price) {
-        var numericPrice = parseFloat(price);
-        return !isNaN(numericPrice) && numericPrice > 0;
+  
+      var stockInput = document.getElementById('stock');
+      if (!validateStock(stockInput.value)) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Invalid input',
+          text: 'Please enter a valid stock.'
+        });
+        event.preventDefault();
+        return;
       }
-
-      function validateStock(stock) {
-        var numericStock = parseInt(stock, 10);
-        return !isNaN(numericStock) && numericStock >= 0 && Number.isInteger(numericStock);
+  
+      var sizeInput = document.getElementById('size');
+      if (!validateSize(sizeInput.value)) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Invalid input',
+          text: 'Please enter a valid size.'
+        });
+        event.preventDefault();
+        return;
       }
-
-      function validateSize(size) {
-        return true;
+  
+      var imageInput = document.getElementById('filebutton');
+      if (!validateImage(imageInput)) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Invalid input',
+          text: 'Please select at least one image.'
+        });
+        event.preventDefault();
+        return;
       }
-
-      function validateImage(input) {
-        return input.files.length > 0;
-      }
-    </script>
-
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-
+    });
+  
+    function validateName(name) {
+      return name.trim() !== "";
+    }
+  
+    function validatePrice(price) {
+      var numericPrice = parseFloat(price);
+      return !isNaN(numericPrice) && numericPrice > 0;
+    }
+  
+    function validateStock(stock) {
+      var numericStock = parseInt(stock, 10);
+      return !isNaN(numericStock) && numericStock >= 0 && Number.isInteger(numericStock);
+    }
+  
+    function validateSize(size) {
+      return true;
+    }
+  
+    function validateImage(input) {
+      return input.files.length > 0;
+    }
+  </script>
+  
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  
   </body>
 
   </html>
