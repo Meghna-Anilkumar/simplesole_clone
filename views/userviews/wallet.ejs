@@ -152,9 +152,8 @@
                 "image": "https://example.com/your_logo.png",
                 "order_id": data.id,
                 "handler": function (response) {
-                    // Handle Razorpay response (payment success)
+                    
                     console.log(response);
-                    // Call function to update wallet balance after successful payment
                     updateWalletBalance(response.amount);
                 },
                 "prefill": {
@@ -172,7 +171,7 @@
         .catch(error => console.error('Error:', error));
     }
 
-    // Function to update wallet balance after successful payment
+   
     function updateWalletBalance(amount) {
         fetch('/wallet/topup', {
             method: 'POST',

@@ -188,7 +188,7 @@ a:hover{
                                     <button type="button" class="quantity-button" onclick="updateQuantity('<%= item.product._id %>', 1)">+</button>
                                 </div>
                                 <% if (item.quantity >= item.product.stock) { %>
-                                    <div style="color:red;">(Max stock reached)</div>
+                                    <div style="color:rgb(200, 0, 255);">(Max stock reached)</div>
                                 <% } %>
                             </div>
                             
