@@ -1,4 +1,3 @@
-//imports
 require('dotenv').config()
 const express = require('express')
 const mongoose = require('mongoose')
@@ -63,7 +62,7 @@ app.use((req, res, next) => {
     next()
 })
 
-app.use(express.static('uploads'))//to display the uploaded files
+app.use(express.static('uploads'))
 app.use(express.static('public'))
 app.use(cookieParser())
 
