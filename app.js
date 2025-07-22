@@ -62,6 +62,10 @@ app.use((req, res, next) => {
     next()
 })
 
+
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/compressed_images', express.static(path.join(__dirname, 'compressed_images')));
+
 app.use(express.static('uploads'))
 app.use(express.static('public'))
 app.use(express.static('compressed_images'))
