@@ -1,17 +1,13 @@
 require('dotenv').config()
 const express = require('express')
-const path = require('path');
 const mongoose = require('mongoose')
-const User = require('./models/user')
+const path=require('path')
 const session = require('express-session')
 const cookieParser = require('cookie-parser')
 const MongoDBSession = require('connect-mongodb-session')(session)
 const bodyParser = require('body-parser')
-const nodemailer = require('nodemailer')
-const nocache = require('nocache')
 const morgan = require('morgan')
-const userrouter = require('./routes/userrouter')
-const adminrouter = require('./routes/adminrouter')
+
 
 const app = express()
 const PORT = process.env.PORT || 4000

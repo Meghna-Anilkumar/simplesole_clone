@@ -14,7 +14,7 @@ module.exports = {
             if (!user) {
                 return res.redirect('/login');
             }
-    
+            
             const wishlist = await Wishlist.findOne({ user: user._id }).populate('items.product');
             const categories = await Category.find();
             const cart = await Cart.findOne({ user }).populate('items.product').exec();

@@ -1,17 +1,10 @@
 const express = require('express')
 const router = express.Router()
-const User = require('../models/user')
-const Category = require('../models/category')
-const Product = require('../models/product')
-const multer = require('multer')
-const fs = require('fs')
-var uploadMiddleware = require('../middlewares/multer')
-var otpMiddleware = require('../middlewares/otpMiddleware')
+var upload = require('../middlewares/multer')
 const customercontroller = require('../Controller/customercontroller');
 const admincontroller = require('../Controller/admincontroller');
 const productcontroller = require('../Controller/productcontroller');
 const categorycontroller = require('../Controller/categorycontroller');
-const isAuth = require('../middlewares/isAuth')
 const adminAuth = require('../middlewares/adminAuth')
 const adminordercontroller = require('../Controller/adminordercontroller')
 const couponcontroller = require('../Controller/couponcontroller')
@@ -35,9 +28,9 @@ router.post('/updateCategory/:id', categorycontroller.updatecategory)
 router.post('/blockCat', categorycontroller.blockCategory)
 router.get('/products', adminAuth.adminexist, productcontroller.getproducts)
 router.get('/addProduct', productcontroller.addProduct)
-router.post('/addProduct', uploadMiddleware, productcontroller.addnewproduct)
+router.post('/addProduct', upload, productcontroller.addnewproduct)
 router.get('/editProduct/:id', productcontroller.editproduct)
-router.post('/updateProduct/:id', uploadMiddleware, productcontroller.updateproduct)
+router.post('/updateProduct/:id', upload, productcontroller.updateproduct)
 router.post('/verify-otp', customercontroller.verifyotp)
 router.post('/blockProduct', productcontroller.blockProduct)
 
