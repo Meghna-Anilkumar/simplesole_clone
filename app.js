@@ -1,5 +1,6 @@
 require('dotenv').config()
 const express = require('express')
+const path = require('path');
 const mongoose = require('mongoose')
 const User = require('./models/user')
 const session = require('express-session')
