@@ -27,11 +27,12 @@ router.get('/usericon', usercontroller.userIcon)
 router.post('/editprofiledetails', usercontroller.editprofiledetails)
 
 //products
-router.get('/category/:categoryId', productcontroller.getproductsCategorywise)
-router.get('/products/:id', productcontroller.getproductdetails)
-router.get('/seeallproducts', productcontroller.getAllProducts)
-router.get('/search', productcontroller.getAllProducts)
+router.get('/category/:categoryId', productcontroller.getproductsCategorywise);
+router.get('/products/:id', productcontroller.getproductdetails);
+router.get('/seeallproducts', productcontroller.getAllProducts);
 router.get('/allProducts', productcontroller.getAllProducts);
+router.get('/filteredProducts', productcontroller.filterproducts); 
+
 
 //address
 router.get('/address', usercontroller.getaddressbook)
@@ -89,7 +90,6 @@ router.get('/forgotpassword',usercontroller.verifyemail)
 router.post('/forgot-password',usercontroller.sendOTP)
 router.post('/reset-password',usercontroller.resetPassword)
 
-//filteredproducts
-router.get('/filteredProducts',productcontroller.filterproducts)
+
 
 module.exports = router
