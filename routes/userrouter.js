@@ -31,6 +31,7 @@ router.get('/category/:categoryId', productcontroller.getproductsCategorywise)
 router.get('/products/:id', productcontroller.getproductdetails)
 router.get('/seeallproducts', productcontroller.getAllProducts)
 router.get('/search', productcontroller.getAllProducts)
+router.get('/allProducts', productcontroller.getAllProducts);
 
 //address
 router.get('/address', usercontroller.getaddressbook)

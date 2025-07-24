@@ -1,13 +1,17 @@
+//imports
 require('dotenv').config()
 const express = require('express')
 const mongoose = require('mongoose')
-const path=require('path')
+const User = require('./models/user')
 const session = require('express-session')
 const cookieParser = require('cookie-parser')
 const MongoDBSession = require('connect-mongodb-session')(session)
 const bodyParser = require('body-parser')
+const nodemailer = require('nodemailer')
+const nocache = require('nocache')
 const morgan = require('morgan')
-
+const userrouter = require('./routes/userrouter')
+const adminrouter = require('./routes/adminrouter')
 
 const app = express()
 const PORT = process.env.PORT || 4000
@@ -59,13 +63,8 @@ app.use((req, res, next) => {
     next()
 })
 
-
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-app.use('/compressed_images', express.static(path.join(__dirname, 'compressed_images')));
-
-app.use(express.static('uploads'))
+app.use(express.static('uploads'))//to display the uploaded files
 app.use(express.static('public'))
-app.use(express.static('compressed_images'))
 app.use(cookieParser())
 
 app.set('view engine', 'ejs')

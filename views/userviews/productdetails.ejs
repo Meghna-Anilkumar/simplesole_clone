@@ -217,7 +217,7 @@ img {
                       <div class="carousel-inner">
                           <% product.images.forEach((image, index) => { %>
                               <div class="carousel-item <%= index === 0 ? 'active' : '' %>">
-                                  <img src="/<%= image %>" class="d-block w-100 zoomable-image" alt="Image <%= index + 1 %>" data-zoom="/<%= image %>" >
+                                  <img src="<%= image %>" class="d-block w-100 zoomable-image" alt="Image <%= index + 1 %>" data-zoom="/<%= image %>" >
                               </div>
                           <% }); %>
                       </div>
@@ -234,7 +234,7 @@ img {
                   <div class="row mt-3">
                       <% product.images.slice(1).forEach((thumbnail, index) => { %>
                           <div class="col-2">
-                              <img class="thumb" src="/<%= thumbnail %>" class="img-fluid" alt="Thumbnail <%= index + 2 %>" data-bs-target="#carouselExample" data-bs-slide-to="<%= index + 1 %>">
+                              <img class="thumb" src="<%= thumbnail %>" class="img-fluid" alt="Thumbnail <%= index + 2 %>" data-bs-target="#carouselExample" data-bs-slide-to="<%= index + 1 %>">
                           </div>
                       <% }); %>
                   </div>
