@@ -97,6 +97,7 @@
     align-items: center;
     padding: 15px;
     border: 1px solid #ddd;
+    position: relative; /* Added for zoom positioning */
   }
 
   .card:hover {
@@ -110,12 +111,19 @@
     display: flex;
     justify-content: center;
     align-items: center;
+    overflow: hidden; /* Ensure zoomed image stays within bounds */
+    position: relative;
   }
 
   .card-img img {
     max-width: 100%;
     max-height: 100%;
     object-fit: contain;
+    transition: transform 0.3s ease; /* Smooth zoom transition */
+  }
+
+  .card-img:hover img {
+    transform: scale(1.2); /* Zoom effect on hover */
   }
 
   .product-name {
@@ -145,6 +153,7 @@
     border-radius: 4px;
     font-size: 0.9rem;
     font-weight: bold;
+    z-index: 2; /* Ensure badge stays above zoomed image */
   }
 
   .pagination-container {
@@ -221,6 +230,31 @@
       flex-wrap: wrap;
       justify-content: center;
     }
+
+    .card-img {
+      position: relative;
+      width: 100%;
+      height: 180px; /* Match the hardcoded height from your original CSS */
+      overflow: hidden;
+    }
+
+    .card-img a {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      text-decoration: none;
+      z-index: 1; /* Ensure link is above image but below badge */
+    }
+
+    .card-img img {
+      pointer-events: none; /* Prevent image from receiving clicks */
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
   }
 </style>
 
@@ -276,7 +310,7 @@
           <% } %>
         </div>
         <% } %>
-        <a href="/products/<%= product._id %>">
+        <a href="/products/<%= product._id %>" class="product-link" onclick="console.log('Static Click on Link: Target = /products/<%= product._id %>, Event =', event); return true;">
           <div class="card-img">
             <img src="<%= product.images[0] %>" alt="<%= product.name %>" />
           </div>
@@ -320,7 +354,7 @@
 
 <script>
   document.getElementById("applySort").addEventListener("click", function (event) {
-    event.preventDefault(); // Prevent form submission
+    event.preventDefault();
     const sortOption = document.getElementById("sortOption").value;
     const colorFilter = document.getElementById("colorFilter").value;
     const sizeFilter = document.getElementById("sizeFilter").value;
@@ -329,7 +363,7 @@
   });
 
   function fetchAllProducts() {
-    fetch(`/allProducts?json=true&t=${new Date().getTime()}`) // Add timestamp to bust cache
+    fetch(`/allProducts?json=true&t=${new Date().getTime()}`)
       .then((response) => response.json())
       .then((data) => {
         updateProductList(data);
@@ -338,7 +372,7 @@
   }
 
   function fetchFilteredProducts(colorFilter, sizeFilter, searchQuery, sortOption) {
-    let url = `/filteredProducts?color=${colorFilter}&size=${sizeFilter}&t=${new Date().getTime()}`; // Add timestamp
+    let url = `/filteredProducts?color=${colorFilter}&size=${sizeFilter}&t=${new Date().getTime()}`;
     if (searchQuery) url += `&query=${searchQuery}`;
     if (sortOption) url += `&sortOption=${sortOption}`;
     fetch(url)
@@ -367,13 +401,16 @@
     productList.innerHTML = "";
 
     products.forEach((product) => {
+      console.log('Dynamic product._id:', product._id);
       const imageURL = `/${product.images[0]}`;
       const productCard = `
         <div class="filter-products">
           <div class="card">
             <div class="product-name">${product.name}</div>
             <div class="card-img">
-              <img src="${imageURL}" alt="${product.name}">
+              <a href="/products/${product._id}" class="product-link" onclick="console.log('Dynamic Click on Link: Target = /products/${product._id}, Event =', event); return true;">
+                <img src="${imageURL}" alt="${product.name}" style="pointer-events: none;" />
+              </a>
             </div>
             <div class="price">₹${product.price}</div>
           </div>
@@ -400,6 +437,26 @@
     fetchFilteredProducts(colorFilter, sizeFilter, searchQuery, sortOption);
   });
 
+  // Global click listener for debugging
+  document.addEventListener('click', function (event) {
+    console.log('Global Click: Target =', event.target, 'Current Target =', event.currentTarget, 'Path =', event.composedPath());
+  });
+
+  // jQuery protection to prevent default on unintended clicks
+  $(document).ready(function () {
+    $(document).on('click', 'a:not(.product-link)', function (event) {
+      console.log('jQuery Click on non-product-link: Target =', $(this).attr('href'));
+      if ($(this).attr('href') === 'style.css') {
+        event.preventDefault();
+        console.log('Prevented navigation to style.css');
+      }
+    });
+    $('.product-link').on('click', function (event) {
+      console.log('jQuery Click on product-link: Target =', $(this).attr('href'));
+    });
+  });
+
   fetchAllProducts();
 </script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.min.js"></script>

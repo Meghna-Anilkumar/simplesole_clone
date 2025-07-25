@@ -226,9 +226,11 @@ module.exports = {
   getproductdetails: async (req, res) => {
     try {
       const productId = req.params.id;
+      console.log('Received productId:', productId, 'kkkkkkkkkkkkkkkkkk'); // Enhanced debug log
       const product = await Product.findById(productId).populate({ path: 'category', select: 'name-_id' });
 
       if (!product) {
+        console.log('Product not found for ID:', productId);
         return res.status(404).render('error', { message: 'Product not found' });
       }
 
@@ -254,6 +256,7 @@ module.exports = {
         expiryDate: { $gte: new Date() }
       });
 
+      console.log('Rendering product details for ID:', productId); // Debug log
       res.render('userviews/productdetails', {
         title: 'Products in category',
         category: selectedCategory,
@@ -266,7 +269,7 @@ module.exports = {
         cart
       });
     } catch (error) {
-      console.error(error);
+      console.error('Error in getproductdetails:', error);
       res.status(500).send('Internal Server Error');
     }
   },

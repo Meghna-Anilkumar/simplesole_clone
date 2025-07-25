@@ -1,74 +1,189 @@
-<%-include('./header',{ title: 'Products in category',category:selectedCategory,selectedCategory: selectedCategory, products: products})%>
+<%- include('./header', { title: 'Products in category', category: selectedCategory, selectedCategory: selectedCategory, products: products }) %>
 <style>
-  #navbar{
-    padding-right: 50px;
+  #navbar {
+    padding: 0 50px;
     background-color: black;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   }
 
-  .nav-link:not(:last-child) {
+  .navbar-nav {
+    gap: 15px;
+  }
+
+  .nav-link {
     color: white;
-    margin-right: 10px; 
+    font-size: 1rem;
+    transition: color 0.3s ease;
   }
 
-  #signupbody{
-    padding-top:50px;
+  .nav-link:hover {
+    color: rgb(255, 63, 108);
+  }
+
+  #signupbody, #loginbody {
+    padding-top: 100px;
     background-image: url(/images/wallpaper.jpg);
     background-size: cover;
     background-position: center;
-    width: 100%; 
+    width: 100%;
+    min-height: 100vh;
   }
 
-  #loginbody{
-    padding-top:50px;
-    background-image: url(/images/wallpaper.jpg);
-    background-size: cover;
-    background-position: center;
-    width: 100%; 
-  }
-
-  .nav-link{
-    color: white;
-  }
-
-  #logo{
+  #logo {
     height: 80px;
+  }
+
+  .container {
+    padding-top: 100px; /* Adjusted to prevent overlap with fixed navbar */
+    padding-bottom: 2rem;
+  }
+
+  .category-title {
+    font-size: 1.75rem;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 2rem;
+  }
+
+  .card {
+    border: none;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+  }
+
+  .card-img-top {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
+  }
+
+  .card-body {
+    padding: 1.5rem;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+
+  .card-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 1rem;
+  }
+
+  .card-text {
+    font-size: 1rem;
+    color: #666;
+    margin-bottom: 0.5rem;
   }
 
   .original-price {
     text-decoration: line-through;
-    color: gray;
+    color: #999;
+    font-size: 0.9rem;
   }
 
+  .btn-wishlist {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.3s ease, color 0.3s ease;
+  }
+
+  .btn-wishlist:hover {
+    background: rgb(255, 63, 108);
+    color: white;
+    border-color: rgb(255, 63, 108);
+  }
+
+  .badge {
+    font-size: 0.85rem;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+  }
+
+  @media screen and (max-width: 768px) {
+    .container {
+      padding-top: 90px; /* Slightly less padding for medium screens */
+    }
+
+    .card-img-top {
+      height: 150px;
+    }
+
+    .card-title {
+      font-size: 1.1rem;
+    }
+
+    .card-text {
+      font-size: 0.9rem;
+    }
+
+    .category-title {
+      font-size: 1.5rem;
+    }
+  }
+
+  @media screen and (max-width: 576px) {
+    .container {
+      padding: 80px 1rem 1rem; /* Adjusted for small screens */
+    }
+
+    .card-img-top {
+      height: 120px;
+    }
+
+    .category-title {
+      font-size: 1.25rem;
+    }
+  }
 </style>
-<div class="container mt-5">
-  <h2 class="mb-4">Products in Category: <%= selectedCategory.name %></h2>
+
+<div class="container">
+  <h2 class="category-title">Products in Category: <%= selectedCategory.name %></h2>
   <div class="row">
     <% products
       .filter(product => !product.category.blocked && !product.blocked)
       .filter(p => p.category.toString() === selectedCategory._id.toString())
       .forEach(product => { %>
-        <div class="col-md-4 mb-4">
+        <div class="col-md-4 col-sm-6 mb-4">
           <div class="card position-relative">
-            <!-- Check if there's a category offer for the selected category -->
             <% const categoryOffer = categoryOffers.find(offer => offer.category.toString() === selectedCategory._id.toString()); %>
             <% if (categoryOffer) { %>
               <div class="badge bg-success position-absolute top-0 start-0 mt-2 ms-2">
                 <%= categoryOffer.discountPercentage %>% OFF
               </div>
             <% } %>
-            <button class="btn btn-light btn-wishlist position-absolute top-0 end-0 mt-2 me-2">
+            <button class="btn btn-wishlist position-absolute top-0 end-0 mt-2 me-2">
               <i class="fas fa-heart"></i>
             </button>
             <a href="/products/<%= product._id %>">
-              <img src="/<%= product.images.length > 0 ? product.images[0] : '' %>" width="50" class="card-img-top" alt="<%= product.name %>">
+              <img src="/<%= product.images.length > 0 ? product.images[0] : '' %>" class="card-img-top" alt="<%= product.name %>">
             </a>
             <div class="card-body">
               <h5 class="card-title"><%= product.name %></h5>
               <% if (product.categoryofferprice) { %>
-                <p class="card-text original-price"><strong>Original Price:</strong> <del>&#8377;<%= product.price %></del></p>
-                <p class="card-text"><strong>Category Offer Price:</strong> &#8377;<%= product.categoryofferprice %></p>
+                <p class="card-text original-price"><strong>Original Price:</strong> ₹<%= product.price %></p>
+                <p class="card-text"><strong>Offer Price:</strong> ₹<%= product.categoryofferprice %></p>
               <% } else { %>
-                <p class="card-text"><strong>Price:</strong> &#8377;<%= product.price %></p>
+                <p class="card-text"><strong>Price:</strong> ₹<%= product.price %></p>
               <% } %>
             </div>
           </div>

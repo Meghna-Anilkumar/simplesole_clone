@@ -1,17 +1,12 @@
-//imports
 require('dotenv').config()
 const express = require('express')
 const mongoose = require('mongoose')
-const User = require('./models/user')
 const session = require('express-session')
 const cookieParser = require('cookie-parser')
 const MongoDBSession = require('connect-mongodb-session')(session)
 const bodyParser = require('body-parser')
-const nodemailer = require('nodemailer')
 const nocache = require('nocache')
 const morgan = require('morgan')
-const userrouter = require('./routes/userrouter')
-const adminrouter = require('./routes/adminrouter')
 
 const app = express()
 const PORT = process.env.PORT || 4000
@@ -42,6 +37,7 @@ app.use(session({
         secure: false,
     }
 }))
+// app.use(nocache)
 
 
 //route for logout
