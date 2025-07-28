@@ -260,4 +260,26 @@ module.exports = {
       res.status(500).json({ error: "Internal Server Error" });
     }
   },
+
+
+  getCartTotal: async (req, res) => {
+    try {
+      const user = req.session.user;
+      const cart = await Cart.findOne({ user }).populate('items.product').exec();
+
+      if (!cart) {
+        return res.status(404).json({ success: false, error: 'Cart not found' });
+      }
+
+      res.json({
+        success: true,
+        total: cart.total,
+        newTotal: cart.newTotal,
+      });
+    } catch (error) {
+      console.error('Error fetching cart total:', error);
+      res.status(500).json({ success: false, error: 'Internal Server Error' });
+    }
+  },
+
 };

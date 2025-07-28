@@ -3,38 +3,33 @@ const mongoose = require('mongoose');
 const cartSchema = new mongoose.Schema({
   user: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
+    ref: 'User',
   },
   items: [
     {
       product: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Product'
+        ref: 'Product',
       },
-      quantity:{
+      quantity: {
         type: Number,
       },
-      price:{
+      price: {
         type: Number,
-      } 
-    }
+      },
+    },
   ],
   total: {
     type: Number,
-    default: 0
+    default: 0,
   },
-
-  newTotal:{
+  newTotal: {
     type: Number,
-    default: 0
+    default: 0,
   },
-
   couponApplied: {
     type: String,
-  }
-
+  },
 });
 
 module.exports = mongoose.model('Cart', cartSchema);
-
-

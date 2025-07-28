@@ -50,6 +50,7 @@ router.get('/cart', isAuth.checkAuth, cartcontroller.getcart)
 router.post('/cart/add', isAuth.checkAuth, cartcontroller.addtocart)
 router.post('/updateQuantity/:productId/:change', cartcontroller.updatequantity)
 router.post('/removeItem/:productId', cartcontroller.deleteitem)
+router.get('/getCartTotal', isAuth.checkAuth, cartcontroller.getCartTotal);
 
 //checkout page
 router.get('/proceedtocheckout', isAuth.checkAuth, checkoutcontroller.checkoutpage)
@@ -58,6 +59,7 @@ router.get('/proceedtocheckout', isAuth.checkAuth, checkoutcontroller.checkoutpa
 router.post('/placeOrder', isAuth.checkAuth, ordercontroller.placeorder)
 router.post('/process-payment', isAuth.checkAuth, ordercontroller.processPayment);
 router.get('/successpage', isAuth.checkAuth, ordercontroller.getsuccesspage)
+router.post('/createRazorpayOrder', isAuth.checkAuth, ordercontroller.createRazorpayOrder);
 
 //my orders
 router.get('/orders', isAuth.checkAuth, ordercontroller.myorders)
