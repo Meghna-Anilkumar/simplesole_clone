@@ -39,7 +39,8 @@ router.get('/address', usercontroller.getaddressbook)
 router.post('/saveaddress', usercontroller.addnewaddress)
 router.get('/getaddresses', usercontroller.getaddresses)
 router.post('/deleteaddress/:id', usercontroller.deleteAddress)
-router.post('/updateAddress/:addressId', usercontroller.editAddress)
+router.get('/getaddresses/:id', usercontroller.getAddressById);
+router.post('/updateAddress/:id', usercontroller.editAddress)
 
 //change password
 router.get('/changepassword', usercontroller.changepasswordpage)

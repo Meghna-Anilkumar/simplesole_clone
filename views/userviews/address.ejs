@@ -1,334 +1,475 @@
-<%-include('./header')%>
-<%-include('./sidebar')%>
+<%- include('./header') %>
+<%- include('./sidebar') %>
+
 <style>
-    .address-box {
-        border: 1px solid #ddd;
-        padding: 10px;
-        margin-bottom: 10px;
-        border-radius: 5px;
-    }
+  .address-box {
+    border: 1px solid #ddd;
+    padding: 15px;
+    margin-bottom: 15px;
+    border-radius: 5px;
+    background-color: #f9f9f9;
+  }
 
-    .address-actions {
-        display: flex;
-        justify-content: flex-end;
-        margin-top: 10px;
-    }
+  .address-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 10px;
+  }
 
-    .edit-btn,
-    .delete-btn {
-        padding: 5px 10px;
-        cursor: pointer;
-        color: #000;
-    }
+  .edit-btn,
+  .delete-btn {
+    padding: 5px 10px;
+    cursor: pointer;
+    color: #000;
+    border: none;
+    background: none;
+  }
 
-    .edit-btn:hover,
-    .delete-btn:hover {
-        background-color: #ddd;
-    }
+  .edit-btn:hover,
+  .delete-btn:hover {
+    color: #007bff;
+  }
+
+  .address-box p {
+    margin: 5px 0;
+  }
+
+  .form-group {
+    margin-bottom: 15px;
+  }
+
+  .form-check-inline {
+    margin-right: 20px;
+  }
 </style>
+
 <div class="col-md-5 border-right" style="margin-top: 80px;">
-    <div class="p-3 py-5">
-        <form id="editProfileForm">
-            <div class="mt-3">
-                <button class="btn btn-primary profile-button" id="openAddressModal" type="button">
-                    <i class="fas fa-plus"></i> Add Address
-                </button>
-                <div id="addressContainer" style="border: 1px; padding: 10px;"></div>
-            </div>
-        </form>
-    </div>
+  <div class="p-3 py-5">
+    <form id="editProfileForm">
+      <div class="mt-3">
+        <button class="btn btn-primary profile-button" id="openAddressModal" type="button">
+          <i class="fas fa-plus"></i> Add Address
+        </button>
+        <div id="addressContainer" style="margin-top: 20px;"></div>
+      </div>
+    </form>
+  </div>
 </div>
 
+<!-- Add Address Modal -->
 <div class="modal fade" id="addressModal" tabindex="-1" role="dialog" aria-labelledby="addressModalLabel" aria-hidden="true">
-    <div class="modal-dialog" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="addressModalLabel">Add Address</h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="addressModalLabel">Add Address</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <form id="addressForm">
+          <div class="form-group">
+            <label for="addressName">Name</label>
+            <input type="text" class="form-control" id="addressName" name="addressName" required>
+          </div>
+          <div class="form-group">
+            <label for="mobileNumber">Mobile Number</label>
+            <input type="text" class="form-control" id="mobileNumber" name="mobileNumber" pattern="[0-9]{10}" title="Mobile number must be 10 digits" required>
+          </div>
+          <div class="form-group">
+            <label for="buildingname">Building Name</label>
+            <input type="text" class="form-control" id="buildingname" name="buildingname" required>
+          </div>
+          <div class="form-group">
+            <label for="street">Street</label>
+            <input type="text" class="form-control" id="street" name="street" required>
+          </div>
+          <div class="form-group">
+            <label for="city">City</label>
+            <input type="text" class="form-control" id="city" name="city" required>
+          </div>
+          <div class="form-group">
+            <label for="state">State</label>
+            <input type="text" class="form-control" id="state" name="state" required>
+          </div>
+          <div class="form-group">
+            <label for="PINCode">PIN Code</label>
+            <input type="text" class="form-control" id="PINCode" name="PINCode" pattern="[0-9]{6}" title="PIN code must be 6 digits" required>
+          </div>
+          <div class="form-group">
+            <label>Address Type</label><br>
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" type="radio" name="addressType" id="homeAddress" value="home" required>
+              <label class="form-check-label" for="homeAddress">Home</label>
             </div>
-            <div class="modal-body">
-                <form id="addressForm">
-                    <div class="form-group">
-                        <label for="addressName">Name</label>
-                        <input type="text" class="form-control" id="addressName" name="addressName" placeholder="" required="true">
-                    </div>
-                    <div class="form-group">
-                        <label for="mobileNumber">Mobile Number</label>
-                        <input type="text" class="form-control" id="mobileNumber" name="mobileNumber" placeholder="" required="true">
-                    </div>
-                    <div class="form-group">
-                        <label for="buildingname">Building name</label>
-                        <input type="text" class="form-control" id="buildingname" name="buildingname" placeholder="" required="true">
-                    </div>
-                    <div class="form-group">
-                        <label for="street">Street</label>
-                        <input type="text" class="form-control" id="street" name="street" placeholder="" required="true">
-                    </div>
-                    <div class="form-group">
-                        <label for="city">City</label>
-                        <input type="text" class="form-control" id="city" name="city" placeholder="" required="true">
-                    </div>
-                    <div class="form-group">
-                        <label for="state">State</label>
-                        <input type="text" class="form-control" id="state" name="state" placeholder="" required="true">
-                    </div>
-                    <div class="form-group">
-                        <label for="PIN Code">PIN Code</label>
-                        <input type="text" class="form-control" id="PIN Code" name="PIN Code" placeholder="" required="true">
-                    </div>
-
-                    <div class="form-group">
-                        <label>Address Type</label><br>
-                        <div class="form-check form-check-inline">
-                            <input class="form-check-input" type="radio" name="addressType" id="homeAddress" value="home">
-                            <label class="form-check-label" for="homeAddress">Home</label>
-                        </div>
-                        <div class="form-check form-check-inline">
-                            <input class="form-check-input" type="radio" name="addressType" id="workAddress" value="work">
-                            <label class="form-check-label" for="workAddress">Work</label>
-                        </div>
-                    </div>
-
-                    <button type="submit" class="btn btn-primary">Save Address</button>
-
-                </form>
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" type="radio" name="addressType" id="workAddress" value="work">
+              <label class="form-check-label" for="workAddress">Work</label>
             </div>
-        </div>
+          </div>
+          <button type="submit" class="btn btn-primary">Save Address</button>
+        </form>
+      </div>
     </div>
+  </div>
 </div>
 
+<!-- Edit Address Modal -->
 <div class="modal fade" id="editAddressModal" tabindex="-1" role="dialog" aria-labelledby="editAddressModalLabel" aria-hidden="true">
-    <div class="modal-dialog" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="editAddressModalLabel">Edit Address</h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="editAddressModalLabel">Edit Address</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <form id="editAddressForm">
+          <div class="form-group">
+            <label for="editaddressName">Name</label>
+            <input type="text" class="form-control" id="editaddressName" name="addressName" required>
+          </div>
+          <div class="form-group">
+            <label for="editmobileNumber">Mobile Number</label>
+            <input type="text" class="form-control" id="editmobileNumber" name="mobileNumber" pattern="[0-9]{10}" title="Mobile number must be 10 digits" required>
+          </div>
+          <div class="form-group">
+            <label for="editbuildingname">Building Name</label>
+            <input type="text" class="form-control" id="editbuildingname" name="buildingname" required>
+          </div>
+          <div class="form-group">
+            <label for="editstreet">Street</label>
+            <input type="text" class="form-control" id="editstreet" name="street" required>
+          </div>
+          <div class="form-group">
+            <label for="editcity">City</label>
+            <input type="text" class="form-control" id="editcity" name="city" required>
+          </div>
+          <div class="form-group">
+            <label for="editstate">State</label>
+            <input type="text" class="form-control" id="editstate" name="state" required>
+          </div>
+          <div class="form-group">
+            <label for="editPINCode">PIN Code</label>
+            <input type="text" class="form-control" id="editPINCode" name="PINCode" pattern="[0-9]{6}" title="PIN code must be 6 digits" required>
+          </div>
+          <div class="form-group">
+            <label>Address Type</label><br>
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" type="radio" name="addressType" id="edithomeAddress" value="home" required>
+              <label class="form-check-label" for="edithomeAddress">Home</label>
             </div>
-
-            <form id="editAddressForm">
-                    <div class="form-group">
-                        <label for="addressName">Name</label>
-                        <input type="text" class="form-control" id="editaddressName" name="addressName" placeholder="" >
-                    </div>
-                    <div class="form-group">
-                        <label for="mobileNumber">Mobile Number</label>
-                        <input type="text" class="form-control" id="editmobileNumber" name="mobileNumber" placeholder="" >
-                    </div>
-                    <div class="form-group">
-                        <label for="buildingname">Building name</label>
-                        <input type="text" class="form-control" id="editbuildingname" name="buildingname" placeholder="" >
-                    </div>
-                    <div class="form-group">
-                        <label for="street">Street</label>
-                        <input type="text" class="form-control" id="editstreet" name="street" placeholder="" >
-                    </div>
-                    <div class="form-group">
-                        <label for="city">City</label>
-                        <input type="text" class="form-control" id="editcity" name="city" placeholder="" >
-                    </div>
-                    <div class="form-group">
-                        <label for="state">State</label>
-                        <input type="text" class="form-control" id="editstate" name="state" placeholder="" >
-                    </div>
-                    <div class="form-group">
-                        <label for="PIN Code">PIN Code</label>
-                        <input type="text" class="form-control" id="editPINCode" name="PINCode" placeholder="" >
-                    </div>
-
-                    <div class="form-group">
-                        <label>Address Type</label><br>
-                        <div class="form-check form-check-inline">
-                            <input class="form-check-input" type="radio" name="addressType" id="edithomeAddress" value="home">
-                            <label class="form-check-label" for="homeAddress">Home</label>
-                        </div>
-                        <div class="form-check form-check-inline">
-                            <input class="form-check-input" type="radio" name="addressType" id="editworkAddress" value="work">
-                            <label class="form-check-label" for="workAddress">Work</label>
-                        </div>
-                    </div>
-
-                    <button type="submit" class="btn btn-primary">Save Address</button>
-              
-                </form>
-                
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" type="radio" name="addressType" id="editworkAddress" value="work">
+              <label class="form-check-label" for="editworkAddress">Work</label>
             </div>
-        </div>
+          </div>
+          <button type="submit" class="btn btn-primary">Update Address</button>
+        </form>
+      </div>
     </div>
+  </div>
 </div>
 
-<script src="https://code.jquery.com/jquery-3.6.4.slim.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
-    document.getElementById('openAddressModal').addEventListener('click', function () {
-        $('#addressModal').modal('show');
-    });
+  // Open Add Address Modal
+  document.getElementById('openAddressModal').addEventListener('click', function () {
+    $('#addressModal').modal('show');
+  });
 
-    document.getElementById('addressForm').addEventListener('submit', function (event) {
-        event.preventDefault();
+  // Save New Address
+  document.getElementById('addressForm').addEventListener('submit', function (event) {
+    event.preventDefault();
 
-        const addressData = {
-            name: document.getElementById('addressName').value,
-            mobile: document.getElementById('mobileNumber').value,
-            buildingname: document.getElementById('buildingname').value,
-            street: document.getElementById('street').value,
-            city: document.getElementById('city').value,
-            state: document.getElementById('state').value,
-            pincode: document.getElementById('PIN Code').value,
-            addresstype: document.querySelector('input[name="addressType"]:checked').value
-        };
+    const addressData = {
+      addressName: document.getElementById('addressName').value,
+      mobileNumber: document.getElementById('mobileNumber').value,
+      buildingname: document.getElementById('buildingname').value,
+      street: document.getElementById('street').value,
+      city: document.getElementById('city').value,
+      state: document.getElementById('state').value,
+      PINCode: document.getElementById('PINCode').value,
+      addressType: document.querySelector('input[name="addressType"]:checked')?.value,
+    };
 
-        fetch('/saveAddress', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(addressData),
-        })
-        .then(response => response.json())
-        .then(data => {
-            console.log('Address saved:', data);
+    if (!addressData.addressType) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Missing Information',
+        text: 'Please select an address type'
+      });
+      return;
+    }
 
-            document.getElementById('addressForm').reset();
+    fetch('/saveaddress', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(addressData),
+    })
+      .then(response => response.json())
+      .then(data => {
+        if (data.message) {
+          document.getElementById('addressForm').reset();
+          $('#addressModal').modal('hide');
+          loadAddresses(); // Reload addresses instead of full page reload
+          Swal.fire({
+            icon: 'success',
+            title: 'Success!',
+            text: 'Address saved successfully',
+            timer: 2000,
+            showConfirmButton: false,
+            position: 'top-end',
+            toast: true
+          });
+        } else {
+          Swal.fire({
+            icon: 'error',
+            title: 'Error!',
+            text: data.message || 'Failed to save address'
+          });
+        }
+      })
+      .catch(error => {
+        console.error('Error saving address:', error);
+        Swal.fire({
+          icon: 'error',
+          title: 'Error!',
+          text: 'Error saving address'
+        });
+      });
+  });
 
-           
-            $('#addressModal').modal('hide');
-        })
-        .catch(error => console.error('Error saving address:', error));
-        window.location.reload()
-    });
+  // Load Addresses Function
+  function loadAddresses() {
+    fetch('/getaddresses')
+      .then(response => response.json())
+      .then(addresses => {
+        const addressContainer = document.getElementById('addressContainer');
+        addressContainer.innerHTML = '';
+        addresses.forEach(address => {
+          const addressElement = document.createElement('div');
+          addressElement.className = 'address-box';
+          addressElement.innerHTML = `
+            <p><strong>Name:</strong> ${address.name}</p>
+            <p><strong>Mobile:</strong> ${address.mobile}</p>
+            <p><strong>Building:</strong> ${address.buildingname}</p>
+            <p><strong>Street:</strong> ${address.street}</p>
+            <p><strong>City:</strong> ${address.city}</p>
+            <p><strong>State:</strong> ${address.state}</p>
+            <p><strong>PIN Code:</strong> ${address.pincode}</p>
+            <p><strong>Type:</strong> ${address.addresstype}</p>
+          `;
 
-    window.addEventListener('load', () => {
-    fetch('/getAddresses')
-            .then(response => response.json())
-            .then(addresses => {
+          const addressActions = document.createElement('div');
+          addressActions.className = 'address-actions';
 
-                addresses.forEach(address => {
-                    const addressElement = document.createElement('div');
-                    addressElement.className = 'address-box';
-                    addressElement.innerHTML = `
-                      ${address.name},
-                      ${address.mobile},
-                      ${address.buildingname},
-                      ${address.street},
-                      ${address.city},
-                      ${address.state},
-                      ${address.pincode},
-                      ${address.addresstype}
-                        
-                    `;
-                
-    const addressActions = document.createElement('div');
-    addressActions.className = 'address-actions';
+          const editButton = document.createElement('i');
+          editButton.className = 'fas fa-edit edit-btn';
+          editButton.style.cursor = 'pointer';
+          editButton.addEventListener('click', () => handleEditAddress(address._id));
 
-    
-    const editButton = document.createElement('i');
-    editButton.className = 'fas fa-edit edit-btn';
-    
-    $(document).ready(function() {
-    
-    $('.edit-btn').click(function() {
-       
-        $('#editAddressModal').modal('show');
-    });
-});
+          const deleteButton = document.createElement('i');
+          deleteButton.className = 'fas fa-trash delete-btn';
+          deleteButton.style.cursor = 'pointer';
+          deleteButton.addEventListener('click', () => handleDeleteAddress(address._id));
 
-    const deleteButton = document.createElement('i');
-    deleteButton.className = 'fas fa-trash delete-btn';
-    deleteButton.addEventListener('click', () => {
-    console.log('Deleting address with ID:', address._id); 
-    handleDeleteAddress(address._id);
-});
+          addressActions.appendChild(editButton);
+          addressActions.appendChild(deleteButton);
+          addressElement.appendChild(addressActions);
+          addressContainer.appendChild(addressElement);
+        });
+      })
+      .catch(error => {
+        console.error('Error loading addresses:', error);
+        Swal.fire({
+          icon: 'error',
+          title: 'Error!',
+          text: 'Error loading addresses'
+        });
+      });
+  }
 
-    addressActions.appendChild(editButton);
-    addressActions.appendChild(deleteButton);
+  // Load Addresses on Page Load
+  window.addEventListener('load', loadAddresses);
 
-    addressElement.appendChild(addressActions);
-
-                    document.getElementById('addressContainer').appendChild(addressElement);
-                });
-            })
-            .catch(error => console.error('Error loading addresses:', error));
-    });
-    
-
-    function handleDeleteAddress(addressId) {
-        fetch(`/deleteAddress/${addressId}`, {
-        method: 'POST',
-        headers: {
+  // Delete Address
+  function handleDeleteAddress(addressId) {
+    Swal.fire({
+      title: 'Are you sure?',
+      text: "You won't be able to revert this!",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Yes, delete it!'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        fetch(`/deleteaddress/${addressId}`, {
+          method: 'POST',
+          headers: {
             'Content-Type': 'application/json',
-        },
-    })
-    .then(response => response.json())
-    .then(data => {
-        console.log('Address deleted:', data);
-    })
-    .catch(error => console.error('Error deleting address:', error));
-    window.location.reload();
-}
-
-
-function handleEditAddress(addressId) {
-    fetch(`/getaddresses/${addressId}`)
-    console.log(address)
-        .then(response => response.json())
-        .then(address => {
-            
-            document.getElementById('editaddressName').value = address.name;
-            document.getElementById('editmobileNumber').value = address.mobile;
-            document.getElementById('editbuildingname').value = address.buildingname;
-            document.getElementById('editstreet').value = address.street;
-            document.getElementById('editcity').value = address.city;
-            document.getElementById('editstate').value = address.state;
-            document.getElementById('editPINCode').value = address.pincode;
-
-           
-            if (address.addresstype === 'home') {
-                document.getElementById('edithomeAddress').checked = true;
-            } else if (address.addresstype === 'work') {
-                document.getElementById('editworkAddress').checked = true;
-            }
-
-            $('#editAddressModal').modal('show');
+          },
         })
-        .catch(error => console.error('Error fetching address data:', error));
-}
+          .then(response => response.json())
+          .then(data => {
+            if (data.message) {
+              loadAddresses(); // Reload addresses instead of full page reload
+              Swal.fire({
+                icon: 'success',
+                title: 'Deleted!',
+                text: 'Address has been deleted successfully',
+                timer: 2000,
+                showConfirmButton: false,
+                position: 'top-end',
+                toast: true
+              });
+            } else {
+              Swal.fire({
+                icon: 'error',
+                title: 'Error!',
+                text: data.error || 'Failed to delete address'
+              });
+            }
+          })
+          .catch(error => {
+            console.error('Error deleting address:', error);
+            Swal.fire({
+              icon: 'error',
+              title: 'Error!',
+              text: 'Error deleting address'
+            });
+          });
+      }
+    });
+  }
 
-document.getElementById('editAddressForm').addEventListener('submit', function (event) {
+  // Edit Address
+  function handleEditAddress(addressId) {
+    console.log('Fetching address for edit, ID:', addressId);
+    
+    fetch(`/getaddresses/${addressId}`)
+      .then(response => {
+        console.log('Fetch response status:', response.status);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then(address => {
+        console.log('Address data received:', address);
+        
+        // Populate the edit form with address data
+        document.getElementById('editaddressName').value = address.name || '';
+        document.getElementById('editmobileNumber').value = address.mobile || '';
+        document.getElementById('editbuildingname').value = address.buildingname || '';
+        document.getElementById('editstreet').value = address.street || '';
+        document.getElementById('editcity').value = address.city || '';
+        document.getElementById('editstate').value = address.state || '';
+        document.getElementById('editPINCode').value = address.pincode || '';
+        
+        // Set radio buttons
+        if (address.addresstype === 'home') {
+          document.getElementById('edithomeAddress').checked = true;
+        } else if (address.addresstype === 'work') {
+          document.getElementById('editworkAddress').checked = true;
+        }
+
+        // Store the address ID for update
+        document.getElementById('editAddressForm').setAttribute('data-current-address-id', addressId);
+        
+        // Show the modal
+        $('#editAddressModal').modal('show');
+      })
+      .catch(error => {
+        console.error('Error fetching address data:', error);
+        Swal.fire({
+          icon: 'error',
+          title: 'Error!',
+          text: 'Error fetching address data: ' + error.message
+        });
+      });
+  }
+
+  // Save Edited Address
+  document.getElementById('editAddressForm').addEventListener('submit', function (event) {
     event.preventDefault();
 
     const addressId = this.getAttribute('data-current-address-id');
-    
     const updatedAddressData = {
-        name: document.getElementById('editaddressName').value,
-        mobile: document.getElementById('editmobileNumber').value,
-        buildingname: document.getElementById('editbuildingname').value,
-        street: document.getElementById('editstreet').value,
-        city: document.getElementById('editcity').value,
-        state: document.getElementById('editstate').value,
-        pincode: document.getElementById('editPINCode').value,
-        addresstype: document.querySelector('input[name="addressType"]:checked').value
+      addressName: document.getElementById('editaddressName').value,
+      mobileNumber: document.getElementById('editmobileNumber').value,
+      buildingname: document.getElementById('editbuildingname').value,
+      street: document.getElementById('editstreet').value,
+      city: document.getElementById('editcity').value,
+      state: document.getElementById('editstate').value,
+      PINCode: document.getElementById('editPINCode').value,
+      addressType: document.querySelector('#editAddressForm input[name="addressType"]:checked')?.value,
     };
 
+    if (!updatedAddressData.addressType) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Missing Information',
+        text: 'Please select an address type'
+      });
+      return;
+    }
+
+    console.log('Updating address with ID:', addressId);
+    console.log('Update data:', updatedAddressData);
+
     fetch(`/updateAddress/${addressId}`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(updatedAddressData),
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(updatedAddressData),
     })
-    .then(response => response.json())
-    .then(data => {
-        console.log('Address updated:', data);
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then(data => {
+        console.log('Update response:', data);
+        if (data.message) {
+          $('#editAddressModal').modal('hide');
+          loadAddresses(); // Reload addresses instead of full page reload
+          Swal.fire({
+            icon: 'success',
+            title: 'Success!',
+            text: 'Address updated successfully',
+            timer: 2000,
+            showConfirmButton: false,
+            position: 'top-end',
+            toast: true
+          });
+        } else {
+          Swal.fire({
+            icon: 'error',
+            title: 'Error!',
+            text: data.error || 'Failed to update address'
+          });
+        }
+      })
+      .catch(error => {
+        console.error('Error updating address:', error);
+        Swal.fire({
+          icon: 'error',
+          title: 'Error!',
+          text: 'Error updating address: ' + error.message
+        });
+      });
+  });
+</script>
 
-        $('#editAddressModal').modal('hide');
-    })
-    .catch(error => console.error('Error updating address:', error));
-});
- </script>
-
-<%-include('./footer')%>
+<%- include('./footer') %>
