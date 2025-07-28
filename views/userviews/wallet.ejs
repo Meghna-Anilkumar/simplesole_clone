@@ -59,36 +59,88 @@
     }
 
     /* Button styling */
-.top-up-button {
-    background-color: #4CAF50; /* Green */
-    border: none;
-    color: white;
-    padding: 10px 20px;
-    text-align: center;
-    text-decoration: none;
-    display: inline-block;
-    font-size: 16px;
-    margin: 4px 2px;
-    cursor: pointer;
-    border-radius: 8px;
-    transition-duration: 0.4s;
-}
+    .top-up-button {
+        background-color: #4CAF50; /* Green */
+        border: none;
+        color: white;
+        padding: 10px 20px;
+        text-align: center;
+        text-decoration: none;
+        display: inline-block;
+        font-size: 16px;
+        margin: 4px 2px;
+        cursor: pointer;
+        border-radius: 8px;
+        transition-duration: 0.4s;
+    }
 
-.top-up-button:hover {
-    background-color: #45a049; /* Darker Green */
-}
+    .top-up-button:hover {
+        background-color: #45a049; /* Darker Green */
+    }
 
+    .top-up-button:disabled {
+        background-color: #cccccc;
+        cursor: not-allowed;
+    }
+
+    /* Success message styling */
+    .success-message {
+        background-color: #d4edda;
+        color: #155724;
+        padding: 10px;
+        border: 1px solid #c3e6cb;
+        border-radius: 4px;
+        margin: 10px 0;
+        display: none;
+    }
+
+    /* Loading animation */
+    .loading {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border: 3px solid #f3f3f3;
+        border-top: 3px solid #3498db;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    /* Balance update animation */
+    .balance-updated {
+        animation: balanceFlash 0.5s ease-in-out;
+    }
+
+    @keyframes balanceFlash {
+        0% { background-color: transparent; }
+        50% { background-color: #d4edda; }
+        100% { background-color: transparent; }
+    }
 </style>
 
 <main>
     <div class="wallet-container">
         <h2 style="color: rgb(255, 63, 108);">My Wallet</h2>
         <div class="wallet-balance">
-            <h2><i class="fas fa-wallet"></i> Wallet Balance: ₹ <%= walletBalance %></h2>
-            <!-- Add top-up button here -->
-            <!-- HTML -->
-<button class="top-up-button" onclick="openRazorpay()">Top Up</button>
-
+            <h2 id="walletBalanceDisplay">
+                <i class="fas fa-wallet"></i> 
+                Wallet Balance: ₹ <span id="balanceAmount"><%= walletBalance %></span>
+            </h2>
+            
+            <!-- Success message -->
+            <div id="successMessage" class="success-message">
+                Wallet topped up successfully!
+            </div>
+            
+            <!-- Top-up button -->
+            <button id="topUpBtn" class="top-up-button" onclick="openRazorpay()">
+                <span id="buttonText">Top Up</span>
+                <span id="loadingSpinner" class="loading" style="display: none;"></span>
+            </button>
         </div>
         
         <div class="transaction-details">
@@ -116,8 +168,6 @@
                                 <div class="label">Amount:</div>
                                 <div class="value">₹ <%= order.totalAmount %></div>
                             </div>
-                            </div>
-                            <!-- Add more transaction details here as needed -->
                         </div>
                     <% } %>
                 <% }); %>
@@ -129,20 +179,89 @@
 </main>
 
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
-<!-- Script -->
 <script>
+    // Global variables
+    let isProcessing = false;
+    
+    function setButtonLoading(loading) {
+        const button = document.getElementById('topUpBtn');
+        const buttonText = document.getElementById('buttonText');
+        const loadingSpinner = document.getElementById('loadingSpinner');
+        
+        if (loading) {
+            button.disabled = true;
+            buttonText.style.display = 'none';
+            loadingSpinner.style.display = 'inline-block';
+            isProcessing = true;
+        } else {
+            button.disabled = false;
+            buttonText.style.display = 'inline';
+            loadingSpinner.style.display = 'none';
+            isProcessing = false;
+        }
+    }
+    
+    function showSuccessMessage() {
+        const successMessage = document.getElementById('successMessage');
+        successMessage.style.display = 'block';
+        setTimeout(() => {
+            successMessage.style.display = 'none';
+        }, 3000);
+    }
+    
+    function updateBalanceDisplay(newBalance) {
+        const balanceElement = document.getElementById('balanceAmount');
+        const balanceDisplay = document.getElementById('walletBalanceDisplay');
+        
+        // Add animation class
+        balanceDisplay.classList.add('balance-updated');
+        
+        // Update the balance
+        balanceElement.textContent = newBalance;
+        
+        // Remove animation class after animation completes
+        setTimeout(() => {
+            balanceDisplay.classList.remove('balance-updated');
+        }, 500);
+    }
+
     function openRazorpay() {
+        if (isProcessing) {
+            console.log('Payment already in progress');
+            return;
+        }
+        
+        console.log('=== OPENING RAZORPAY ===');
+        setButtonLoading(true);
+        
         fetch('/razorpay/wallet', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                amount: 10000, 
+                amount: 10000, // 100 INR in paisa
             })
         })
-        .then(response => response.json())
+        .then(response => {
+            console.log('=== RAZORPAY RESPONSE ===');
+            console.log('Response status:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
+            console.log('=== RAZORPAY DATA ===');
+            console.log('Data received:', data);
+            
+            if (data.error) {
+                console.error('Error in response:', data.error);
+                alert('Error: ' + data.error);
+                setButtonLoading(false);
+                return;
+            }
+            
             var options = {
                 "key": data.key_id,
                 "amount": data.amount,
@@ -152,9 +271,12 @@
                 "image": "https://example.com/your_logo.png",
                 "order_id": data.id,
                 "handler": function (response) {
+                    console.log('=== PAYMENT SUCCESS ===');
+                    console.log('Payment response:', response);
                     
-                    console.log(response);
-                    updateWalletBalance(response.amount);
+                    // Convert paisa to rupees for display
+                    const amountInRupees = data.amount / 100;
+                    updateWalletBalance(amountInRupees);
                 },
                 "prefill": {
                     "name": "John Doe",
@@ -163,16 +285,45 @@
                 },
                 "theme": {
                     "color": "#F37254"
+                },
+                "modal": {
+                    "ondismiss": function() {
+                        console.log('Payment modal closed');
+                        setButtonLoading(false);
+                    }
                 }
             };
+            
+            console.log('=== RAZORPAY OPTIONS ===');
+            console.log('Options:', options);
+            
             var rzp1 = new Razorpay(options);
+            
+            rzp1.on('payment.failed', function (response) {
+                console.error('=== PAYMENT FAILED ===');
+                console.error('Payment failed response:', response);
+                alert('Payment failed: ' + response.error.description);
+                setButtonLoading(false);
+            });
+            
+            // Reset loading state when modal opens
+            setButtonLoading(false);
             rzp1.open();
         })
-        .catch(error => console.error('Error:', error));
+        .catch(error => {
+            console.error('=== FETCH ERROR ===');
+            console.error('Error:', error);
+            alert('Network error: ' + error.message);
+            setButtonLoading(false);
+        });
     }
 
-   
     function updateWalletBalance(amount) {
+        console.log('=== UPDATING WALLET BALANCE ===');
+        console.log('Amount to update:', amount);
+        
+        setButtonLoading(true);
+        
         fetch('/wallet/topup', {
             method: 'POST',
             headers: {
@@ -182,14 +333,70 @@
                 amount: amount
             })
         })
-        .then(response => response.json())
-        .then(data => {
-            // Optionally update UI to reflect new balance
-            console.log("Wallet balance updated successfully:", data);
+        .then(response => {
+            console.log('=== WALLET UPDATE RESPONSE ===');
+            console.log('Response status:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
         })
-        .catch(error => console.error('Error updating wallet balance:', error));
+        .then(data => {
+            console.log('=== WALLET UPDATE SUCCESS ===');
+            console.log("Wallet balance updated successfully:", data);
+            
+            // Update the balance display without page reload
+            updateBalanceDisplay(data.newBalance);
+            showSuccessMessage();
+            
+            setButtonLoading(false);
+        })
+        .catch(error => {
+            console.error('=== WALLET UPDATE ERROR ===');
+            console.error('Error updating wallet balance:', error);
+            alert('Error updating wallet balance: ' + error.message);
+            setButtonLoading(false);
+        });
+    }
+    
+    // Add transaction to the transaction history dynamically
+    function addTransactionToHistory(amount) {
+        const transactionDetails = document.querySelector('.transaction-details');
+        const noTransactionsMsg = transactionDetails.querySelector('p');
+        
+        // Remove "No wallet transactions found" message if it exists
+        if (noTransactionsMsg && noTransactionsMsg.textContent.includes('No wallet transactions found')) {
+            noTransactionsMsg.remove();
+        }
+        
+        // Create new transaction box
+        const newTransactionBox = document.createElement('div');
+        newTransactionBox.className = 'transaction-box';
+        newTransactionBox.innerHTML = `
+            <div class="transaction-row">
+                <div class="label">Transaction Type:</div>
+                <div class="value">Top-up</div>
+            </div>
+            <div class="transaction-row">
+                <div class="label">Amount:</div>
+                <div class="value">₹ ${amount}</div>
+            </div>
+        `;
+        
+        // Add animation for new transaction
+        newTransactionBox.style.opacity = '0';
+        newTransactionBox.style.transform = 'translateY(-10px)';
+        
+        // Insert at the beginning of transaction details
+        transactionDetails.insertBefore(newTransactionBox, transactionDetails.firstElementChild);
+        
+        // Animate in
+        setTimeout(() => {
+            newTransactionBox.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+            newTransactionBox.style.opacity = '1';
+            newTransactionBox.style.transform = 'translateY(0)';
+        }, 100);
     }
 </script>
-
 
 <%- include('./footer') %>

@@ -423,60 +423,119 @@ module.exports = {
 
 
   walletrazorpay: async (req, res) => {
-    const amount = req.body.amount; // Amount in paisa
-    const currency = 'INR';
+  console.log('=== WALLET RAZORPAY FUNCTION CALLED ===');
+  console.log('Request body:', req.body);
+  
+  const amount = req.body.amount;
+  console.log('Amount received:', amount, 'Type:', typeof amount);
+  
+  const currency = 'INR';
+  console.log('Currency:', currency);
 
-    const options = {
-      amount: amount,
-      currency: currency,
-      receipt: 'receipt#1',
-      payment_capture: 1
-    };
+  const options = {
+    amount: amount,
+    currency: currency,
+    receipt: 'receipt#1',
+    payment_capture: 1
+  };
+  
+  console.log('Razorpay order options:', options);
+  console.log('Razorpay instance check:', razorpay ? 'Available' : 'Not Available');
 
-    razorpay.orders.create(options, (err, order) => {
-      if (err) {
-        console.error(err);
-        res.status(500).json({ error: 'Failed to create Razorpay order' });
-      } else {
-        res.json(order);
-      }
-    });
-
-  },
-
-  topupwallet: async (req, res) => {
-    try {
-        const amount = 100 // Amount in paisa
-        console.log(amount,'mmmmmmmmmmmmmmm')
-
-        // Retrieve user information from the session
-        const user = req.session.user;
-        
-        // Check if user information is available in the session
-        if (!user || !user._id) {
-            return res.status(401).json({ error: 'User session not found or invalid' });
-        }
-
-        const userId = user._id;
-
-        // Find the user's wallet
-        const wallet = await Wallet.findOne({ user: userId });
-
-        // Check if wallet exists
-        if (!wallet) {
-            return res.status(404).json({ error: 'User wallet not found' });
-        }
-
-        // Update the wallet balance
-        wallet.balance += amount;
-        wallet.transactiontype = 'Top-up'; // Set transaction type
-        await wallet.save();
-
-        res.status(200).json({ message: 'Wallet balance updated successfully', newBalance: wallet.balance });
-    } catch (error) {
-        console.error('Error updating wallet balance:', error);
-        res.status(500).json({ error: 'Failed to update wallet balance' });
+  razorpay.orders.create(options, (err, order) => {
+    if (err) {
+      console.error('=== RAZORPAY ORDER CREATION ERROR ===');
+      console.error('Error details:', err);
+      console.error('Error message:', err.message);
+      console.error('Error code:', err.code);
+      res.status(500).json({ error: 'Failed to create Razorpay order', details: err.message });
+    } else {
+      console.log('=== RAZORPAY ORDER CREATED SUCCESSFULLY ===');
+      console.log('Order details:', order);
+      console.log('Order ID:', order.id);
+      console.log('Order amount:', order.amount);
+      
+      // Add key_id to response for frontend
+      const response = {
+        ...order,
+        key_id: process.env.key_id
+      };
+      console.log('Response being sent:', response);
+      res.json(response);
     }
+  });
+},
+
+// 4. In topupwallet function, add these logs
+topupwallet: async (req, res) => {
+  console.log('=== TOPUP WALLET FUNCTION CALLED ===');
+  console.log('Request body:', req.body);
+  console.log('Session user:', req.session.user);
+  
+  try {
+    const amount = req.body.amount || 100; // Use body amount or default
+    console.log('Amount to add:', amount, 'Type:', typeof amount);
+
+    const user = req.session.user;
+    console.log('User from session:', user);
+    
+    if (!user || !user._id) {
+      console.error('=== USER SESSION ERROR ===');
+      console.error('User session not found or invalid');
+      return res.status(401).json({ error: 'User session not found or invalid' });
+    }
+
+    const userId = user._id;
+    console.log('User ID:', userId);
+
+    console.log('=== FINDING WALLET ===');
+    const wallet = await Wallet.findOne({ user: userId });
+    console.log('Wallet found:', wallet);
+
+    if (!wallet) {
+      console.error('=== WALLET NOT FOUND ===');
+      console.error('Creating new wallet for user:', userId);
+      
+      // Create new wallet if not exists
+      const newWallet = new Wallet({
+        user: userId,
+        balance: amount,
+        transactiontype: 'Top-up'
+      });
+      
+      const savedWallet = await newWallet.save();
+      console.log('New wallet created:', savedWallet);
+      
+      return res.status(200).json({ 
+        message: 'Wallet created and balance updated successfully', 
+        newBalance: savedWallet.balance 
+      });
+    }
+
+    console.log('=== UPDATING WALLET BALANCE ===');
+    console.log('Current balance:', wallet.balance);
+    console.log('Amount to add:', amount);
+    
+    wallet.balance += Number(amount); // Ensure amount is a number
+    wallet.transactiontype = 'Top-up';
+    
+    console.log('New balance before save:', wallet.balance);
+    
+    const savedWallet = await wallet.save();
+    console.log('Wallet saved successfully:', savedWallet);
+
+    res.status(200).json({ 
+      message: 'Wallet balance updated successfully', 
+      newBalance: savedWallet.balance 
+    });
+    
+  } catch (error) {
+    console.error('=== TOPUP WALLET ERROR ===');
+    console.error('Error details:', error);
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ error: 'Failed to update wallet balance', details: error.message });
+  }
 },
 
 
