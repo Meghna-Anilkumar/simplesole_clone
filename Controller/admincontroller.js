@@ -4,12 +4,6 @@ const app = express()
 app.use(bodyParser.json())
 const Order = require('../models/orderSchema')
 const User = require('../models/user')
-const Product = require('../models/product')
-const Address = require('../models/address')
-const ejs = require('ejs')
-const path = require('path')
-const fs = require('fs')
-const Category = require('../models/category')
 const PDFDocument = require('pdfkit');
 
 
@@ -26,7 +20,7 @@ module.exports = {
   adminlogin: async (req, res) => {
     const credential = {
       email: 'admin@gmail.com',
-      password: '1'
+      password: 'Admin@2024'
     }
     if (
       req.body.email == credential.email &&

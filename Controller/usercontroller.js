@@ -2,9 +2,7 @@ const User = require("../models/user");
 const bcrypt = require("bcrypt");
 const Category = require("../models/category");
 const Product = require("../models/product");
-const session = require("express-session");
 const UserDetails = require("../models/userdetails");
-const bodyParser = require("body-parser");
 const Address = require("../models/address");
 const OTP = require("../models/otpSchema");
 const nodemailer = require("nodemailer");
@@ -14,6 +12,9 @@ const Cart = require("../models/cartSchema");
 const Razorpay = require("razorpay");
 require("dotenv").config();
 const Wallet = require("../models/wallet");
+const HttpStatusCode=require('../enums/statusCodes')
+const Messages=require('../constants/messages');
+
 
 const razorpay = new Razorpay({
   key_id: process.env.key_id,
@@ -48,7 +49,7 @@ module.exports = {
       });
     } catch (error) {
       console.error(error);
-      res.status(500).send("Internal Server Error");
+      res.status(HttpStatusCode.INTERNAL_SERVER_ERROR).send(Messages.INTERNAL_SERVER_ERROR);
     }
   },
 
@@ -66,7 +67,7 @@ module.exports = {
       });
     } catch (error) {
       console.error(error);
-      res.status(500).send("Internal Server Error");
+      res.status(HttpStatusCode.INTERNAL_SERVER_ERROR).send(Messages.INTERNAL_SERVER_ERROR);
     }
   },
 
@@ -145,7 +146,7 @@ module.exports = {
         return res.render("userviews/profile", {
           message: {
             type: "success",
-            message: "Profile details updated successfully",
+            message: Messages.PROFILE_UPDATED_SUCCESS,
           },
           title: "user profile",
           category: categories,
@@ -168,8 +169,8 @@ module.exports = {
     } catch (error) {
       console.error("Error updating profile details:", error);
       res
-        .status(500)
-        .json({ message: { type: "error", message: "Internal Server Error" } });
+        .status(HttpStatusCode.INTERNAL_SERVER_ERROR)
+        .json({ message: { type: "error", message: Messages.INTERNAL_SERVER_ERROR } });
     }
   },
 
@@ -198,7 +199,7 @@ module.exports = {
       );
     } catch (error) {
       console.error("Error updating profile details:", error);
-      res.status(500).send("Internal Server Error");
+      res.status(HttpStatusCode.INTERNAL_SERVER_ERROR).send(Messages.INTERNAL_SERVER_ERROR);
     }
   },
 
@@ -235,8 +236,8 @@ module.exports = {
     } catch (error) {
       console.error("Error getting address book:", error);
       res
-        .status(500)
-        .json({ message: { type: "error", message: "Internal Server Error" } });
+        .status(HttpStatusCode.INTERNAL_SERVER_ERROR)
+        .json({ message: { type: "error", message: Messages.INTERNAL_SERVER_ERROR } });
     }
   },
 
@@ -248,7 +249,7 @@ module.exports = {
       console.log("addnewaddress - Request body:", req.body);
 
       if (!userId) {
-        return res.status(401).json({ message: "User not authenticated" });
+        return res.status(HttpStatusCode.UNAUTHORIZED).json({ message: Messages.USER_NOT_AUTHENTICATED});
       }
 
       const addressData = {
@@ -273,7 +274,7 @@ module.exports = {
       console.error("Error saving address:", error);
       res
         .status(500)
-        .json({ message: "Internal Server Error", details: error.message });
+        .json({ message: Messages.INTERNAL_SERVER_ERROR, details: error.message });
     }
   },
 
@@ -290,7 +291,7 @@ module.exports = {
 
       if (!userId) {
         console.error("getAddressById - No user in session");
-        return res.status(401).json({ error: "User not authenticated" });
+        return res.status(HttpStatusCode.UNAUTHORIZED).json({ error: Messages.USER_NOT_AUTHENTICATED });
       }
 
       const address = await Address.findOne({ _id: addressId, user: userId });
@@ -302,7 +303,7 @@ module.exports = {
           userId
         );
         return res
-          .status(404)
+          .status(HttpStatusCode.NOT_FOUND)
           .json({ error: "Address not found or does not belong to user" });
       }
 
@@ -311,19 +312,19 @@ module.exports = {
     } catch (error) {
       console.error("Error fetching address by ID:", error);
       res
-        .status(500)
-        .json({ error: "Internal Server Error", details: error.message });
+        .status(HttpStatusCode.INTERNAL_SERVER_ERROR)
+        .json({ error: Messages.INTERNAL_SERVER_ERROR, details: error.message });
     }
   },
 
   //get addresses
   getaddresses: async (req, res) => {
     try {
-      const userId = req.session.user?._id; // Get the user ID properly
+      const userId = req.session.user?._id; 
       console.log("getaddresses - User ID:", userId);
 
       if (!userId) {
-        return res.status(401).json({ message: "User not authenticated" });
+        return res.status(401).json({ message: Messages.USER_NOT_AUTHENTICATED});
       }
 
       const addresses = await Address.find({ user: userId });
@@ -331,7 +332,7 @@ module.exports = {
       res.json(addresses);
     } catch (error) {
       console.error("Error getting addresses:", error);
-      res.status(500).json({ message: "Internal Server Error" });
+      res.status(HttpStatusCode.INTERNAL_SERVER_ERROR).json({ message: Messages.INTERNAL_SERVER_ERROR });
     }
   },
 
@@ -344,10 +345,9 @@ module.exports = {
       console.log("deleteAddress - Address ID:", addressId, "User ID:", userId);
 
       if (!userId) {
-        return res.status(401).json({ error: "User not authenticated" });
+        return res.status(HttpStatusCode.UNAUTHORIZED).json({ error: Messages.USER_NOT_AUTHENTICATED});
       }
 
-      // Only delete if the address belongs to the current user
       const result = await Address.findOneAndDelete({
         _id: addressId,
         user: userId,
@@ -363,7 +363,7 @@ module.exports = {
       res.json({ message: "Address deleted successfully" });
     } catch (error) {
       console.error("Error deleting address:", error);
-      res.status(500).json({ error: "Internal Server Error" });
+      res.status(HttpStatusCode.INTERNAL_SERVER_ERROR).json({ error: Messages.INTERNAL_SERVER_ERROR });
     }
   },
 

@@ -1,13 +1,12 @@
 const Product = require('../models/product');
 const Category = require('../models/category');
-const multer = require('multer');
 const fs = require('fs');
-const categorycontroller = require('../Controller/categorycontroller');
 const Wishlist = require('../models/wishlist');
 const ProductOffer = require('../models/productoffermodel');
 const CategoryOffer = require('../models/categoryoffer');
 const Cart = require('../models/cartSchema');
 const { compressImages } = require('../utils/compress');
+const  HttpStatusCode  = require('../enums/statusCodes')
 
 module.exports = {
   //to get add product page  
@@ -25,17 +24,14 @@ module.exports = {
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 10;
 
-      // Query the database with pagination parameters
       const product = await Product.find()
         .populate({ path: 'category', select: 'name' })
         .skip((page - 1) * limit)
         .limit(limit)
         .exec();
 
-      // Count total number of products
       const totalProducts = await Product.countDocuments();
 
-      // Calculate total number of pages
       const totalPages = Math.ceil(totalProducts / limit);
 
       res.render('adminviews/products', {
@@ -105,25 +101,25 @@ module.exports = {
       });
     } catch (error) {
       console.error(error);
-      res.redirect('/products');
+      res.redirect('/products');z
     }
   },
 
   croppedimageupload: async (req, res) => {
     try {
       if (!req.files || req.files.length === 0) {
-        return res.status(400).json({ error: 'No file uploaded' });
+        return res.status(HttpStatusCode.BAD_REQUEST).json({ error: 'No file uploaded' });
       }
 
       const filenames = req.files.map(file => file.filename);
-      res.status(200).json({ filenames: filenames });
+      res.status(HttpStatusCode.OK).json({ filenames: filenames });
     } catch (error) {
       console.error(error);
-      res.status(500).json({ error: 'Internal server error' });
+      res.status(HttpStatusCode.INTERNAL_SERVER_ERROR).json({ error: 'Internal server error' });
     }
   },
 
-  // Update user route (update button click event)
+  // Update user route 
   updateproduct: async (req, res) => {
     try {
       const id = req.params.id;
