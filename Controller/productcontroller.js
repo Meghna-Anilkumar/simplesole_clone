@@ -50,10 +50,28 @@ module.exports = {
   addnewproduct: async (req, res) => {
     try {
       if (!req.files || req.files.length === 0) {
-        throw new Error("Please upload at least one image.");
+        throw new Error('Please upload at least one image.');
       }
 
+      // Compress images
       await compressImages(req.files);
+
+      // Upload compressed images to Cloudinary
+      const imageUrls = [];
+      for (const file of req.files) {
+        const compressedPath = path.join(__dirname, '../compressed_images', file.filename.replace('.jpg', '.webp'));
+        const result = await cloudinary.uploader.upload(compressedPath, {
+          folder: 'products',
+          public_id: `product_${Date.now()}_${file.filename.replace(/[^a-zA-Z0-9.]/g, '_')}`,
+          transformation: { quality: 'auto', fetch_format: 'auto' }
+        });
+        imageUrls.push(result.secure_url);
+
+        // Clean up local compressed file
+        await fs.unlink(compressedPath).catch(err => console.error(`Failed to delete ${compressedPath}:`, err));
+        // Clean up original file
+        await fs.unlink(path.join(__dirname, '../Uploads', file.filename)).catch(err => console.error(`Failed to delete ${file.filename}:`, err));
+      }
 
       const product = new Product({
         name: req.body.name,
@@ -63,7 +81,7 @@ module.exports = {
         stock: req.body.stock,
         size: req.body.size,
         color: req.body.color,
-        images: req.files.map(file => file.filename)
+        images: imageUrls
       });
 
       await product.save();
@@ -75,12 +93,12 @@ module.exports = {
 
       res.redirect('/products');
     } catch (error) {
-      console.error(error);
-      res.json({ message: error.message, type: 'danger' });
+      console.error('Error in addnewproduct:', error);
+      res.status(HttpStatusCode.INTERNAL_SERVER_ERROR).json({ message: error.message, type: 'danger' });
     }
   },
 
-  //edit a product
+  // Edit a product
   editproduct: async (req, res) => {
     try {
       let id = req.params.id;
@@ -100,8 +118,8 @@ module.exports = {
         existingImages: product.images
       });
     } catch (error) {
-      console.error(error);
-      res.redirect('/products');z
+      console.error('Error in editproduct:', error);
+      res.redirect('/products');
     }
   },
 
