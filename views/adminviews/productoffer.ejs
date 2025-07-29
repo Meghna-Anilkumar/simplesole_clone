@@ -1,102 +1,119 @@
 <%- include('./sidebar') %>
 
-  <style>
-    .offer-container {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: space-between;
-      margin-top: 20px;
-      margin-left: 155px;
-    }
+<style>
+  .offer-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    margin-top: 20px;
+    margin-left: 155px;
+  }
 
-    .offer-box {
-      width: calc(33.33% - 20px);
-      border: 1px solid #ccc;
-      padding: 20px;
-      margin-bottom: 20px;
-    }
-  </style>
+  .offer-box {
+    width: calc(33.33% - 20px);
+    border: 1px solid #ccc;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
 
+  .pagination-container {
+    margin: 20px 155px;
+    text-align: center;
+  }
+</style>
 
-  <div class="content" style="margin-left: 150px;">
-    <div class="container mt-3">
-      <h2>Product Offer Page</h2>
-      <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addProductOfferModal">Add
-        Product Offer</button>
-    </div>
+<div class="content" style="margin-left: 150px;">
+  <div class="container mt-3">
+    <h2>Product Offer Page</h2>
+    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addProductOfferModal">Add Product Offer</button>
   </div>
+</div>
 
-  <div class="modal fade" id="addProductOfferModal" tabindex="-1" aria-labelledby="addProductOfferModalLabel"
-    aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="addProductOfferModalLabel">Add Product Offer</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+<!-- Add Product Offer Modal -->
+<div class="modal fade" id="addProductOfferModal" tabindex="-1" aria-labelledby="addProductOfferModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="addProductOfferModalLabel">Add Product Offer</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label for="productDropdown" class="form-label">Select Product</label>
+          <select class="form-select" id="productDropdown">
+            <option value="" selected disabled>Select a product</option>
+            <% products.forEach(product => { %>
+              <option value="<%= product._id %>"><%= product.name %></option>
+            <% }); %>
+          </select>
         </div>
-
-
-        <div class="modal-body">
-          <div class="mb-3">
-            <label for="productDropdown" class="form-label">Select Product</label>
-            <select class="form-select" id="productDropdown">
-              <% products.forEach(product=> { %>
-                <option value="<%= product._id %>">
-                  <%= product.name %>
-                </option>
-                <% }); %>
-            </select>
-          </div>
-          <!-- Offer Percentage -->
-          <div class="mb-3">
-            <label for="offerPercentage" class="form-label">Offer Percentage (%)</label>
-            <input type="number" class="form-control" id="offerPercentage" placeholder="Enter offer percentage">
-          </div>
-          <!-- Start Date -->
-          <div class="mb-3">
-            <label for="startDate" class="form-label">Start Date</label>
-            <input type="date" class="form-control" id="startDate">
-          </div>
-          <!-- End Date -->
-          <div class="mb-3">
-            <label for="endDate" class="form-label">End Date</label>
-            <input type="date" class="form-control" id="endDate">
-          </div>
+        <div class="mb-3">
+          <label for="offerPercentage" class="form-label">Offer Percentage (%)</label>
+          <input type="number" class="form-control" id="offerPercentage" placeholder="Enter offer percentage">
         </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-          <button type="button" class="btn btn-primary" id="submitOfferBtn">Submit</button>
+        <div class="mb-3">
+          <label for="startDate" class="form-label">Start Date</label>
+          <input type="date" class="form-control" id="startDate">
         </div>
+        <div class="mb-3">
+          <label for="endDate" class="form-label">End Date</label>
+          <input type="date" class="form-control" id="endDate">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-primary" id="submitOfferBtn">Submit</button>
       </div>
     </div>
   </div>
-  <div id="offerDetails" class="offer-container">
-    <% function formatDate(dateString) {
-      const date = new Date(dateString);
-      const day = String(date.getDate()).padStart(2, '0');
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const year = date.getFullYear();
-      return `${day}/${month}/${year}`;
+</div>
+
+<!-- Offer Details -->
+<div id="offerDetails" class="offer-container">
+  <% function formatDate(dateString) {
+    const date = new Date(dateString);
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
   } %>
-    <% offers.forEach(offer=> { %>
-      <div class="offer-box">
-        <% console.log(offer.product); %>
-          <% console.log(offer.product.name); %>
-            <p>Product: <%= offer.product.name%>
-            </p>
-            <p>Discount Percentage: <%= offer.discountPercentage %>%</p>
-            <p>Start Date: <%=formatDate( offer.startDate )%>
-            </p>
-            <p>Expiry Date:<%=formatDate( offer.expiryDate )%>
-            </p>
-            <button class="btn btn-primary edit-offer-btn" data-toggle="modal" data-target="#editOfferModal"
-              data-offer-id="<%= offer._id %>" data-product-id="<%= offer.product %>"
-              data-discount-percentage="<%= offer.discountPercentage %>" data-start-date="<%= offer.startDate %>"
+  <% offers.forEach(offer => { %>
+    <div class="offer-box">
+      <p>Product: <%= offer.product.name %></p>
+      <p>Discount Percentage: <%= offer.discountPercentage %>%</p>
+      <p>Start Date: <%= formatDate(offer.startDate) %></p>
+      <p>Expiry Date: <%= formatDate(offer.expiryDate) %></p>
+      <button class="btn btn-primary edit-offer-btn" 
+              data-bs-toggle="modal" 
+              data-bs-target="#editOfferModal"
+              data-offer-id="<%= offer._id %>"
+              data-product-id="<%= offer.product._id %>"
+              data-discount-percentage="<%= offer.discountPercentage %>"
+              data-start-date="<%= offer.startDate %>"
               data-expiry-date="<%= offer.expiryDate %>">Edit</button>
-            <button class="btn btn-danger delete-offer-btn" data-offer-id="<%= offer._id %>">Delete</button>
-      </div>
-      <% }) %>
-  </div>
+      <button class="btn btn-danger delete-offer-btn" data-offer-id="<%= offer._id %>">Delete</button>
+    </div>
+  <% }) %>
+</div>
+
+<!-- Pagination Controls -->
+<div class="pagination-container">
+  <nav aria-label="Page navigation">
+    <ul class="pagination justify-content-center">
+      <li class="page-item <%= currentPage === 1 ? 'disabled' : '' %>">
+        <a class="page-link" href="?page=<%= currentPage - 1 %>&limit=<%= limit %>">Previous</a>
+      </li>
+      <% for (let i = 1; i <= totalPages; i++) { %>
+        <li class="page-item <%= currentPage === i ? 'active' : '' %>">
+          <a class="page-link" href="?page=<%= i %>&limit=<%= limit %>"><%= i %></a>
+        </li>
+      <% } %>
+      <li class="page-item <%= currentPage === totalPages ? 'disabled' : '' %>">
+        <a class="page-link" href="?page=<%= currentPage + 1 %>&limit=<%= limit %>">Next</a>
+      </li>
+    </ul>
+  </nav>
+</div>
 
 <!-- Edit Offer Modal -->
 <div class="modal fade" id="editOfferModal" tabindex="-1" aria-labelledby="editOfferModalLabel" aria-hidden="true">
@@ -111,22 +128,20 @@
         <div class="mb-3">
           <label for="editProductDropdown" class="form-label">Select Product</label>
           <select class="form-select" id="editProductDropdown">
-            <% products.forEach(product=> { %>
-            <option value="<%= product._id %>"><%= product.name %></option>
+            <option value="" selected disabled>Select a product</option>
+            <% products.forEach(product => { %>
+              <option value="<%= product._id %>"><%= product.name %></option>
             <% }); %>
           </select>
         </div>
-        <!-- Offer Percentage -->
         <div class="mb-3">
           <label for="editOfferPercentage" class="form-label">Offer Percentage (%)</label>
           <input type="number" class="form-control" id="editOfferPercentage" placeholder="Enter offer percentage">
         </div>
-        <!-- Start Date -->
         <div class="mb-3">
           <label for="editStartDate" class="form-label">Start Date</label>
           <input type="date" class="form-control" id="editStartDate">
         </div>
-        <!-- End Date -->
         <div class="mb-3">
           <label for="editEndDate" class="form-label">End Date</label>
           <input type="date" class="form-control" id="editEndDate">
@@ -140,109 +155,102 @@
   </div>
 </div>
 
-  
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const submitOfferBtn = document.getElementById('submitOfferBtn');
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0-alpha1/js/bootstrap.bundle.min.js"
-    integrity="sha512-..." crossorigin="anonymous"></script>
+    submitOfferBtn.addEventListener('click', async function () {
+      const productDropdown = document.getElementById('productDropdown');
+      const offerPercentage = document.getElementById('offerPercentage');
+      const startDate = document.getElementById('startDate');
+      const endDate = document.getElementById('endDate');
 
-  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+      // Validate inputs
+      if (!productDropdown.value) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Missing Product',
+          text: 'Please select a product'
+        });
+        return;
+      }
 
+      const offerPercentageValue = parseInt(offerPercentage.value);
+      if (isNaN(offerPercentageValue) || offerPercentageValue < 1 || offerPercentageValue > 100) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Invalid Offer Percentage',
+          text: 'Percentage offer should be between 1 and 100'
+        });
+        return;
+      }
 
-  <script>
-    document.addEventListener('DOMContentLoaded', function () {
-      const submitOfferBtn = document.getElementById('submitOfferBtn');
-      const offerDetailsContainer = document.getElementById('offerDetails');
-  
-      submitOfferBtn.addEventListener('click', async function () {
-        const productDropdown = document.getElementById('productDropdown');
-        const offerPercentage = document.getElementById('offerPercentage');
-        const startDate = document.getElementById('startDate');
-        const endDate = document.getElementById('endDate');
-  
-        // Validate offer percentage
-        const offerPercentageValue = parseInt(offerPercentage.value);
-        if (isNaN(offerPercentageValue) || offerPercentageValue < 1 || offerPercentageValue > 100) {
-          // Display SweetAlert for invalid offer percentage
+      if (startDate.value === "") {
+        Swal.fire({
+          icon: 'error',
+          title: 'Missing Start Date',
+          text: 'Please select a start date'
+        });
+        return;
+      }
+
+      if (endDate.value === "") {
+        Swal.fire({
+          icon: 'error',
+          title: 'Missing End Date',
+          text: 'Please select an end date'
+        });
+        return;
+      }
+
+      const formData = {
+        productId: productDropdown.value,
+        discountPercentage: offerPercentage.value,
+        startDate: startDate.value,
+        expiryDate: endDate.value
+      };
+
+      try {
+        const response = await fetch('/save-product-offer', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(formData)
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          Swal.fire({
+            icon: 'success',
+            title: 'Success',
+            text: 'Product offer added successfully'
+          });
+          const modal = new bootstrap.Modal(document.getElementById('addProductOfferModal'));
+          modal.hide();
+          window.location.reload();
+        } else {
           Swal.fire({
             icon: 'error',
-            title: 'Invalid Offer Percentage',
-            text: 'Percentage offer should be between 1 and 100'
+            title: 'Error',
+            text: data.message || 'Failed to save product offer'
           });
-          return; // Stop further execution
         }
-  
-        // Validate start date
-        if (startDate.value === "") {
-          // Display SweetAlert for missing start date
-          Swal.fire({
-            icon: 'error',
-            title: 'Missing Start Date',
-            text: 'Please select a start date'
-          });
-          return; // Stop further execution
-        }
-  
-        // Validate end date
-        if (endDate.value === "") {
-          // Display SweetAlert for missing end date
-          Swal.fire({
-            icon: 'error',
-            title: 'Missing End Date',
-            text: 'Please select an end date'
-          });
-          return; // Stop further execution
-        }
-  
-        const formData = {
-          productId: productDropdown.value,
-          discountPercentage: offerPercentage.value,
-          startDate: startDate.value,
-          expiryDate: endDate.value
-        };
-  
-        try {
-          const response = await fetch('/save-product-offer', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(formData)
-          });
-  
-          if (response.ok) {
-            const data = await response.json();
-            console.log(data.message);
-  
-            offerDetailsContainer.innerHTML += `
-              <div class="offer-box">
-                <p>Product: ${data.product.name}</p>
-                <p>Discount Percentage: ${data.discountPercentage}%</p>
-                <p>Start Date: ${data.startDate}</p>
-                <p>Expiry Date: ${data.expiryDate}</p>
-                <button class="btn btn-primary edit-offer-btn" data-toggle="modal" data-target="#editOfferModal"
-                  data-offer-id="${data._id}" data-product-id="${data.product._id}"
-                  data-discount-percentage="${data.discountPercentage}" data-start-date="${data.startDate}"
-                  data-expiry-date="${data.expiryDate}">Edit</button>
-                <button class="btn btn-danger delete-offer-btn" data-offer-id="${data._id}">Delete</button>
-              </div>
-            `;
-  
-            const modal = new bootstrap.Modal(document.getElementById('addProductOfferModal'));
-            modal.hide();
-          } else {
-            console.error('Failed to save product offer');
-          }
-        } catch (error) {
-          console.error('Error:', error);
-        }
-        window.location.reload();
-      });
+      } catch (error) {
+        console.error('Error:', error);
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'An error occurred while saving the offer'
+        });
+      }
     });
-  </script>
-  
-
+  });
+</script>
 
 <script>
   document.addEventListener('DOMContentLoaded', function () {
@@ -256,29 +264,26 @@
         const productId = this.getAttribute('data-product-id');
         const discountPercentage = this.getAttribute('data-discount-percentage');
         const startDate = this.getAttribute('data-start-date');
-        const endDate = this.getAttribute('data-expiry-date');
+        const expiryDate = this.getAttribute('data-expiry-date');
 
-        // Populate the edit modal fields with the current data
+        // Populate the edit modal fields
         document.getElementById('editOfferId').value = offerId;
-        // Select the correct product in the dropdown
         document.getElementById('editProductDropdown').value = productId;
         document.getElementById('editOfferPercentage').value = discountPercentage;
-        document.getElementById('editStartDate').value = formatDate(startDate);
-        document.getElementById('editEndDate').value = formatDate(endDate);
+        document.getElementById('editStartDate').value = formatDateForInput(startDate);
+        document.getElementById('editEndDate').value = formatDateForInput(expiryDate);
 
         const editOfferModal = new bootstrap.Modal(document.getElementById('editOfferModal'));
         editOfferModal.show();
       });
     });
-  });
 
-  function formatDate(dateString) {
-    const date = new Date(dateString);
-    const year = date.getFullYear();
-    let month = (date.getMonth() + 1).toString().padStart(2, '0');
-    let day = date.getDate().toString().padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  }
+    function formatDateForInput(dateString) {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return '';
+      return date.toISOString().split('T')[0];
+    }
+  });
 </script>
 
 <script>
@@ -292,38 +297,42 @@
       const editStartDate = document.getElementById('editStartDate');
       const editEndDate = document.getElementById('editEndDate');
 
-      // Validate offer percentage
+      // Validate inputs
+      if (!editProductDropdown.value) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Missing Product',
+          text: 'Please select a product'
+        });
+        return;
+      }
+
       const offerPercentageValue = parseInt(editOfferPercentage.value);
       if (isNaN(offerPercentageValue) || offerPercentageValue < 1 || offerPercentageValue > 100) {
-        // Display SweetAlert for invalid offer percentage
         Swal.fire({
           icon: 'error',
           title: 'Invalid Offer Percentage',
           text: 'Percentage offer should be between 1 and 100'
         });
-        return; // Stop further execution
+        return;
       }
 
-      // Validate start date
       if (editStartDate.value === "") {
-        // Display SweetAlert for missing start date
         Swal.fire({
           icon: 'error',
           title: 'Missing Start Date',
           text: 'Please select a start date'
         });
-        return; // Stop further execution
+        return;
       }
 
-      // Validate end date
       if (editEndDate.value === "") {
-        // Display SweetAlert for missing end date
         Swal.fire({
           icon: 'error',
           title: 'Missing End Date',
           text: 'Please select an end date'
         });
-        return; // Stop further execution
+        return;
       }
 
       const formData = {
@@ -341,21 +350,34 @@
             'Content-Type': 'application/json'
           },
           body: JSON.stringify(formData)
-        })
+        });
+
+        const data = await response.json();
 
         if (response.ok) {
-          const data = await response.json();
-          console.log(data.message);
-
+          Swal.fire({
+            icon: 'success',
+            title: 'Success',
+            text: 'Product offer updated successfully'
+          });
           const editOfferModal = new bootstrap.Modal(document.getElementById('editOfferModal'));
           editOfferModal.hide();
+          window.location.reload();
         } else {
-          console.error('Failed to update product offer');
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: data.message || 'Failed to update product offer'
+          });
         }
       } catch (error) {
         console.error('Error:', error);
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'An error occurred while updating the offer'
+        });
       }
-      window.location.reload();
     });
   });
 </script>
@@ -375,19 +397,31 @@
             method: 'POST'
           });
 
+          const data = await response.json();
+
           if (response.ok) {
-            const data = await response.json();
-            console.log(data.message);
-            this.parentElement.remove(); 
+            Swal.fire({
+              icon: 'success',
+              title: 'Success',
+              text: 'Product offer deleted successfully'
+            });
+            this.parentElement.remove();
           } else {
-            console.error('Failed to delete product offer');
+            Swal.fire({
+              icon: 'error',
+              title: 'Error',
+              text: data.message || 'Failed to delete product offer'
+            });
           }
         } catch (error) {
           console.error('Error:', error);
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'An error occurred while deleting the offer'
+          });
         }
       });
     });
   });
 </script>
-
-

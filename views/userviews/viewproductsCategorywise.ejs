@@ -175,7 +175,7 @@
               <i class="fas fa-heart"></i>
             </button>
             <a href="/products/<%= product._id %>">
-              <img src="/<%= product.images.length > 0 ? product.images[0] : '' %>" class="card-img-top" alt="<%= product.name %>">
+              <img src="<%= product.images.length > 0 ? product.images[0] : '' %>" class="card-img-top" alt="<%= product.name %>">
             </a>
             <div class="card-body">
               <h5 class="card-title"><%= product.name %></h5>

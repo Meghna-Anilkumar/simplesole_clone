@@ -15,6 +15,11 @@
     padding: 20px;
     margin-bottom: 20px;
   }
+
+  .pagination-container {
+    margin: 20px 155px;
+    text-align: center;
+  }
 </style>
 
 <div class="content" style="margin-left: 150px;">
@@ -24,6 +29,7 @@
   </div>
 </div>
 
+<!-- Add Category Offer Modal -->
 <div class="modal fade" id="addCategoryOfferModal" tabindex="-1" aria-labelledby="addCategoryOfferModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
@@ -34,23 +40,21 @@
       <div class="modal-body">
         <div class="mb-3">
           <label for="categoryDropdown" class="form-label">Select Category</label>
-          <select class="form-select" id="categoryDropdown">
+          <select class="form-select" id="categoryDropdown" required>
+            <option value="" selected disabled>Select a category</option>
             <% categories.forEach(category => { %>
               <option value="<%= category._id %>"><%= category.name %></option>
             <% }); %>
           </select>
         </div>
-        <!-- Discount Percentage -->
         <div class="mb-3">
           <label for="discountPercentage" class="form-label">Discount Percentage (%)</label>
           <input type="number" class="form-control" id="discountPercentage" placeholder="Enter discount percentage">
         </div>
-        <!-- Start Date -->
         <div class="mb-3">
           <label for="startDate" class="form-label">Start Date</label>
           <input type="date" class="form-control" id="startDate">
         </div>
-        <!-- End Date -->
         <div class="mb-3">
           <label for="expiryDate" class="form-label">Expiry Date</label>
           <input type="date" class="form-control" id="expiryDate">
@@ -64,37 +68,55 @@
   </div>
 </div>
 
+<!-- Category Offer Details -->
 <div id="categoryOfferDetails" class="offer-container">
-  <% categoryOffers.forEach(categoryOffer => { %>
-    <% function formatDate(dateString) {
-      const date = new Date(dateString);
-      const day = String(date.getDate()).padStart(2, '0');
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const year = date.getFullYear();
-      return `${day}/${month}/${year}`;
+  <% function formatDate(dateString) {
+    const date = new Date(dateString);
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
   } %>
+  <% categoryOffers.forEach(categoryOffer => { %>
     <div class="offer-box">
-      <% console.log(categoryOffer.category); %>
       <p>Category: <%= categoryOffer.category.name %></p>
       <p>Discount Percentage: <%= categoryOffer.discountPercentage %>%</p>
-      <p>Start Date: <%=formatDate (categoryOffer.startDate) %></p>
+      <p>Start Date: <%= formatDate(categoryOffer.startDate) %></p>
       <p>Expiry Date: <%= formatDate(categoryOffer.expiryDate) %></p>
-      <% if (categoryOffer.categoryofferprice) { %>
-        <p>Category Offer Price: <%= categoryOffer.categoryofferprice %></p>
-      <% } %>
-      <button class="btn btn-primary edit-category-offer-btn" data-bs-toggle="modal" data-bs-target="#editCategoryOfferModal"
-      data-category-offer-id="<%= categoryOffer._id %>" data-category-id="<%= categoryOffer.category._id %>"
-      data-discount-percentage="<%= categoryOffer.discountPercentage %>" data-start-date="<%= categoryOffer.startDate %>"
-      data-expiry-date="<%= categoryOffer.expiryDate %>">Edit</button>
+      <button class="btn btn-primary edit-category-offer-btn" 
+              data-bs-toggle="modal" 
+              data-bs-target="#editCategoryOfferModal"
+              data-category-offer-id="<%= categoryOffer._id %>"
+              data-category-id="<%= categoryOffer.category._id %>"
+              data-discount-percentage="<%= categoryOffer.discountPercentage %>"
+              data-start-date="<%= categoryOffer.startDate %>"
+              data-expiry-date="<%= categoryOffer.expiryDate %>">Edit</button>
       <button class="btn btn-danger delete-category-offer-btn" data-category-offer-id="<%= categoryOffer._id %>">Delete</button>
     </div>
   <% }) %>
 </div>
 
+<!-- Pagination Controls -->
+<div class="pagination-container">
+  <nav aria-label="Page navigation">
+    <ul class="pagination justify-content-center">
+      <li class="page-item <%= currentPage === 1 ? 'disabled' : '' %>">
+        <a class="page-link" href="?page=<%= currentPage - 1 %>&limit=<%= limit %>">Previous</a>
+      </li>
+      <% for (let i = 1; i <= totalPages; i++) { %>
+        <li class="page-item <%= currentPage === i ? 'active' : '' %>">
+          <a class="page-link" href="?page=<%= i %>&limit=<%= limit %>"><%= i %></a>
+        </li>
+      <% } %>
+      <li class="page-item <%= currentPage === totalPages ? 'disabled' : '' %>">
+        <a class="page-link" href="?page=<%= currentPage + 1 %>&limit=<%= limit %>">Next</a>
+      </li>
+    </ul>
+  </nav>
+</div>
 
 <!-- Edit Category Offer Modal -->
-<div class="modal fade" id="editCategoryOfferModal" tabindex="-1" aria-labelledby="editCategoryOfferModalLabel"
-  aria-hidden="true">
+<div class="modal fade" id="editCategoryOfferModal" tabindex="-1" aria-labelledby="editCategoryOfferModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header">
@@ -106,22 +128,20 @@
         <div class="mb-3">
           <label for="editCategoryDropdown" class="form-label">Select Category</label>
           <select class="form-select" id="editCategoryDropdown">
+            <option value="" selected disabled>Select a category</option>
             <% categories.forEach(category => { %>
               <option value="<%= category._id %>"><%= category.name %></option>
             <% }); %>
           </select>
         </div>
-        <!-- Discount Percentage -->
         <div class="mb-3">
           <label for="editDiscountPercentage" class="form-label">Discount Percentage (%)</label>
           <input type="number" class="form-control" id="editDiscountPercentage" placeholder="Enter discount percentage">
         </div>
-        <!-- Start Date -->
         <div class="mb-3">
           <label for="editStartDate" class="form-label">Start Date</label>
           <input type="date" class="form-control" id="editStartDate">
         </div>
-        <!-- End Date -->
         <div class="mb-3">
           <label for="editExpiryDate" class="form-label">Expiry Date</label>
           <input type="date" class="form-control" id="editExpiryDate">
@@ -135,94 +155,102 @@
   </div>
 </div>
 
-
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0-alpha1/js/bootstrap.bundle.min.js" integrity="sha512-..." crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
 
 <script>
   document.addEventListener('DOMContentLoaded', function () {
-  const submitCategoryOfferBtn = document.getElementById('submitCategoryOfferBtn');
-  const categoryOfferDetailsContainer = document.getElementById('categoryOfferDetails');
+    const submitCategoryOfferBtn = document.getElementById('submitCategoryOfferBtn');
 
-  submitCategoryOfferBtn.addEventListener('click', async function () {
-    const categoryDropdown = document.getElementById('categoryDropdown');
-    const discountPercentage = document.getElementById('discountPercentage');
-    const startDate = document.getElementById('startDate');
-    const expiryDate = document.getElementById('expiryDate');
+    submitCategoryOfferBtn.addEventListener('click', async function () {
+      const categoryDropdown = document.getElementById('categoryDropdown');
+      const discountPercentage = document.getElementById('discountPercentage');
+      const startDate = document.getElementById('startDate');
+      const expiryDate = document.getElementById('expiryDate');
 
-    // Validate discount percentage
-    const discountValue = parseInt(discountPercentage.value);
-    if (isNaN(discountValue) || discountValue < 1 || discountValue > 100) {
-      // Display SweetAlert for invalid discount percentage
-      Swal.fire({
-        icon: 'error',
-        title: 'Invalid Discount Percentage',
-        text: 'Percentage discount should be between 1 and 100'
-      });
-      return; // Stop further execution
-    }
+      // Validate inputs
+      if (!categoryDropdown.value) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Missing Category',
+          text: 'Please select a category'
+        });
+        return;
+      }
 
-    const formData = {
-      categoryId: categoryDropdown.value,
-      discountPercentage: discountPercentage.value,
-      startDate: startDate.value,
-      expiryDate: expiryDate.value
-    }; 
-// Inside the submitCategoryOfferBtn event listener
-try {
-    const response = await fetch('/save-category-offer', {
-        method: 'POST',
-        headers: {
+      const discountValue = parseInt(discountPercentage.value);
+      if (isNaN(discountValue) || discountValue < 1 || discountValue > 100) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Invalid Discount Percentage',
+          text: 'Percentage discount should be between 1 and 100'
+        });
+        return;
+      }
+
+      if (startDate.value === "") {
+        Swal.fire({
+          icon: 'error',
+          title: 'Missing Start Date',
+          text: 'Please select a start date'
+        });
+        return;
+      }
+
+      if (expiryDate.value === "") {
+        Swal.fire({
+          icon: 'error',
+          title: 'Missing Expiry Date',
+          text: 'Please select an expiry date'
+        });
+        return;
+      }
+
+      const formData = {
+        categoryId: categoryDropdown.value,
+        discountPercentage: discountPercentage.value,
+        startDate: startDate.value,
+        expiryDate: expiryDate.value
+      };
+
+      try {
+        const response = await fetch('/save-category-offer', {
+          method: 'POST',
+          headers: {
             'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(formData)
-    });
+          },
+          body: JSON.stringify(formData)
+        });
 
-    if (response.ok) {
         const data = await response.json();
-        console.log(data.message);
 
-        if (data.message === 'Category already has an offer') {
-            // Display SweetAlert for existing category offer
-            Swal.fire({
-                icon: 'error',
-                title: 'Category Already Has Offer',
-                text: 'This category already has a category offer.'
-            });
+        if (response.ok) {
+          Swal.fire({
+            icon: 'success',
+            title: 'Success',
+            text: 'Category offer added successfully'
+          });
+          const modal = new bootstrap.Modal(document.getElementById('addCategoryOfferModal'));
+          modal.hide();
+          window.location.reload();
         } else {
-            // Append new offer details to the offer details container
-            categoryOfferDetailsContainer.innerHTML += `
-                <div class="offer-box">
-                    <p>Category: ${data.category.name}</p>
-                    <p>Discount Percentage: ${data.discountPercentage}%</p>
-                    <p>Start Date: ${data.startDate}</p>
-                    <p>Expiry Date: ${data.expiryDate}</p>
-                    <button class="btn btn-primary edit-category-offer-btn" data-toggle="modal" data-target="#editCategoryOfferModal"
-                        data-category-offer-id="${data._id}" data-category-id="${data.category._id}"
-                        data-discount-percentage="${data.discountPercentage}" data-start-date="${data.startDate}"
-                        data-expiry-date="${data.expiryDate}">Edit</button>
-                    <button class="btn btn-danger delete-category-offer-btn" data-category-offer-id="${data._id}">Delete</button>
-                </div>
-            `;
-
-            // Close the modal
-            const modal = new bootstrap.Modal(document.getElementById('addCategoryOfferModal'));
-            modal.hide();
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: data.message || 'Failed to save category offer'
+          });
         }
-    } else {
-        console.error('Failed to save category offer');
-    }
-} catch (error) {
-    console.error('Error:', error);
-}
-
-    window.location.reload(); 
-  })
-})
+      } catch (error) {
+        console.error('Error:', error);
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'An error occurred while saving the offer'
+        });
+      }
+    });
+  });
 </script>
-
 
 <script>
   document.addEventListener('DOMContentLoaded', function () {
@@ -238,18 +266,23 @@ try {
         const startDate = this.getAttribute('data-start-date');
         const expiryDate = this.getAttribute('data-expiry-date');
 
-        // Populate the edit modal fields with the current data
+        // Populate the edit modal fields
         document.getElementById('editCategoryOfferId').value = categoryOfferId;
-        // Select the correct category in the dropdown
         document.getElementById('editCategoryDropdown').value = categoryId;
         document.getElementById('editDiscountPercentage').value = discountPercentage;
-        document.getElementById('editStartDate').value = startDate;
-        document.getElementById('editExpiryDate').value = expiryDate;
+        document.getElementById('editStartDate').value = formatDateForInput(startDate);
+        document.getElementById('editExpiryDate').value = formatDateForInput(expiryDate);
 
         const editCategoryOfferModal = new bootstrap.Modal(document.getElementById('editCategoryOfferModal'));
         editCategoryOfferModal.show();
       });
     });
+
+    function formatDateForInput(dateString) {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return '';
+      return date.toISOString().split('T')[0];
+    }
   });
 </script>
 
@@ -264,38 +297,42 @@ try {
       const editStartDate = document.getElementById('editStartDate');
       const editExpiryDate = document.getElementById('editExpiryDate');
 
-      // Validate discount percentage
+      // Validate inputs
+      if (!editCategoryDropdown.value) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Missing Category',
+          text: 'Please select a category'
+        });
+        return;
+      }
+
       const discountValue = parseInt(editDiscountPercentage.value);
       if (isNaN(discountValue) || discountValue < 1 || discountValue > 100) {
-        // Display SweetAlert for invalid discount percentage
         Swal.fire({
           icon: 'error',
           title: 'Invalid Discount Percentage',
           text: 'Percentage discount should be between 1 and 100'
         });
-        return; // Stop further execution
+        return;
       }
 
-      // Validate start date
       if (editStartDate.value === "") {
-        // Display SweetAlert for missing start date
         Swal.fire({
           icon: 'error',
           title: 'Missing Start Date',
           text: 'Please select a start date'
         });
-        return; // Stop further execution
+        return;
       }
 
-      // Validate expiry date
       if (editExpiryDate.value === "") {
-        // Display SweetAlert for missing expiry date
         Swal.fire({
           icon: 'error',
           title: 'Missing Expiry Date',
           text: 'Please select an expiry date'
         });
-        return; // Stop further execution
+        return;
       }
 
       const formData = {
@@ -314,27 +351,44 @@ try {
           body: JSON.stringify(formData)
         });
 
+        const data = await response.json();
+
         if (response.ok) {
-          console.log('Category offer updated successfully');
-          // Refresh the page or update the UI as needed
-          window.location.reload(); 
+          Swal.fire({
+            icon: 'success',
+            title: 'Success',
+            text: 'Category offer updated successfully'
+          });
+          const editCategoryOfferModal = new bootstrap.Modal(document.getElementById('editCategoryOfferModal'));
+          editCategoryOfferModal.hide();
+          window.location.reload();
         } else {
-          console.error('Failed to update category offer');
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: data.message || 'Failed to update category offer'
+          });
         }
       } catch (error) {
         console.error('Error:', error);
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'An error occurred while updating the offer'
+        });
       }
     });
   });
 </script>
-
 
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     const deleteCategoryOfferBtns = document.querySelectorAll('.delete-category-offer-btn');
 
     deleteCategoryOfferBtns.forEach(deleteCategoryOfferBtn => {
-      deleteCategoryOfferBtn.addEventListener('click', async function () {
+      deleteCategoryOfferBtn.addEventListener('click', async function (event) {
+        event.preventDefault();
+
         const categoryOfferId = this.getAttribute('data-category-offer-id');
 
         try {
@@ -342,19 +396,31 @@ try {
             method: 'POST'
           });
 
+          const data = await response.json();
+
           if (response.ok) {
-            console.log('Category offer deleted successfully');
-            // Refresh the page or update the UI as needed
-            window.location.reload(); 
+            Swal.fire({
+              icon: 'success',
+              title: 'Success',
+              text: 'Category offer deleted successfully'
+            });
+            this.parentElement.remove();
           } else {
-            console.error('Failed to delete category offer');
+            Swal.fire({
+              icon: 'error',
+              title: 'Error',
+              text: data.message || 'Failed to delete category offer'
+            });
           }
         } catch (error) {
           console.error('Error:', error);
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'An error occurred while deleting the offer'
+          });
         }
       });
     });
   });
 </script>
-
-  

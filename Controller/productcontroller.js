@@ -1,15 +1,21 @@
 const Product = require('../models/product');
 const Category = require('../models/category');
-const fs = require('fs');
 const Wishlist = require('../models/wishlist');
 const ProductOffer = require('../models/productoffermodel');
 const CategoryOffer = require('../models/categoryoffer');
 const Cart = require('../models/cartSchema');
-const { compressImages } = require('../utils/compress');
-const  HttpStatusCode  = require('../enums/statusCodes')
+const cloudinary = require('cloudinary').v2;
+const { HttpStatusCode } = require('../enums/statusCodes');
+
+// Configure Cloudinary with environment variables
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 module.exports = {
-  //to get add product page  
+  // Get add product page
   addProduct: async (req, res) => {
     const category = await Category.find().exec();
     res.render('adminviews/addproduct', {
@@ -18,7 +24,7 @@ module.exports = {
     });
   },
 
-  //get all products
+  // Get all products
   getproducts: async (req, res) => {
     try {
       const page = parseInt(req.query.page) || 1;
@@ -46,32 +52,22 @@ module.exports = {
     }
   },
 
-  //insert a new product into database
+  // Insert a new product into database
   addnewproduct: async (req, res) => {
     try {
       if (!req.files || req.files.length === 0) {
-        throw new Error('Please upload at least one image.');
+        throw new Error("Please upload at least one image.");
       }
 
-      // Compress images
-      await compressImages(req.files);
-
-      // Upload compressed images to Cloudinary
-      const imageUrls = [];
-      for (const file of req.files) {
-        const compressedPath = path.join(__dirname, '../compressed_images', file.filename.replace('.jpg', '.webp'));
-        const result = await cloudinary.uploader.upload(compressedPath, {
+      // Upload images to Cloudinary
+      const uploadPromises = req.files.map(file =>
+        cloudinary.uploader.upload(file.path, {
           folder: 'products',
-          public_id: `product_${Date.now()}_${file.filename.replace(/[^a-zA-Z0-9.]/g, '_')}`,
-          transformation: { quality: 'auto', fetch_format: 'auto' }
-        });
-        imageUrls.push(result.secure_url);
-
-        // Clean up local compressed file
-        await fs.unlink(compressedPath).catch(err => console.error(`Failed to delete ${compressedPath}:`, err));
-        // Clean up original file
-        await fs.unlink(path.join(__dirname, '../Uploads', file.filename)).catch(err => console.error(`Failed to delete ${file.filename}:`, err));
-      }
+          resource_type: 'image'
+        })
+      );
+      const uploadResults = await Promise.all(uploadPromises);
+      const imageUrls = uploadResults.map(result => result.secure_url);
 
       const product = new Product({
         name: req.body.name,
@@ -93,8 +89,8 @@ module.exports = {
 
       res.redirect('/products');
     } catch (error) {
-      console.error('Error in addnewproduct:', error);
-      res.status(HttpStatusCode.INTERNAL_SERVER_ERROR).json({ message: error.message, type: 'danger' });
+      console.error(error);
+      res.json({ message: error.message, type: 'danger' });
     }
   },
 
@@ -118,18 +114,27 @@ module.exports = {
         existingImages: product.images
       });
     } catch (error) {
-      console.error('Error in editproduct:', error);
+      console.error(error);
       res.redirect('/products');
     }
   },
 
+  // Upload cropped image (modified to handle Cloudinary upload without cropping)
   croppedimageupload: async (req, res) => {
     try {
       if (!req.files || req.files.length === 0) {
         return res.status(HttpStatusCode.BAD_REQUEST).json({ error: 'No file uploaded' });
       }
 
-      const filenames = req.files.map(file => file.filename);
+      const uploadPromises = req.files.map(file =>
+        cloudinary.uploader.upload(file.path, {
+          folder: 'products',
+          resource_type: 'image'
+        })
+      );
+      const uploadResults = await Promise.all(uploadPromises);
+      const filenames = uploadResults.map(result => result.secure_url);
+
       res.status(HttpStatusCode.OK).json({ filenames: filenames });
     } catch (error) {
       console.error(error);
@@ -137,42 +142,43 @@ module.exports = {
     }
   },
 
-  // Update user route 
+  // Update product
   updateproduct: async (req, res) => {
     try {
       const id = req.params.id;
-      let newImages = '';
-
-      if (req.file) {
-        newImages = req.file.filename;
-
-        try {
-          await fs.unlinkSync('./uploads/' + req.body.old_images);
-        } catch (err) {
-          console.log(err);
-        }
-      } else {
-        newImages = req.body.old_images;
-      }
 
       const existingProduct = await Product.findById(id).exec();
+      if (!existingProduct) {
+        throw new Error('Product not found');
+      }
 
       let updatedImages = [...existingProduct.images];
 
+      // Handle deleted images
       if (req.body.deletedImages) {
         const deletedImages = req.body.deletedImages.split(',').map(image => image.trim());
         updatedImages = existingProduct.images.filter(image => !deletedImages.includes(image));
 
-        existingProduct.images = updatedImages;
-        await existingProduct.save();
-
-        deletedImages.forEach(deletedImage => {
-          console.log(updatedImages.includes(deletedImage)
-            ? 'Image Removed from Database:' : 'Image Not Found in Database:', deletedImage);
+        // Delete images from Cloudinary
+        const deletePromises = deletedImages.map(imageUrl => {
+          const publicId = imageUrl.split('/').pop().split('.')[0]; // Extract public ID from URL
+          return cloudinary.uploader.destroy(`products/${publicId}`);
         });
+        await Promise.all(deletePromises);
       }
 
-      updatedImages = [...updatedImages, ...req.files.map(file => file.filename)];
+      // Upload new images to Cloudinary
+      if (req.files && req.files.length > 0) {
+        const uploadPromises = req.files.map(file =>
+          cloudinary.uploader.upload(file.path, {
+            folder: 'products',
+            resource_type: 'image'
+          })
+        );
+        const uploadResults = await Promise.all(uploadPromises);
+        const newImageUrls = uploadResults.map(result => result.secure_url);
+        updatedImages = [...updatedImages, ...newImageUrls];
+      }
 
       const updatedProduct = {
         name: req.body.name,
@@ -209,7 +215,7 @@ module.exports = {
     }
   },
 
-  //to display products categorywise on user side
+  // Display products category-wise on user side
   getproductsCategorywise: async (req, res) => {
     try {
       const categoryId = req.params.categoryId;
@@ -236,15 +242,13 @@ module.exports = {
     }
   },
 
-  //get product details
+  // Get product details
   getproductdetails: async (req, res) => {
     try {
       const productId = req.params.id;
-      console.log('Received productId:', productId, 'kkkkkkkkkkkkkkkkkk'); // Enhanced debug log
       const product = await Product.findById(productId).populate({ path: 'category', select: 'name-_id' });
 
       if (!product) {
-        console.log('Product not found for ID:', productId);
         return res.status(404).render('error', { message: 'Product not found' });
       }
 
@@ -270,7 +274,6 @@ module.exports = {
         expiryDate: { $gte: new Date() }
       });
 
-      console.log('Rendering product details for ID:', productId); // Debug log
       res.render('userviews/productdetails', {
         title: 'Products in category',
         category: selectedCategory,
@@ -288,7 +291,7 @@ module.exports = {
     }
   },
 
-  //block and unblock a product
+  // Block and unblock a product
   blockProduct: async (req, res) => {
     const productId = req.body.productId;
 
@@ -309,45 +312,37 @@ module.exports = {
     }
   },
 
-  //get all products page with combined search, sort, and filter
- getAllProducts: async (req, res) => {
+  // Get all products page with combined search, sort, and filter
+  getAllProducts: async (req, res) => {
     try {
       const perPage = 12;
       const page = parseInt(req.query.page) || 1;
       const skip = (page - 1) * perPage;
 
-      // Build the query object
-      let query = { blocked: false }; // Exclude blocked products
+      let query = { blocked: false };
       if (req.query.query) {
         const searchQuery = req.query.query;
         query.name = { $regex: new RegExp(searchQuery, 'i') };
       }
 
-      // Fetch all products with filters
       let allProducts = await Product.find(query)
         .populate('category')
         .exec();
 
-      // Apply color filter
       if (req.query.color) {
         allProducts = allProducts.filter(product => product.color === req.query.color);
       }
 
-      // Apply size filter
       if (req.query.size) {
         allProducts = allProducts.filter(product => product.size.includes(req.query.size));
       }
 
-      // Apply sorting
       if (req.query.sortOption === 'priceLowToHigh') {
         allProducts.sort((a, b) => a.price - b.price);
-        console.log('Sorted by priceLowToHigh:', allProducts.map(p => p.price));
       } else if (req.query.sortOption === 'priceHighToLow') {
         allProducts.sort((a, b) => b.price - a.price);
-        console.log('Sorted by priceHighToLow:', allProducts.map(p => p.price));
       }
 
-      // Pagination
       const totalProducts = allProducts.length;
       const totalPages = Math.ceil(totalProducts / perPage);
       allProducts = allProducts.slice(skip, skip + perPage);
@@ -365,9 +360,8 @@ module.exports = {
       const user = req.session.user;
       const cart = await Cart.findOne({ user }).populate('items.product').exec();
 
-      // Check if this is an AJAX request (e.g., via fetch)
       if (req.headers['x-requested-with'] === 'XMLHttpRequest' || req.query.json) {
-        res.json(allProducts); // Return JSON for AJAX updates
+        res.json(allProducts);
       } else {
         res.render('userviews/allproducts', {
           title: 'All Products',
@@ -388,40 +382,33 @@ module.exports = {
     }
   },
 
-  // filterproducts route with combined search, sort, and filter
+  // Filter products with combined search, sort, and filter
   filterproducts: async (req, res) => {
     try {
       let filteredProducts;
 
-      // Build the initial query
-      let query = { blocked: false }; // Exclude blocked products
+      let query = { blocked: false };
       if (req.query.query) {
         const searchQuery = req.query.query;
         query.name = { $regex: new RegExp(searchQuery, 'i') };
       }
 
-      // Fetch products with initial query
       filteredProducts = await Product.find(query)
         .populate('category')
         .exec();
 
-      // Apply color filter
       if (req.query.color) {
         filteredProducts = filteredProducts.filter(product => product.color === req.query.color);
       }
 
-      // Apply size filter
       if (req.query.size) {
         filteredProducts = filteredProducts.filter(product => product.size.includes(req.query.size));
       }
 
-      // Apply sorting
       if (req.query.sortOption === 'priceLowToHigh') {
         filteredProducts.sort((a, b) => a.price - b.price);
-        console.log('Filtered and sorted by priceLowToHigh:', filteredProducts.map(p => p.price));
       } else if (req.query.sortOption === 'priceHighToLow') {
         filteredProducts.sort((a, b) => b.price - a.price);
-        console.log('Filtered and sorted by priceHighToLow:', filteredProducts.map(p => p.price));
       }
 
       res.json(filteredProducts);
@@ -430,5 +417,4 @@ module.exports = {
       res.status(500).send('Internal Server Error');
     }
   },
- 
 };
