@@ -7,6 +7,7 @@ const MongoDBSession = require('connect-mongodb-session')(session)
 const bodyParser = require('body-parser')
 const nocache = require('nocache')
 const morgan = require('morgan')
+require('./utils/reservationCleanup');
 
 const app = express()
 const PORT = process.env.PORT || 4000

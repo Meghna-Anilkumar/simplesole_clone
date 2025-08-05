@@ -103,16 +103,36 @@ module.exports = {
     }
   },
 
-  // Display coupons to user (unchanged)
-  coupons: async (req, res) => {
+  // Display coupons to user 
+ coupons: async (req, res) => {
     try {
-      const coupons = await Coupon.find();
+      const userId = req.session.user._id;
+      console.log(userId,'jjjjjjjjj')
+      const user = await User.findById(userId);
+      const cart = await Cart.findOne({ user: userId });
+
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      if (!cart) {
+        return res.status(400).json({ message: 'Cart is empty' });
+      }
+
+      const currentDate = new Date();
+      const coupons = await Coupon.find({
+        expiryDate: { $gte: currentDate }, // Not expired
+        minimumPurchaseAmount: { $lte: cart.total }, // Meets minimum purchase amount
+        _id: { $nin: user.usedCoupons || [] }, // Not used by the user
+      });
+
       res.json(coupons);
     } catch (error) {
       console.error('Error fetching coupons:', error);
       res.status(500).json({ message: 'Error fetching coupons' });
     }
   },
+
 
   // Apply coupon (unchanged)
   applyCoupon: async (req, res) => {

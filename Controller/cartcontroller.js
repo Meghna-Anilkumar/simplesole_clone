@@ -1,27 +1,26 @@
-// Import necessary modules
-const Cart = require("../models/cartSchema");
-const Category = require("../models/category");
-const Product = require("../models/product");
-const ProductOffer = require("../models/productoffermodel");
-const { calculateTotalPrice } = require("../utils/cartfunctions");
-const CategoryOffer = require("../models/categoryoffer");
-const Wishlist = require("../models/wishlist");
+const mongoose = require('mongoose');
+const Cart = require('../models/cartSchema');
+const Category = require('../models/category');
+const Product = require('../models/product');
+const ProductOffer = require('../models/productoffermodel');
+const { calculateTotalPrice } = require('../utils/cartfunctions');
+const CategoryOffer = require('../models/categoryoffer');
+const Wishlist = require('../models/wishlist');
 
 module.exports = {
-  // Get cart
   getcart: async (req, res) => {
     try {
       const user = req.session.user;
       const cart = await Cart.findOne({ user })
-        .populate("items.product")
+        .populate('items.product')
         .exec();
       const wishlist = await Wishlist.findOne({ user: user._id })
-        .populate("items.product")
+        .populate('items.product')
         .exec();
 
       if (!cart) {
-        return res.render("userviews/cart", {
-          title: "Cart",
+        return res.render('userviews/cart', {
+          title: 'Cart',
           category: [],
           data: { total: 0 },
           cart,
@@ -32,33 +31,25 @@ module.exports = {
       const categories = await Category.find();
       const productOffers = await ProductOffer.find();
       const categoryOffers = await CategoryOffer.find();
-      const totalPrice = await calculateTotalPrice(
-        cart.items,
-        productOffers,
-        categoryOffers
-      );
+      const totalPrice = await calculateTotalPrice(cart.items, productOffers, categoryOffers);
 
       if (isNaN(totalPrice)) {
-        console.error("Total price is not a number:", totalPrice);
-        return res.status(500).json({ error: "Internal Server Error" });
+        console.error('Total price is not a number:', totalPrice);
+        return res.status(500).json({ error: 'Internal Server Error' });
       }
 
       cart.total = totalPrice;
       await cart.save();
 
-      const data = {
-        total: totalPrice,
-      };
-
+      const data = { total: totalPrice };
       let product;
-
       if (cart.items && cart.items.length > 0 && cart.items[0].product) {
         product = cart.items[0].product;
-        console.log("Product:", product);
+        console.log('Product:', product);
       }
 
-      res.render("userviews/cart", {
-        title: "Cart",
+      res.render('userviews/cart', {
+        title: 'Cart',
         category: categories,
         cart,
         data,
@@ -67,117 +58,192 @@ module.exports = {
         wishlist,
       });
     } catch (error) {
-      console.error("Error:", error);
-      res.status(500).json({ error: "Internal Server Error" });
+      console.error('Error:', error);
+      res.status(500).json({ error: 'Internal Server Error' });
     }
   },
 
-  // Add to cart
   addtocart: async (req, res) => {
     const { productId, quantity } = req.body;
+    const session = await mongoose.startSession();
+    session.startTransaction();
 
     try {
-      const product = await Product.findById(productId);
-
+      const product = await Product.findById(productId).session(session);
       if (!product) {
-        return res.status(404).json({ error: "Product not found" });
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(404).json({ 
+          success: false, 
+          error: 'Product not found' 
+        });
+      }
+
+      const requestedQuantity = parseInt(quantity);
+      const availableStock = product.stock - product.reserved;
+
+      // Check if product is completely out of stock
+      if (availableStock < 1) {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(400).json({ 
+          success: false, 
+          error: 'Product is currently out of stock' 
+        });
+      }
+
+      // Check if requested quantity exceeds available stock
+      if (availableStock < requestedQuantity) {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(400).json({ 
+          success: false, 
+          error: `Only ${availableStock} item${availableStock > 1 ? 's' : ''} available in stock` 
+        });
       }
 
       const user = req.session.user;
-      let cart = await Cart.findOne({ user: user });
+      let cart = await Cart.findOne({ user }).session(session);
 
       if (!cart) {
-        cart = new Cart({ user: user, items: [] });
+        cart = new Cart({ user, items: [] });
       }
 
-      const existingItem = cart.items.find((item) =>
-        item.product.equals(productId)
-      );
-
+      // Check if item already exists in cart
+      const existingItem = cart.items.find((item) => item.product.equals(productId));
       if (existingItem) {
-        const categories = await Category.find();
-        return res.render("userviews/productdetails", {
-          error: "Item already in the cart",
-          title: "Product details",
-          category: categories,
-        });
-      } else {
-        let price = product.price;
-        if (product.categoryofferprice) {
-          price = product.categoryofferprice;
-        } else if (product.productOffer) {
-          price = product.productOffer.newPrice;
+        // Check if adding more quantity would exceed available stock
+        const totalQuantityAfterAdd = existingItem.quantity + requestedQuantity;
+        if (totalQuantityAfterAdd > availableStock + existingItem.quantity) {
+          await session.abortTransaction();
+          session.endSession();
+          const maxAdditional = availableStock;
+          return res.status(400).json({ 
+            success: false, 
+            error: `You already have ${existingItem.quantity} in cart. You can add maximum ${maxAdditional} more item${maxAdditional !== 1 ? 's' : ''}` 
+          });
         }
-        cart.items.push({
-          product: productId,
-          quantity: parseInt(quantity),
-          price: price,
+        
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(400).json({ 
+          success: false, 
+          error: 'Item already exists in cart. Please update quantity from cart page.' 
         });
       }
 
-      await cart.save();
+      // Reserve the stock
+      product.reserved += requestedQuantity;
+      product.version += 1;
+      await product.save({ session });
 
-      res.json({ message: "Product added to cart successfully" });
+      // Determine the price to use
+      let price = product.price;
+      if (product.categoryofferprice && product.categoryofferprice < product.price) {
+        price = product.categoryofferprice;
+      } else if (product.productOffer && product.productOffer.newPrice < product.price) {
+        price = product.productOffer.newPrice;
+      }
+
+      // Add item to cart
+      cart.items.push({
+        product: productId,
+        quantity: requestedQuantity,
+        price,
+        reservedAt: new Date(),
+      });
+
+      await cart.save({ session });
+      await session.commitTransaction();
+      session.endSession();
+
+      res.json({ 
+        success: true, 
+        message: 'Product added to cart successfully' 
+      });
+
     } catch (error) {
-      console.error("Error:", error);
-      res.status(500).json({ error: "Internal Server Error" });
+      await session.abortTransaction();
+      session.endSession();
+      console.error('Error adding to cart:', error);
+      res.status(500).json({ 
+        success: false, 
+        error: 'Internal Server Error' 
+      });
     }
   },
 
-  // Update quantity in cart
   updatequantity: async (req, res) => {
     const { productId, change } = req.params;
+    const session = await mongoose.startSession();
+    session.startTransaction();
 
     try {
-      const product = await Product.findById(productId);
+      const product = await Product.findById(productId).session(session);
       if (!product) {
-        return res.status(404).json({ error: "Product not found" });
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(404).json({ error: 'Product not found' });
       }
 
-      const currentStock = product.stock;
-
-      const cartItem = await Cart.findOne({
-        "items.product": productId,
-      }).populate("items.product");
+      const cartItem = await Cart.findOne({ 'items.product': productId })
+        .populate('items.product')
+        .session(session);
       if (!cartItem) {
-        return res.status(404).json({ error: "Item not found in the cart" });
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(404).json({ error: 'Item not found in the cart' });
       }
 
-      const currentQuantity = cartItem.items.find(
-        (item) => item.product._id.toString() === productId
-      ).quantity;
-      const newQuantity = parseInt(currentQuantity, 10) + parseInt(change, 10);
+      const item = cartItem.items.find((item) => item.product._id.toString() === productId);
+      const currentQuantity = item.quantity;
+      const changeAmount = parseInt(change, 10);
+      const newQuantity = currentQuantity + changeAmount;
 
       if (newQuantity < 1) {
-        return res
-          .status(400)
-          .json({ error: "Quantity cannot be less than 1" });
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(400).json({ error: 'Quantity cannot be less than 1' });
       }
 
-      if (newQuantity > currentStock) {
-        return res
-          .status(400)
-          .json({ error: "Quantity exceeds available stock" });
+      // Calculate available stock (including currently reserved quantity for this item)
+      const availableStock = product.stock - product.reserved + currentQuantity;
+      
+      if (newQuantity > availableStock) {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(400).json({ 
+          error: `Only ${availableStock} item${availableStock !== 1 ? 's' : ''} available in stock` 
+        });
       }
 
+      // Update product reservation
+      product.reserved += changeAmount;
+      product.version += 1;
+      await product.save({ session });
+
+      // Update cart item
       const updatedCart = await Cart.findOneAndUpdate(
-        { "items.product": productId },
-        { $set: { "items.$.quantity": newQuantity } },
+        { 'items.product': productId },
+        { 
+          $set: { 
+            'items.$.quantity': newQuantity, 
+            'items.$.reservedAt': new Date() 
+          } 
+        },
         { new: true }
-      ).populate("items.product");
+      ).populate('items.product').session(session);
 
       const updatedItem = updatedCart.items.find(
         (item) => item.product._id.toString() === productId
       );
-      const updatedQuantity = updatedItem.quantity;
 
-      // Calculate individual item price based on offers
+      // Calculate prices with offers
       const productOffers = await ProductOffer.find();
       const categoryOffers = await CategoryOffer.find();
-
       let itemPrice = updatedItem.product.price;
 
-      // Check for product offers
+      // Apply product offers
       if (productOffers && Array.isArray(productOffers)) {
         const productOffersFiltered = productOffers.filter(
           (offer) =>
@@ -185,14 +251,18 @@ module.exports = {
             new Date() >= offer.startDate &&
             new Date() <= offer.expiryDate
         );
-
         if (productOffersFiltered.length > 0) {
           itemPrice = productOffersFiltered[0].newPrice;
         }
       }
 
-      // Check for category offers
-      if (categoryOffers && Array.isArray(categoryOffers)) {
+      // Apply category offers if no product offer
+      if (categoryOffers && Array.isArray(categoryOffers) && 
+          !productOffers.some((offer) => 
+            offer.product.toString() === productId &&
+            new Date() >= offer.startDate &&
+            new Date() <= offer.expiryDate
+          )) {
         const category = await Category.findById(updatedItem.product.category);
         if (category) {
           const categoryOffersFiltered = categoryOffers.filter(
@@ -201,66 +271,86 @@ module.exports = {
               new Date() >= offer.startDate &&
               new Date() <= offer.expiryDate
           );
-
           if (categoryOffersFiltered.length > 0) {
-            itemPrice -=
-              (itemPrice * categoryOffersFiltered[0].discountPercentage) / 100;
+            itemPrice -= (itemPrice * categoryOffersFiltered[0].discountPercentage) / 100;
           }
         }
       }
 
-      // Use categoryofferprice if available and no other offers apply
-      if (
-        !productOffers.some(
-          (offer) => offer.product.toString() === productId
-        ) &&
-        updatedItem.product.categoryofferprice &&
-        updatedItem.product.categoryofferprice < updatedItem.product.price
-      ) {
+      // Fallback to categoryofferprice if available
+      if (!productOffers.some((offer) => 
+            offer.product.toString() === productId &&
+            new Date() >= offer.startDate &&
+            new Date() <= offer.expiryDate
+          ) &&
+          updatedItem.product.categoryofferprice &&
+          updatedItem.product.categoryofferprice < updatedItem.product.price) {
         itemPrice = updatedItem.product.categoryofferprice;
       }
 
-      const totalItemPrice = itemPrice * updatedQuantity;
-      const cartTotal = await calculateTotalPrice(
-        updatedCart.items,
-        productOffers,
-        categoryOffers
-      );
+      const totalItemPrice = itemPrice * newQuantity;
+      const cartTotal = await calculateTotalPrice(updatedCart.items, productOffers, categoryOffers);
+
+      await session.commitTransaction();
+      session.endSession();
 
       res.json({
-        quantity: updatedQuantity,
+        quantity: newQuantity,
         itemPrice: totalItemPrice,
         total: cartTotal,
       });
     } catch (error) {
-      console.error("Error updating quantity:", error);
-      res.status(500).json({ error: "Internal Server Error" });
+      await session.abortTransaction();
+      session.endSession();
+      console.error('Error updating quantity:', error);
+      res.status(500).json({ error: 'Internal Server Error' });
     }
   },
 
-  // Delete an item from cart
   deleteitem: async (req, res) => {
     const { productId } = req.params;
-    try {
-      const updatedCart = await Cart.findOneAndUpdate(
-        { "items.product": productId },
-        { $pull: { items: { product: productId } } },
-        { new: true }
-      );
+    const session = await mongoose.startSession();
+    session.startTransaction();
 
-      if (!updatedCart) {
-        return res.status(404).json({ error: "Item not found in the cart" });
+    try {
+      const cart = await Cart.findOne({ 'items.product': productId }).session(session);
+      if (!cart) {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(404).json({ error: 'Item not found in the cart' });
       }
 
-      await updatedCart.save();
+      const item = cart.items.find((item) => item.product.toString() === productId);
+      if (!item) {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(404).json({ error: 'Item not found in the cart' });
+      }
 
-      res.json({ message: "Item removed successfully" });
+      const product = await Product.findById(productId).session(session);
+      if (product) {
+        product.reserved -= item.quantity;
+        product.version += 1;
+        await product.save({ session });
+      }
+
+      const updatedCart = await Cart.findOneAndUpdate(
+        { 'items.product': productId },
+        { $pull: { items: { product: productId } } },
+        { new: true }
+      ).session(session);
+
+      await session.commitTransaction();
+      session.endSession();
+
+      res.json({ message: 'Item removed successfully' });
     } catch (error) {
-      console.error("Error removing item:", error);
-      res.status(500).json({ error: "Internal Server Error" });
+      await session.abortTransaction();
+      session.endSession();
+      console.error('Error removing item:', error);
+      res.status(500).json({ error: 'Internal Server Error' });
     }
   },
-
 
   getCartTotal: async (req, res) => {
     try {
@@ -281,5 +371,4 @@ module.exports = {
       res.status(500).json({ success: false, error: 'Internal Server Error' });
     }
   },
-
 };

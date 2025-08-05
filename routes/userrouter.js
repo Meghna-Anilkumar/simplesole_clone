@@ -61,6 +61,7 @@ router.post('/placeOrder', isAuth.checkAuth, ordercontroller.placeorder)
 router.post('/process-payment', isAuth.checkAuth, ordercontroller.processPayment);
 router.get('/successpage', isAuth.checkAuth, ordercontroller.getsuccesspage)
 router.post('/createRazorpayOrder', isAuth.checkAuth, ordercontroller.createRazorpayOrder);
+router.post('/payment-failure', isAuth.checkAuth, ordercontroller.paymentFailure);
 
 //my orders
 router.get('/orders', isAuth.checkAuth, ordercontroller.myorders)

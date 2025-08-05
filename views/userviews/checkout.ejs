@@ -441,12 +441,12 @@
           class="payment__type payment__type--cc <% if (cart.total > 1000) { %> disabled <% } %>"
         >
           <input
-            type="radio"
-            name="paymentMethod"
-            id="paymentCC"
-            value="CASH_ON_DELIVERY"
-            <% if (cart.total > 1000) { %> disabled <% } %>
-          >
+  type="radio"
+  name="paymentMethod"
+  id="paymentCC"
+  value="CASH_ON_DELIVERY"
+  <% if (cart.total > 1000) { %> disabled <% } %>
+>
           <label for="paymentCC">
             <i class="icon icon-credit-card"></i>Cash on Delivery
           </label>
@@ -557,7 +557,8 @@
       }
 
       // Set the selected address in the hidden input
-      document.getElementById("selectedAddressInput").value = selectedAddress.value;
+      document.getElementById("selectedAddressInput").value =
+        selectedAddress.value;
 
       if (selectedPaymentMethod.value === "RAZORPAY") {
         try {
@@ -578,9 +579,8 @@
             return;
           }
 
-          const amountInPaise = Math.round(
-            (cartData.newTotal || cartData.total) * 100
-          );
+          // Send amount in rupees, let backend convert to paise
+          const amountInRupees = cartData.newTotal || cartData.total;
 
           // Create Razorpay order
           const orderResponse = await fetch("/createRazorpayOrder", {
@@ -588,13 +588,13 @@
             headers: {
               "Content-Type": "application/json",
             },
-            body: JSON.stringify({ amount: amountInPaise }),
+            body: JSON.stringify({ amount: amountInRupees }), // Send in rupees
           });
           const orderData = await orderResponse.json();
 
           if (!orderData.success) {
             Swal.fire({
-              text: "Error creating Razorpay order.",
+              text: orderData.error || "Error creating Razorpay order.",
               icon: "error",
             });
             return;
@@ -602,7 +602,7 @@
 
           var options = {
             key: "rzp_test_RXM5ojGKCHke94",
-            amount: amountInPaise,
+            amount: orderData.amount, // This will be in paise from backend
             currency: "INR",
             name: "Simple Sole",
             description: "Test Transaction",
@@ -628,6 +628,11 @@
                   console.log("Payment details sent to the server:", data);
                   if (data.success) {
                     window.location.href = "/successpage";
+                  } else {
+                    Swal.fire({
+                      text: data.error || "Payment processing failed.",
+                      icon: "error",
+                    });
                   }
                 })
                 .catch((error) => {
@@ -635,6 +640,10 @@
                     "Error sending payment details to the server:",
                     error
                   );
+                  Swal.fire({
+                    text: "Error processing payment. Please try again.",
+                    icon: "error",
+                  });
                 });
             },
             notes: {
