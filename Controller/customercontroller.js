@@ -3,25 +3,23 @@ const OTP = require("../models/otpSchema");
 const nodemailer = require("nodemailer");
 const otpGenerator = require("otp-generator");
 const Category = require("../models/category");
-const { generateReferralCode } = require("../utils/generatereferral");
-const Wallet = require("../models/wallet");
+const bcrypt = require("bcrypt"); 
+const {generateReferralCode}=require('../utils/generatereferral')
 
 module.exports = {
   register: async (req, res) => {
     try {
       const { name, email, password, confirmPassword, referralCode } = req.body;
 
-      const nameRegex = /^[A-Za-z]+$/;
+      const nameRegex = /^[A-Za-z\s]+$/;
       if (!nameRegex.test(name)) {
         const categories = await Category.find();
-        const wishlist = [];
-        const cart = [];
         return res.render("userviews/signup", {
-          error: "Please enter a valid name!!!!!",
+          error: "Please enter a valid name!",
           title: "Signup",
           category: categories,
-          wishlist,
-          cart,
+          wishlist: [],
+          cart: [],
         });
       }
 
@@ -29,42 +27,36 @@ module.exports = {
         /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
       if (!passwordRegex.test(password)) {
         const categories = await Category.find();
-        const wishlist = [];
-        const cart = [];
         return res.render("userviews/signup", {
           error:
-            "Password should contain atleast 8 characters, an uppercase letter, a lowercase letter and a special character",
+            "Password should contain at least 8 characters, an uppercase letter, a lowercase letter, and a special character",
           title: "Signup",
           category: categories,
-          wishlist,
-          cart,
+          wishlist: [],
+          cart: [],
         });
       }
 
       if (password !== confirmPassword) {
         const categories = await Category.find();
-        const wishlist = [];
-        const cart = [];
         return res.render("userviews/signup", {
           error: "Password and Confirm Password do not match",
           title: "Signup",
           category: categories,
-          wishlist,
-          cart,
+          wishlist: [],
+          cart: [],
         });
       }
 
       const existingUser = await User.findOne({ email });
       if (existingUser) {
         const categories = await Category.find();
-        const wishlist = [];
-        const cart = [];
         return res.render("userviews/signup", {
           error: "Email already exists. Please use a different email address.",
           title: "Signup",
           category: categories,
-          wishlist,
-          cart,
+          wishlist: [],
+          cart: [],
         });
       }
 
@@ -72,43 +64,45 @@ module.exports = {
         const referredUser = await User.findOne({ referral: referralCode });
         if (!referredUser) {
           const categories = await Category.find();
-          const wishlist = [];
-          const cart = [];
           return res.render("userviews/signup", {
             error:
               "Invalid referral code. Please enter a valid referral code if any.",
             title: "Signup",
             category: categories,
-            wishlist,
-            cart,
+            wishlist: [],
+            cart: [],
           });
         }
       }
 
-      console.log(email);
       req.session.email = email;
       req.session.name = name;
       req.session.password = password;
       req.session.referralCode = referralCode;
+      req.session.isSignup = true; // Flag to indicate signup flow
+
+      await OTP.deleteOne({ email });
 
       const otp = otpGenerator.generate(6, {
-        upperCase: false,
-        specialChars: false,
-        alphabets: false,
         digits: true,
+        upperCaseAlphabets: false,
+        lowerCaseAlphabets: false,
+        specialChars: false,
       });
-      console.log("otp");
 
-      console.log(req.body);
+      if (!/^[0-9]{6}$/.test(otp)) {
+        console.error("Generated OTP is invalid:", otp);
+        return res
+          .status(500)
+          .json({ error: "Failed to generate a valid OTP" });
+      }
+
+      console.log("Signup OTP:", otp);
 
       const otpRecord = new OTP({
-        name: req.body.name,
-        email: req.body.email,
-        otp: otp,
-        password: req.body.password,
-        confirmPassword: req.body.confirmPassword,
-        expiresAt: Date.now() + 5 * 60 * 1000, // 5 minutes expiry
-        blocked: false,
+        email,
+        otp,
+        expiresAt: Date.now() + 5 * 60 * 1000,
       });
 
       await otpRecord.save();
@@ -128,181 +122,70 @@ module.exports = {
         text: `Your OTP is ${otp}. It will expire in 5 minutes.`,
       };
 
-      await new Promise((resolve, reject) => {
-        transporter.sendMail(mailOptions, (error, info) => {
-          if (error) {
-            console.log(error);
-            reject("Failed to send OTP");
-          }
-          console.log("Email sent: " + info.response + otp);
-          console.log(otp);
-          console.log(email);
-          resolve();
-        });
-      });
+      await transporter.sendMail(mailOptions);
 
       const categories = await Category.find();
-      const wishlist = [];
-      const cart = [];
       res.render("userviews/otp", {
         email,
         category: categories,
-        wishlist,
-        cart,
+        wishlist: [],
+        cart: [],
+        title: "OTP Verification",
       });
     } catch (error) {
-      console.error(error);
-      res.status(500).send("Internal Server Error");
+      console.error("Error in register:", error);
+      const categories = await Category.find();
+      res.render("userviews/signup", {
+        error: "Internal Server Error",
+        title: "Signup",
+        category: categories,
+        wishlist: [],
+        cart: [],
+      });
     }
   },
 
-  verifyotp: async (req, res) => {
+  sendOTP: async (req, res) => {
     try {
-      const { otp: otpArray } = req.body;
-      const [email, myotp] = otpArray;
-      const referralCode = req.session.referralCode;
+      const { email } = req.body;
 
-      const otpRecord = await OTP.findOne({
+      const existingUser = await User.findOne({ email });
+      if (!existingUser) {
+        const categories = await Category.find();
+        return res.render("userviews/emailforgotpassword", {
+          title: "Verify Email",
+          category: categories,
+          wishlist: [],
+          cart: [],
+          error: "Email not registered",
+        });
+      }
+
+      await OTP.deleteOne({ email });
+
+      const otp = otpGenerator.generate(6, {
+        digits: true,
+        upperCaseAlphabets: false,
+        lowerCaseAlphabets: false,
+        specialChars: false,
+      });
+
+      if (!/^[0-9]{6}$/.test(otp)) {
+        console.error("Generated OTP is invalid:", otp);
+        return res
+          .status(500)
+          .json({ error: "Failed to generate a valid OTP" });
+      }
+
+      console.log("Forgot Password OTP:", otp);
+
+      const otpRecord = new OTP({
         email,
-        expiresAt: { $gt: Date.now() },
-      }); // Check expiry
-      if (!otpRecord) {
-        const categories = await Category.find();
-        const wishlist = [];
-        const cart = [];
-        return res.render("userviews/otp", {
-          email,
-          category: categories,
-          error: "Invalid or expired OTP",
-          wishlist,
-          cart,
-        });
-      }
-
-      if (myotp !== otpRecord.otp) {
-        const categories = await Category.find();
-        const wishlist = [];
-        const cart = [];
-        return res.render("userviews/otp", {
-          email,
-          category: categories,
-          error: "Invalid OTP",
-          wishlist,
-          cart,
-        });
-      }
-
-      const referral = generateReferralCode();
-      const user = new User({
-        name: otpRecord.name,
-        email: otpRecord.email,
-        password: otpRecord.password,
-        confirmPassword: otpRecord.confirmPassword,
-        referral,
+        otp,
+        expiresAt: Date.now() + 60 * 1000,
       });
-      await user.save();
 
-      await OTP.deleteOne({ email }); // Clean up OTP record
-
-      if (referralCode) {
-        const referredUser = await User.findOne({ referral: referralCode });
-        if (referredUser) {
-          let wallet = await Wallet.findOneAndUpdate(
-            { user: referredUser._id },
-            { $inc: { balance: 100 } },
-            { new: true, upsert: true }
-          );
-          if (!wallet) {
-            wallet = new Wallet({
-              user: referredUser._id,
-              balance: 100,
-              transactionType: "REFERRAL",
-            });
-            await wallet.save();
-          }
-        }
-      }
-
-      req.session.isAuth = true;
-      req.session.user = user;
-      res.redirect("/");
-    } catch (error) {
-      console.error(error);
-      res.json({ message: error.message, type: "danger" });
-    }
-  },
-
-  //get all users(from database to customers page)
-  customers: async (req, res) => {
-    try {
-      const users = await User.find().exec();
-      res.render("adminviews/customers", {
-        title: "Customers",
-        users: users,
-      });
-    } catch (err) {
-      res.json({ message: err.message });
-    }
-  },
-
-  //to block or unblock user
-  blockUser: async (req, res) => {
-    const userId = req.body.userId;
-
-    try {
-      const user = await User.findById(userId);
-
-      if (!user) {
-        return res.status(404).send("User not found");
-      }
-
-      user.blocked = !user.blocked;
-
-      await user.save();
-
-      res.redirect("/customers");
-    } catch (error) {
-      console.error(error);
-      res.status(500).send("Internal Server Error");
-    }
-  },
-
-  //resend otp
-  resendOTP: async (req, res) => {
-    try {
-      const { name, email, password } = req.session;
-
-      let otpRecord = await OTP.findOne({ email });
-
-      if (!otpRecord) {
-        const newOTP = otpGenerator.generate(6, {
-          upperCase: false,
-          specialChars: false,
-          alphabets: false,
-          digits: true,
-        });
-
-        otpRecord = new OTP({
-          name: name,
-          email: email,
-          password: password,
-          otp: newOTP,
-          expiresAt: new Date(Date.now() + 60 * 1000),
-        });
-
-        await otpRecord.save();
-      } else {
-        const newOTP = otpGenerator.generate(6, {
-          upperCase: false,
-          specialChars: false,
-          alphabets: false,
-          digits: true,
-        });
-
-        otpRecord.otp = newOTP;
-        otpRecord.expiresAt = new Date(Date.now() + 60 * 1000);
-        await otpRecord.save();
-      }
+      await otpRecord.save();
 
       const transporter = nodemailer.createTransport({
         service: "gmail",
@@ -315,25 +198,318 @@ module.exports = {
       const mailOptions = {
         from: process.env.MAILID,
         to: email,
-        subject: "Your New OTP for Signup",
-        text: `Your new OTP is ${otpRecord.otp}. It will expire in 60 seconds.`,
+        subject: "Your OTP for Forgot Password",
+        text: `Your OTP is ${otp}. It will expire in 60 seconds.`,
       };
 
       await transporter.sendMail(mailOptions);
 
-      console.log("New OTP:", otpRecord.otp);
+      req.session.email = email;
+      req.session.isSignup = false; // Flag to indicate forgot password flow
+
       const categories = await Category.find();
-      const wishlist = [];
-      const cart = [];
       res.render("userviews/otp", {
         email,
         category: categories,
-        wishlist,
-        cart,
+        wishlist: [],
+        cart: [],
+        title: "OTP Verification",
       });
     } catch (error) {
+      console.error("Error in sendOTP:", error);
+      const categories = await Category.find();
+      res.render("userviews/emailforgotpassword", {
+        title: "Verify Email",
+        category: categories,
+        wishlist: [],
+        cart: [],
+        error: "Failed to send OTP. Please try again.",
+      });
+    }
+  },
+
+  verifyotp: async (req, res) => {
+    try {
+      const { email, otp } = req.body;
+
+      const otpRecord = await OTP.findOne({
+        email,
+        expiresAt: { $gt: Date.now() },
+      });
+
+      if (!otpRecord) {
+        const categories = await Category.find();
+        return res.render("userviews/otp", {
+          email,
+          category: categories,
+          error: "Invalid or expired OTP",
+          wishlist: [],
+          cart: [],
+          title: "OTP Verification",
+        });
+      }
+
+      if (otp !== otpRecord.otp) {
+        const categories = await Category.find();
+        return res.render("userviews/otp", {
+          email,
+          category: categories,
+          error: "Invalid OTP",
+          wishlist: [],
+          cart: [],
+          title: "OTP Verification",
+        });
+      }
+
+      await OTP.deleteOne({ email });
+
+      const categories = await Category.find();
+      if (req.session.isSignup) {
+        // Signup flow: Create user
+        const { name, password, referralCode } = req.session;
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const newUser = new User({
+          name,
+          email,
+          password: hashedPassword,
+          referral: referralCode || generateReferralCode(), // Use provided or generate new
+        });
+        await newUser.save();
+
+        // Handle referral logic if needed
+        if (referralCode) {
+          // Add referral rewards (e.g., update wallet)
+        }
+
+        req.session.email = null;
+        req.session.name = null;
+        req.session.password = null;
+        req.session.referralCode = null;
+        req.session.isSignup = null;
+
+        res.render("userviews/login", {
+          message: "Account created successfully! Please log in.",
+          title: "Login",
+          category: categories,
+          wishlist: [],
+          cart: [],
+        });
+      } else {
+        // Forgot password flow: Redirect to reset password
+        res.render("userviews/resetpassword", {
+          email,
+          category: categories,
+          wishlist: [],
+          cart: [],
+          title: "Reset Password",
+        });
+      }
+    } catch (error) {
+      console.error("Error in verifyotp:", error);
+      const categories = await Category.find();
+      res.render("userviews/otp", {
+        email: req.body.email || "",
+        category: categories,
+        error: "Internal Server Error",
+        wishlist: [],
+        cart: [],
+        title: "OTP Verification",
+      });
+    }
+  },
+
+  resetPassword: async (req, res) => {
+    try {
+      const { email, newPassword, confirmPassword } = req.body;
+
+      if (newPassword !== confirmPassword) {
+        const categories = await Category.find();
+        return res.render("userviews/resetpassword", {
+          email,
+          category: categories,
+          wishlist: [],
+          cart: [],
+          title: "Reset Password",
+          error: "Passwords do not match",
+        });
+      }
+
+      const passwordRegex =
+        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+      if (!passwordRegex.test(newPassword)) {
+        const categories = await Category.find();
+        return res.render("userviews/resetpassword", {
+          email,
+          category: categories,
+          wishlist: [],
+          cart: [],
+          title: "Reset Password",
+          error:
+            "Password must be at least 8 characters, with one uppercase, one lowercase, one number, and one special character",
+        });
+      }
+
+      const user = await User.findOne({ email });
+      if (!user) {
+        const categories = await Category.find();
+        return res.render("userviews/resetpassword", {
+          email,
+          category: categories,
+          wishlist: [],
+          cart: [],
+          title: "Reset Password",
+          error: "User not found",
+        });
+      }
+
+      user.password = await bcrypt.hash(newPassword, 10);
+      await user.save();
+
+      req.session.email = null;
+
+      const categories = await Category.find();
+      res.render("userviews/login", {
+        message: "Password reset successfully! Please log in.",
+        title: "Login",
+        category: categories,
+        wishlist: [],
+        cart: [],
+      });
+    } catch (error) {
+      console.error("Error in resetPassword:", error);
+      const categories = await Category.find();
+      res.render("userviews/resetpassword", {
+        email: req.body.email || "",
+        category: categories,
+        error: "Internal Server Error",
+        wishlist: [],
+        cart: [],
+        title: "Reset Password",
+      });
+    }
+  },
+
+  resendOTP: async (req, res) => {
+    try {
+      const email = req.body.email || req.session.email;
+      console.log("Resend OTP Request:", { method: req.method, email });
+
+      if (!email) {
+        console.error("No email found in request or session");
+        return res
+          .status(400)
+          .json({ error: "No email found in request or session" });
+      }
+
+      const existingUser = await User.findOne({ email });
+      if (!existingUser && !req.session.isSignup) {
+        console.error("Email not registered for forgot password:", email);
+        return res.status(400).json({ error: "Email not registered" });
+      }
+
+      await OTP.deleteOne({ email });
+
+      const otp = otpGenerator.generate(6, {
+        digits: true,
+        upperCaseAlphabets: false,
+        lowerCaseAlphabets: false,
+        specialChars: false,
+      });
+
+      if (!/^[0-9]{6}$/.test(otp)) {
+        console.error("Generated OTP is invalid:", otp);
+        return res
+          .status(500)
+          .json({ error: "Failed to generate a valid OTP" });
+      }
+
+      console.log("Resend OTP:", otp);
+
+      const otpRecord = new OTP({
+        email,
+        otp,
+        expiresAt: Date.now() + 60 * 1000,
+      });
+
+      await otpRecord.save();
+
+      const transporter = nodemailer.createTransport({
+        service: "gmail",
+        auth: {
+          user: process.env.MAILID,
+          pass: process.env.PASSWORD,
+        },
+      });
+
+      const mailOptions = {
+        from: process.env.MAILID,
+        to: email,
+        subject: req.session.isSignup
+          ? "Your New OTP for Signup"
+          : "Your New OTP for Forgot Password",
+        text: `Your new OTP is ${otp}. It will expire in 60 seconds.`,
+      };
+
+      await transporter.sendMail(mailOptions);
+
+      if (req.headers["content-type"] === "application/json") {
+        return res.status(200).json({ message: "New OTP sent successfully" });
+      }
+
+      const categories = await Category.find();
+      res.render("userviews/otp", {
+        email,
+        category: categories,
+        wishlist: [],
+        cart: [],
+        message: "New OTP sent successfully",
+        title: "OTP Verification",
+      });
+    } catch (error) {
+      console.error("Error in resendOTP:", error);
+      if (req.headers["content-type"] === "application/json") {
+        return res.status(500).json({ error: "Internal Server Error" });
+      }
+      const categories = await Category.find();
+      res.render("userviews/otp", {
+        email: email || "",
+        category: categories,
+        error: "Failed to resend OTP. Please try again.",
+        wishlist: [],
+        cart: [],
+        title: "OTP Verification",
+      });
+    }
+  },
+
+  customers: async (req, res) => {
+    try {
+      const users = await User.find().exec();
+      res.render("adminviews/customers", {
+        title: "Customers",
+        users: users,
+      });
+    } catch (err) {
+      res.json({ message: err.message });
+    }
+  },
+
+  blockUser: async (req, res) => {
+    try {
+      const userId = req.body.userId;
+      const user = await User.findById(userId);
+
+      if (!user) {
+        return res.status(404).send("User not found");
+      }
+
+      user.blocked = !user.blocked;
+      await user.save();
+
+      res.redirect("/customers");
+    } catch (error) {
       console.error(error);
-      res.status(500).json({ error: "Internal Server Error" });
+      res.status(500).send("Internal Server Error");
     }
   },
 };

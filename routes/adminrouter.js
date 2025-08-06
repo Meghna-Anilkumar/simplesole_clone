@@ -70,6 +70,7 @@ router.get('/generatepdf', admincontroller.generatepdf)
 
 //resend otp
 router.get('/resend-otp', customercontroller.resendOTP)
+router.post('/resend-otp', customercontroller.resendOTP);
 
 //crop image
 router.post('/uploadCroppedImage', productcontroller.croppedimageupload)

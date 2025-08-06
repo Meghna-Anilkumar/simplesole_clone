@@ -12,9 +12,8 @@ const Cart = require("../models/cartSchema");
 const Razorpay = require("razorpay");
 require("dotenv").config();
 const Wallet = require("../models/wallet");
-const HttpStatusCode=require('../enums/statusCodes')
-const Messages=require('../constants/messages');
-
+const HttpStatusCode = require("../enums/statusCodes");
+const Messages = require("../constants/messages");
 
 const razorpay = new Razorpay({
   key_id: process.env.key_id,
@@ -49,7 +48,9 @@ module.exports = {
       });
     } catch (error) {
       console.error(error);
-      res.status(HttpStatusCode.INTERNAL_SERVER_ERROR).send(Messages.INTERNAL_SERVER_ERROR);
+      res
+        .status(HttpStatusCode.INTERNAL_SERVER_ERROR)
+        .send(Messages.INTERNAL_SERVER_ERROR);
     }
   },
 
@@ -67,7 +68,9 @@ module.exports = {
       });
     } catch (error) {
       console.error(error);
-      res.status(HttpStatusCode.INTERNAL_SERVER_ERROR).send(Messages.INTERNAL_SERVER_ERROR);
+      res
+        .status(HttpStatusCode.INTERNAL_SERVER_ERROR)
+        .send(Messages.INTERNAL_SERVER_ERROR);
     }
   },
 
@@ -170,7 +173,9 @@ module.exports = {
       console.error("Error updating profile details:", error);
       res
         .status(HttpStatusCode.INTERNAL_SERVER_ERROR)
-        .json({ message: { type: "error", message: Messages.INTERNAL_SERVER_ERROR } });
+        .json({
+          message: { type: "error", message: Messages.INTERNAL_SERVER_ERROR },
+        });
     }
   },
 
@@ -199,7 +204,9 @@ module.exports = {
       );
     } catch (error) {
       console.error("Error updating profile details:", error);
-      res.status(HttpStatusCode.INTERNAL_SERVER_ERROR).send(Messages.INTERNAL_SERVER_ERROR);
+      res
+        .status(HttpStatusCode.INTERNAL_SERVER_ERROR)
+        .send(Messages.INTERNAL_SERVER_ERROR);
     }
   },
 
@@ -237,7 +244,9 @@ module.exports = {
       console.error("Error getting address book:", error);
       res
         .status(HttpStatusCode.INTERNAL_SERVER_ERROR)
-        .json({ message: { type: "error", message: Messages.INTERNAL_SERVER_ERROR } });
+        .json({
+          message: { type: "error", message: Messages.INTERNAL_SERVER_ERROR },
+        });
     }
   },
 
@@ -249,7 +258,9 @@ module.exports = {
       console.log("addnewaddress - Request body:", req.body);
 
       if (!userId) {
-        return res.status(HttpStatusCode.UNAUTHORIZED).json({ message: Messages.USER_NOT_AUTHENTICATED});
+        return res
+          .status(HttpStatusCode.UNAUTHORIZED)
+          .json({ message: Messages.USER_NOT_AUTHENTICATED });
       }
 
       const addressData = {
@@ -274,7 +285,10 @@ module.exports = {
       console.error("Error saving address:", error);
       res
         .status(500)
-        .json({ message: Messages.INTERNAL_SERVER_ERROR, details: error.message });
+        .json({
+          message: Messages.INTERNAL_SERVER_ERROR,
+          details: error.message,
+        });
     }
   },
 
@@ -291,7 +305,9 @@ module.exports = {
 
       if (!userId) {
         console.error("getAddressById - No user in session");
-        return res.status(HttpStatusCode.UNAUTHORIZED).json({ error: Messages.USER_NOT_AUTHENTICATED });
+        return res
+          .status(HttpStatusCode.UNAUTHORIZED)
+          .json({ error: Messages.USER_NOT_AUTHENTICATED });
       }
 
       const address = await Address.findOne({ _id: addressId, user: userId });
@@ -313,18 +329,23 @@ module.exports = {
       console.error("Error fetching address by ID:", error);
       res
         .status(HttpStatusCode.INTERNAL_SERVER_ERROR)
-        .json({ error: Messages.INTERNAL_SERVER_ERROR, details: error.message });
+        .json({
+          error: Messages.INTERNAL_SERVER_ERROR,
+          details: error.message,
+        });
     }
   },
 
   //get addresses
   getaddresses: async (req, res) => {
     try {
-      const userId = req.session.user?._id; 
+      const userId = req.session.user?._id;
       console.log("getaddresses - User ID:", userId);
 
       if (!userId) {
-        return res.status(401).json({ message: Messages.USER_NOT_AUTHENTICATED});
+        return res
+          .status(401)
+          .json({ message: Messages.USER_NOT_AUTHENTICATED });
       }
 
       const addresses = await Address.find({ user: userId });
@@ -332,7 +353,9 @@ module.exports = {
       res.json(addresses);
     } catch (error) {
       console.error("Error getting addresses:", error);
-      res.status(HttpStatusCode.INTERNAL_SERVER_ERROR).json({ message: Messages.INTERNAL_SERVER_ERROR });
+      res
+        .status(HttpStatusCode.INTERNAL_SERVER_ERROR)
+        .json({ message: Messages.INTERNAL_SERVER_ERROR });
     }
   },
 
@@ -345,7 +368,9 @@ module.exports = {
       console.log("deleteAddress - Address ID:", addressId, "User ID:", userId);
 
       if (!userId) {
-        return res.status(HttpStatusCode.UNAUTHORIZED).json({ error: Messages.USER_NOT_AUTHENTICATED});
+        return res
+          .status(HttpStatusCode.UNAUTHORIZED)
+          .json({ error: Messages.USER_NOT_AUTHENTICATED });
       }
 
       const result = await Address.findOneAndDelete({
@@ -363,7 +388,9 @@ module.exports = {
       res.json({ message: "Address deleted successfully" });
     } catch (error) {
       console.error("Error deleting address:", error);
-      res.status(HttpStatusCode.INTERNAL_SERVER_ERROR).json({ error: Messages.INTERNAL_SERVER_ERROR });
+      res
+        .status(HttpStatusCode.INTERNAL_SERVER_ERROR)
+        .json({ error: Messages.INTERNAL_SERVER_ERROR });
     }
   },
 
@@ -469,12 +496,10 @@ module.exports = {
       const regex =
         /^(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*()_+{}\[\]:;<>,.?~\\-]).{8,}$/;
       if (!regex.test(newPassword)) {
-        return res
-          .status(400)
-          .json({
-            error:
-              "Password should contain atleast 8 characters,an uppercase letter,a lowercase letter and a special character",
-          });
+        return res.status(400).json({
+          error:
+            "Password should contain atleast 8 characters,an uppercase letter,a lowercase letter and a special character",
+        });
       }
 
       user.password = newPassword;
@@ -518,18 +543,37 @@ module.exports = {
     try {
       const { email } = req.body;
 
-      const otp = otpGenerator.generate(6, {
-        upperCase: false,
-        specialChars: false,
-        alphabets: false,
-        digits: true,
-      });
+      // Check if user exists (for forgot password)
+      const existingUser = await User.findOne({ email });
+      if (!existingUser) {
+        const categories = await Category.find();
+        const wishlist = [];
+        const cart = [];
+        return res.render("userviews/emailforgotpassword", {
+          title: "Verify email",
+          category: categories,
+          wishlist,
+          cart,
+          error: "Email not found. Please check your email address.",
+        });
+      }
 
+      // *** CRITICAL FIX *** - Delete existing OTP record first
+      await OTP.deleteMany({ email: email });
+
+      const otp = otpGenerator.generate(6, {
+        digits: true,
+        upperCaseAlphabets: false,
+        lowerCaseAlphabets: false,
+        specialChars: false,
+      });
       const otpRecord = new OTP({
         email: email,
         otp: otp,
         expiresAt: Date.now() + 60 * 1000,
+        purpose: "password_reset", // Add purpose field
       });
+
       await otpRecord.save();
 
       const transporter = nodemailer.createTransport({
@@ -541,7 +585,7 @@ module.exports = {
       });
 
       const mailOptions = {
-        from: process.env.EMAIL_USER,
+        from: process.env.MAILID,
         to: email,
         subject: "Your OTP for Forgot Password",
         text: `Your OTP is ${otp}. It will expire in 60 seconds.`,
@@ -550,7 +594,8 @@ module.exports = {
       await transporter.sendMail(mailOptions);
       req.session.email = email;
 
-      console.log(otp);
+      console.log("OTP sent:", otp); // For debugging - remove in production
+
       const categories = await Category.find();
       const wishlist = [];
       const cart = [];
@@ -561,7 +606,7 @@ module.exports = {
         cart,
       });
     } catch (error) {
-      console.error(error);
+      console.error("SendOTP Error:", error);
       res.status(500).send("Internal Server Error");
     }
   },
@@ -637,12 +682,10 @@ module.exports = {
         console.error("Error details:", err);
         console.error("Error message:", err.message);
         console.error("Error code:", err.code);
-        res
-          .status(500)
-          .json({
-            error: "Failed to create Razorpay order",
-            details: err.message,
-          });
+        res.status(500).json({
+          error: "Failed to create Razorpay order",
+          details: err.message,
+        });
       } else {
         console.log("=== RAZORPAY ORDER CREATED SUCCESSFULLY ===");
         console.log("Order details:", order);
@@ -729,12 +772,10 @@ module.exports = {
       console.error("Error details:", error);
       console.error("Error message:", error.message);
       console.error("Error stack:", error.stack);
-      res
-        .status(500)
-        .json({
-          error: "Failed to update wallet balance",
-          details: error.message,
-        });
+      res.status(500).json({
+        error: "Failed to update wallet balance",
+        details: error.message,
+      });
     }
   },
 };
