@@ -1,7 +1,6 @@
 const Category = require('../models/category')
 
 module.exports = {
-
   //to get add category page  
   addCategory: async (req, res) => {
     res.render('adminviews/addcategory',
@@ -42,15 +41,35 @@ module.exports = {
     }
   },
 
-
-
-  //get all categories
+  //get all categories with pagination and search
   getcategories: async (req, res) => {
     try {
-      const category = await Category.find().exec();
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 10;
+      const search = req.query.search || '';
+      
+      // Build query
+      const query = search ? 
+        { name: { $regex: search, $options: 'i' } } : 
+        {};
+      
+      const totalCategories = await Category.countDocuments(query);
+      const totalPages = Math.ceil(totalCategories / limit);
+      const skip = (page - 1) * limit;
+
+      const categories = await Category.find(query)
+        .skip(skip)
+        .limit(limit)
+        .exec();
+
       res.render('adminviews/categories', {
         title: 'Categories',
-        category: category
+        category: categories,
+        currentPage: page,
+        totalPages: totalPages,
+        limit: limit,
+        search: search,
+        totalCategories: totalCategories
       });
     } catch (err) {
       res.json({ message: err.message });
@@ -77,8 +96,6 @@ module.exports = {
       });
   },
 
-
-
   //Update user route(update button click event)
   updatecategory: async (req, res) => {
     let id = req.params.id;
@@ -97,7 +114,6 @@ module.exports = {
       res.json({ message: err.message, type: 'danger' });
     }
   },
-
 
   //block and unblock the category
   blockCategory: async (req, res) => {
@@ -122,8 +138,4 @@ module.exports = {
       res.status(500).send('Internal Server Error');
     }
   },
-
-
-
-
 }

@@ -1,67 +1,75 @@
 <%-include('./sidebar') %>
-  <div class="col-md-9 content">
+<div class="col-md-9 content">
+  <h2 style="color: crimson;">Category Details</h2>
 
-    <h2 style="color: crimson;">Category Details</h2>
-
-
-    <form action="/categories" method="get">
-
-      <a href="/addcategory" class="btn btn-primary mb-3">Add new category</a>
-    </form>
-    <% if(message){%>
-      <div class="alert alert-dismissable fade show alert-<%= message.type %>" role="alert">
-        <button class="btn-close" type="button" data-bs-dismiss="alert" aria-label="Close"></button>
-        <strong>
-          <%= message.message %>
-        </strong>
-      </div>
-    <%} %>
-        <% if (category!='' ) { %>
-          <table class="table">
-            <thead>
-              <tr>
-                <th scope="col">No.</th>
-                <th scope="col">Category Name</th>
-                <th scope="col">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              <% category.forEach((row,index)=> { %>
-                <tr>
-                  <td>
-                    <%=index+1 %>
-                  </td>
-                  <td>
-                    <%=row.name %>
-                  </td>
-                  <td>
-                    <a href="/editCategory/<%= row._id %>" class="text-success">
-                      <i class="fas fa-edit"></i>
-                    </a>
-                    <form method="post" action="/blockCat">
-                      <input type="hidden" name="categoryId" value="<%= row._id %>">
-                      <% if (row.blocked) { %>
-                        <button type="submit" class="btn btn-success">Unblock</button>
-                        <% } else { %>
-                          <button type="submit" class="btn btn-danger">Block</button>
-                          <% } %>
-                    </form>
-                  </td>
-                </tr>
-                <% }) %>
+  <div class="mb-4">
+  <form action="/categories" method="get" class="d-flex align-items-center">
+    <input type="text" name="search" class="form-control form-control-sm me-3 w-25" placeholder="Search categories..." value="<%= search %>">
+    <button type="submit" class="btn btn-primary btn-sm">Search</button>
+    <a href="/addcategory" class="btn btn-primary btn-sm ms-2">Add new category</a>
+  </form>
+</div>
 
 
-            </tbody>
-          </table>
-          <% } else{ %>
-            <h1 class="text-center text-secondary mt-5">No category found in the database</h1>
-            <% }%>
+  <% if(message){%>
+    <div class="alert alert-dismissable fade show alert-<%= message.type %>" role="alert">
+      <button class="btn-close" type="button" data-bs-dismiss="alert" aria-label="Close"></button>
+      <strong><%= message.message %></strong>
+    </div>
+  <%} %>
 
-              </main>
-  </div>
-  </div>
+  <% if (category.length > 0) { %>
+    <table class="table">
+      <thead>
+        <tr>
+          <th scope="col">No.</th>
+          <th scope="col">Category Name</th>
+          <th scope="col">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% category.forEach((row, index) => { %>
+          <tr>
+            <td><%= (currentPage - 1) * limit + index + 1 %></td>
+            <td><%= row.name %></td>
+            <td>
+              <a href="/editCategory/<%= row._id %>" class="text-success">
+                <i class="fas fa-edit"></i>
+              </a>
+              <form method="post" action="/blockCat" class="d-inline">
+                <input type="hidden" name="categoryId" value="<%= row._id %>">
+                <% if (row.blocked) { %>
+                  <button type="submit" class="btn btn-success btn-sm">Unblock</button>
+                <% } else { %>
+                  <button type="submit" class="btn btn-danger btn-sm">Block</button>
+                <% } %>
+              </form>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
 
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-  </body>
+    <!-- Pagination -->
+    <nav aria-label="Page navigation">
+      <ul class="pagination">
+        <li class="page-item <%= currentPage === 1 ? 'disabled' : '' %>">
+          <a class="page-link" href="/categories?page=<%= currentPage - 1 %>&limit=<%= limit %>&search=<%= search %>">Previous</a>
+        </li>
+        <% for(let i = 1; i <= totalPages; i++) { %>
+          <li class="page-item <%= currentPage === i ? 'active' : '' %>">
+            <a class="page-link" href="/categories?page=<%= i %>&limit=<%= limit %>&search=<%= search %>"><%= i %></a>
+          </li>
+        <% } %>
+        <li class="page-item <%= currentPage === totalPages ? 'disabled' : '' %>">
+          <a class="page-link" href="/categories?page=<%= currentPage + 1 %>&limit=<%= limit %>&search=<%= search %>">Next</a>
+        </li>
+      </ul>
+    </nav>
+    <p>Showing <%= (currentPage - 1) * limit + 1 %> to <%= Math.min(currentPage * limit, totalCategories) %> of <%= totalCategories %> categories</p>
+  <% } else { %>
+    <h1 class="text-center text-secondary mt-5">No category found in the database</h1>
+  <% } %>
+</div>
 
-  </html>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
