@@ -4,110 +4,104 @@
   <!-- Heading -->
   <h2 style="color: crimson;">All Products</h2>
 
-  <!-- Product Form -->
-  <form action="/products" method="get" enctype="multipart/form-data">
-    <!-- Add Product Button -->
-    <a href="/addProduct" class="btn btn-primary mb-3">Add Product</a>
-
-    <% if(message) { %>
-      <div class="alert alert-dismissable fade show alert-<%= message.type %>" role="alert">
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        <strong>
-          <%=message.message %>
-        </strong>
-      </div>
-    <% } %>
-
-    <% if(product!='') { %>
-      <table class="table">
-        <thead>
-          <tr>
-            <th>Index</th>
-            <th>Image</th>
-            <th>Name</th>
-            <th>Category</th>
-            <th>Color</th>
-            <th>Stock</th>
-            <th>Price</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          <% let startIndex = (currentPage - 1) * limit + 1; %>
-          <% product.forEach((row,index) => { %>
-            <tr class="align-middle">
-              <td><%= startIndex + index %></td> <!-- Calculate index based on startIndex -->
-              <td><img src="<%= row.images.length > 0 ? row.images[0] : '' %>" width="50" class="img-thumbnail"></td>
-              <td><%= row.name %></td>
-              <td><%= row.category.name %></td>
-              <td><%= row.color %></td>
-              <td><%= row.stock %></td>
-              <td><%= row.price %></td>
-              <td>
-                <a href="/editProduct/<%= row._id %>" class="text-success">
-                  <i class="fas fa-edit"></i>
-                </a>
-                <form method="post" action="/blockProduct">
-                  <input type="hidden" name="productId" value="<%= row._id %>">
-                  <% if (row.blocked) { %>
-                    <button type="submit" class="btn btn-success">Unblock</button>
-                  <% } else { %>
-                    <button type="submit" class="btn btn-danger">Block</button>
-                  <% } %>
-                </form>
-              </td>
-            </tr>
-          <% }) %>
-        </tbody>
-      </table>
-
-      <!-- Pagination controls -->
-      <nav aria-label="Page navigation">
-        <ul class="pagination justify-content-center">
-          <li class="page-item <%= currentPage === 1 ? 'disabled' : '' %>">
-            <a class="page-link" href="/products?page=<%= currentPage - 1 %>&limit=<%= limit %>">&laquo;</a>
-          </li>
-          <% for (let i = 1; i <= totalPages; i++) { %>
-            <li class="page-item <%= currentPage === i ? 'active' : '' %>">
-              <a class="page-link" href="/products?page=<%= i %>&limit=<%= limit %>"><%= i %></a>
-            </li>
-          <% } %>
-          <li class="page-item <%= currentPage === totalPages ? 'disabled' : '' %>">
-            <a class="page-link" href="/products?page=<%= currentPage + 1 %>&limit=<%= limit %>">&raquo;</a>
-          </li>
-        </ul>
-      </nav>
-
-    <% } else { %>
-      <h1 class="text-center text-secondary mt-5">No products found</h1>
-    <% } %>
+  <!-- Search Form -->
+  <form method="get" action="/products" class="mb-4">
+    <div class="input-group input-group-sm">
+      <input type="text" name="search" 
+             class="form-control form-control-sm" 
+             style="max-width: 150px;" 
+             placeholder="Search by name or category" 
+             value="<%= typeof search !== 'undefined' ? search : '' %>">
+      <button type="submit" class="btn btn-primary btn-sm">Search</button>
+    </div>
   </form>
+
+  <!-- Add Product Button -->
+  <a href="/addProduct" class="btn btn-primary mb-3">Add Product</a>
+
+  <% if(message) { %>
+    <div class="alert alert-dismissable fade show alert-<%= message.type %>" role="alert">
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      <strong><%= message.message %></strong>
+    </div>
+  <% } %>
+
+  <% if(product.length > 0) { %>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Index</th>
+          <th>Image</th>
+          <th>Name</th>
+          <th>Category</th>
+          <th>Color</th>
+          <th>Stock</th>
+          <th>Price</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% let startIndex = (currentPage - 1) * limit + 1; %>
+        <% product.forEach((row, index) => { %>
+          <tr class="align-middle">
+            <td><%= startIndex + index %></td>
+            <td><img src="<%= row.images.length > 0 ? row.images[0] : '' %>" width="50" class="img-thumbnail"></td>
+            <td><%= row.name %></td>
+            <td><%= row.category.name %></td>
+            <td><%= row.color %></td>
+            <td><%= row.stock %></td>
+            <td><%= row.price %></td>
+            <td>
+              <a href="/editProduct/<%= row._id %>" class="text-success">
+                <i class="fas fa-edit"></i>
+              </a>
+              <form method="post" action="/blockProduct">
+                <input type="hidden" name="productId" value="<%= row._id %>">
+                <% if (row.blocked) { %>
+                  <button type="submit" class="btn btn-success">Unblock</button>
+                <% } else { %>
+                  <button type="submit" class="btn btn-danger">Block</button>
+                <% } %>
+              </form>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+
+    <!-- Pagination controls -->
+    <nav aria-label="Page navigation">
+      <ul class="pagination justify-content-center">
+        <li class="page-item <%= currentPage === 1 ? 'disabled' : '' %>">
+          <a class="page-link" href="/products?page=<%= currentPage - 1 %>&limit=<%= limit %>&search=<%= search || '' %>">&laquo;</a>
+        </li>
+        <% for (let i = 1; i <= totalPages; i++) { %>
+          <li class="page-item <%= currentPage === i ? 'active' : '' %>">
+            <a class="page-link" href="/products?page=<%= i %>&limit=<%= limit %>&search=<%= search || '' %>"><%= i %></a>
+          </li>
+        <% } %>
+        <li class="page-item <%= currentPage === totalPages ? 'disabled' : '' %>">
+          <a class="page-link" href="/products?page=<%= currentPage + 1 %>&limit=<%= limit %>&search=<%= search || '' %>">&raquo;</a>
+        </li>
+      </ul>
+    </nav>
+  <% } else { %>
+    <h1 class="text-center text-secondary mt-5">No products found</h1>
+  <% } %>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-  
-
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-
-  <!-- Include SweetAlert library -->
-  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
-  <!-- Your HTML content -->
-
-  <script>
-    // Check if the page has a message indicating no images uploaded
-    const errorMessage = "<%= message && message.type === 'danger' ? message.message : '' %>";
-
-    // Display SweetAlert if there is an error message
-    if (errorMessage) {
-      Swal.fire({
-        icon: 'error',
-        title: 'Oops...',
-        text: errorMessage,
-      });
-    }
-  </script>
-
-  </body>
-
-  </html>
+<script>
+  const errorMessage = "<%= message && message.type === 'danger' ? message.message : '' %>";
+  if (errorMessage) {
+    Swal.fire({
+      icon: 'error',
+      title: 'Oops...',
+      text: errorMessage,
+    });
+  }
+</script>
+</body>
+</html>

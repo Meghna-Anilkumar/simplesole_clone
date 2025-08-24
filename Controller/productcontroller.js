@@ -1,11 +1,11 @@
-const Product = require('../models/product');
-const Category = require('../models/category');
-const Wishlist = require('../models/wishlist');
-const ProductOffer = require('../models/productoffermodel');
-const CategoryOffer = require('../models/categoryoffer');
-const Cart = require('../models/cartSchema');
-const cloudinary = require('cloudinary').v2;
-const { HttpStatusCode } = require('../enums/statusCodes');
+const Product = require("../models/product");
+const Category = require("../models/category");
+const Wishlist = require("../models/wishlist");
+const ProductOffer = require("../models/productoffermodel");
+const CategoryOffer = require("../models/categoryoffer");
+const Cart = require("../models/cartSchema");
+const cloudinary = require("cloudinary").v2;
+const { HttpStatusCode } = require("../enums/statusCodes");
 
 // Configure Cloudinary with environment variables
 cloudinary.config({
@@ -18,9 +18,9 @@ module.exports = {
   // Get add product page
   addProduct: async (req, res) => {
     const category = await Category.find().exec();
-    res.render('adminviews/addproduct', {
-      title: 'Add Product',
-      category: category
+    res.render("adminviews/addproduct", {
+      title: "Add Product",
+      category: category,
     });
   },
 
@@ -29,26 +29,42 @@ module.exports = {
     try {
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 10;
+      const skip = (page - 1) * limit;
+      const search = req.query.search || "";
 
-      const product = await Product.find()
-        .populate({ path: 'category', select: 'name' })
-        .skip((page - 1) * limit)
+      // Build search query
+      const searchQuery = search
+        ? {
+            $or: [
+              { name: { $regex: search, $options: "i" } },
+              { "category.name": { $regex: search, $options: "i" } },
+            ],
+          }
+        : {};
+
+      // Fetch products with pagination and search
+      const product = await Product.find(searchQuery)
+        .populate({ path: "category", select: "name" })
+        .skip(skip)
         .limit(limit)
         .exec();
 
-      const totalProducts = await Product.countDocuments();
+      // Get total count of matching products
+      const totalProducts = await Product.countDocuments(searchQuery);
 
       const totalPages = Math.ceil(totalProducts / limit);
 
-      res.render('adminviews/products', {
-        title: 'Products',
+      res.render("adminviews/products", {
+        title: "Products",
         product: product,
         totalPages: totalPages,
         currentPage: page,
-        limit: limit
+        limit: limit,
+        search: search,
       });
     } catch (err) {
-      res.json({ message: err.message });
+      console.error(err);
+      res.json({ message: err.message, type: "danger" });
     }
   },
 
@@ -60,14 +76,14 @@ module.exports = {
       }
 
       // Upload images to Cloudinary
-      const uploadPromises = req.files.map(file =>
+      const uploadPromises = req.files.map((file) =>
         cloudinary.uploader.upload(file.path, {
-          folder: 'products',
-          resource_type: 'image'
+          folder: "products",
+          resource_type: "image",
         })
       );
       const uploadResults = await Promise.all(uploadPromises);
-      const imageUrls = uploadResults.map(result => result.secure_url);
+      const imageUrls = uploadResults.map((result) => result.secure_url);
 
       const product = new Product({
         name: req.body.name,
@@ -77,20 +93,20 @@ module.exports = {
         stock: req.body.stock,
         size: req.body.size,
         color: req.body.color,
-        images: imageUrls
+        images: imageUrls,
       });
 
       await product.save();
 
       req.session.message = {
-        type: 'success',
-        message: 'Product added successfully'
+        type: "success",
+        message: "Product added successfully",
       };
 
-      res.redirect('/products');
+      res.redirect("/products");
     } catch (error) {
       console.error(error);
-      res.json({ message: error.message, type: 'danger' });
+      res.json({ message: error.message, type: "danger" });
     }
   },
 
@@ -101,21 +117,21 @@ module.exports = {
       const product = await Product.findById(id).exec();
 
       if (!product) {
-        res.redirect('/products');
+        res.redirect("/products");
         return;
       }
 
       const category = await Category.find().exec();
 
-      res.render('adminviews/editproduct', {
-        title: 'Edit Product',
+      res.render("adminviews/editproduct", {
+        title: "Edit Product",
         product: product,
         category: category,
-        existingImages: product.images
+        existingImages: product.images,
       });
     } catch (error) {
       console.error(error);
-      res.redirect('/products');
+      res.redirect("/products");
     }
   },
 
@@ -123,22 +139,26 @@ module.exports = {
   croppedimageupload: async (req, res) => {
     try {
       if (!req.files || req.files.length === 0) {
-        return res.status(HttpStatusCode.BAD_REQUEST).json({ error: 'No file uploaded' });
+        return res
+          .status(HttpStatusCode.BAD_REQUEST)
+          .json({ error: "No file uploaded" });
       }
 
-      const uploadPromises = req.files.map(file =>
+      const uploadPromises = req.files.map((file) =>
         cloudinary.uploader.upload(file.path, {
-          folder: 'products',
-          resource_type: 'image'
+          folder: "products",
+          resource_type: "image",
         })
       );
       const uploadResults = await Promise.all(uploadPromises);
-      const filenames = uploadResults.map(result => result.secure_url);
+      const filenames = uploadResults.map((result) => result.secure_url);
 
       res.status(HttpStatusCode.OK).json({ filenames: filenames });
     } catch (error) {
       console.error(error);
-      res.status(HttpStatusCode.INTERNAL_SERVER_ERROR).json({ error: 'Internal server error' });
+      res
+        .status(HttpStatusCode.INTERNAL_SERVER_ERROR)
+        .json({ error: "Internal server error" });
     }
   },
 
@@ -149,19 +169,23 @@ module.exports = {
 
       const existingProduct = await Product.findById(id).exec();
       if (!existingProduct) {
-        throw new Error('Product not found');
+        throw new Error("Product not found");
       }
 
       let updatedImages = [...existingProduct.images];
 
       // Handle deleted images
       if (req.body.deletedImages) {
-        const deletedImages = req.body.deletedImages.split(',').map(image => image.trim());
-        updatedImages = existingProduct.images.filter(image => !deletedImages.includes(image));
+        const deletedImages = req.body.deletedImages
+          .split(",")
+          .map((image) => image.trim());
+        updatedImages = existingProduct.images.filter(
+          (image) => !deletedImages.includes(image)
+        );
 
         // Delete images from Cloudinary
-        const deletePromises = deletedImages.map(imageUrl => {
-          const publicId = imageUrl.split('/').pop().split('.')[0]; // Extract public ID from URL
+        const deletePromises = deletedImages.map((imageUrl) => {
+          const publicId = imageUrl.split("/").pop().split(".")[0]; // Extract public ID from URL
           return cloudinary.uploader.destroy(`products/${publicId}`);
         });
         await Promise.all(deletePromises);
@@ -169,14 +193,14 @@ module.exports = {
 
       // Upload new images to Cloudinary
       if (req.files && req.files.length > 0) {
-        const uploadPromises = req.files.map(file =>
+        const uploadPromises = req.files.map((file) =>
           cloudinary.uploader.upload(file.path, {
-            folder: 'products',
-            resource_type: 'image'
+            folder: "products",
+            resource_type: "image",
           })
         );
         const uploadResults = await Promise.all(uploadPromises);
-        const newImageUrls = uploadResults.map(result => result.secure_url);
+        const newImageUrls = uploadResults.map((result) => result.secure_url);
         updatedImages = [...updatedImages, ...newImageUrls];
       }
 
@@ -192,10 +216,13 @@ module.exports = {
       };
 
       let categoryOfferPrice = updatedProduct.price;
-      const categoryOffer = await CategoryOffer.findOne({ category: updatedProduct.category }).exec();
+      const categoryOffer = await CategoryOffer.findOne({
+        category: updatedProduct.category,
+      }).exec();
       if (categoryOffer) {
         const discountPercentage = categoryOffer.discountPercentage;
-        const discountAmount = (updatedProduct.price * discountPercentage) / 100;
+        const discountAmount =
+          (updatedProduct.price * discountPercentage) / 100;
         categoryOfferPrice = updatedProduct.price - discountAmount;
       }
 
@@ -204,14 +231,14 @@ module.exports = {
       await Product.findByIdAndUpdate(id, updatedProduct);
 
       req.session.message = {
-        type: 'success',
-        message: 'Product updated successfully!',
+        type: "success",
+        message: "Product updated successfully!",
       };
 
-      res.redirect('/products');
+      res.redirect("/products");
     } catch (err) {
       console.error(err);
-      res.json({ message: err.message, type: 'danger' });
+      res.json({ message: err.message, type: "danger" });
     }
   },
 
@@ -224,21 +251,23 @@ module.exports = {
       const categoryOffers = await CategoryOffer.find({ category: categoryId });
 
       const user = req.session.user;
-      const cart = await Cart.findOne({ user }).populate('items.product').exec();
+      const cart = await Cart.findOne({ user })
+        .populate("items.product")
+        .exec();
       const wishlist = await Wishlist.findOne({ user });
 
-      res.render('userviews/viewproductsCategorywise', {
-        title: 'Products in category',
+      res.render("userviews/viewproductsCategorywise", {
+        title: "Products in category",
         category: selectedCategory,
         selectedCategory: selectedCategory,
         products: products,
         categoryOffers: categoryOffers,
         cart: cart,
-        wishlist: wishlist
+        wishlist: wishlist,
       });
     } catch (error) {
       console.error(error);
-      res.status(500).send('Internal Server Error');
+      res.status(500).send("Internal Server Error");
     }
   },
 
@@ -246,22 +275,31 @@ module.exports = {
   getproductdetails: async (req, res) => {
     try {
       const productId = req.params.id;
-      const product = await Product.findById(productId).populate({ path: 'category', select: 'name-_id' });
+      const product = await Product.findById(productId).populate({
+        path: "category",
+        select: "name-_id",
+      });
 
       if (!product) {
-        return res.status(404).render('error', { message: 'Product not found' });
+        return res
+          .status(404)
+          .render("error", { message: "Product not found" });
       }
 
       const user = req.session.user;
       let productInWishlist = false;
-      const cart = await Cart.findOne({ user }).populate('items.product').exec();
+      const cart = await Cart.findOne({ user })
+        .populate("items.product")
+        .exec();
       var wishlist = await Wishlist.findOne({ user });
 
       if (user) {
         wishlist = await Wishlist.findOne({ user: user._id });
 
         if (wishlist) {
-          productInWishlist = wishlist.items.some(item => item.product.toString() === productId);
+          productInWishlist = wishlist.items.some(
+            (item) => item.product.toString() === productId
+          );
         }
       }
 
@@ -271,11 +309,11 @@ module.exports = {
       const productOffers = await ProductOffer.find({
         product: productId,
         startDate: { $lte: new Date() },
-        expiryDate: { $gte: new Date() }
+        expiryDate: { $gte: new Date() },
       });
 
-      res.render('userviews/productdetails', {
-        title: 'Products in category',
+      res.render("userviews/productdetails", {
+        title: "Products in category",
         category: selectedCategory,
         selectedCategory: selectedCategory,
         products: products,
@@ -283,11 +321,11 @@ module.exports = {
         productInWishlist: productInWishlist,
         productOffers: productOffers,
         wishlist: wishlist,
-        cart
+        cart,
       });
     } catch (error) {
-      console.error('Error in getproductdetails:', error);
-      res.status(500).send('Internal Server Error');
+      console.error("Error in getproductdetails:", error);
+      res.status(500).send("Internal Server Error");
     }
   },
 
@@ -299,16 +337,16 @@ module.exports = {
       const product = await Product.findById(productId);
 
       if (!product) {
-        return res.status(404).render('userviews/404page');
+        return res.status(404).render("userviews/404page");
       }
 
       product.blocked = !product.blocked;
       await product.save();
 
-      res.redirect('/products');
+      res.redirect("/products");
     } catch (error) {
       console.error(error);
-      res.status(500).send('Internal Server Error');
+      res.status(500).send("Internal Server Error");
     }
   },
 
@@ -322,24 +360,26 @@ module.exports = {
       let query = { blocked: false };
       if (req.query.query) {
         const searchQuery = req.query.query;
-        query.name = { $regex: new RegExp(searchQuery, 'i') };
+        query.name = { $regex: new RegExp(searchQuery, "i") };
       }
 
-      let allProducts = await Product.find(query)
-        .populate('category')
-        .exec();
+      let allProducts = await Product.find(query).populate("category").exec();
 
       if (req.query.color) {
-        allProducts = allProducts.filter(product => product.color === req.query.color);
+        allProducts = allProducts.filter(
+          (product) => product.color === req.query.color
+        );
       }
 
       if (req.query.size) {
-        allProducts = allProducts.filter(product => product.size.includes(req.query.size));
+        allProducts = allProducts.filter((product) =>
+          product.size.includes(req.query.size)
+        );
       }
 
-      if (req.query.sortOption === 'priceLowToHigh') {
+      if (req.query.sortOption === "priceLowToHigh") {
         allProducts.sort((a, b) => a.price - b.price);
-      } else if (req.query.sortOption === 'priceHighToLow') {
+      } else if (req.query.sortOption === "priceHighToLow") {
         allProducts.sort((a, b) => b.price - a.price);
       }
 
@@ -350,21 +390,30 @@ module.exports = {
       const category = await Category.find().exec();
       const productOffers = await ProductOffer.find({
         startDate: { $lte: new Date() },
-        expiryDate: { $gte: new Date() }
-      }).populate('product').exec();
+        expiryDate: { $gte: new Date() },
+      })
+        .populate("product")
+        .exec();
       const categoryOffers = await CategoryOffer.find({
         startDate: { $lte: new Date() },
-        expiryDate: { $gte: new Date() }
-      }).populate('category').exec();
+        expiryDate: { $gte: new Date() },
+      })
+        .populate("category")
+        .exec();
 
       const user = req.session.user;
-      const cart = await Cart.findOne({ user }).populate('items.product').exec();
+      const cart = await Cart.findOne({ user })
+        .populate("items.product")
+        .exec();
 
-      if (req.headers['x-requested-with'] === 'XMLHttpRequest' || req.query.json) {
+      if (
+        req.headers["x-requested-with"] === "XMLHttpRequest" ||
+        req.query.json
+      ) {
         res.json(allProducts);
       } else {
-        res.render('userviews/allproducts', {
-          title: 'All Products',
+        res.render("userviews/allproducts", {
+          title: "All Products",
           allProducts: allProducts,
           category: category,
           productOffers: productOffers,
@@ -373,12 +422,12 @@ module.exports = {
           totalPages: totalPages,
           wishlist: req.session.wishlist,
           cart: cart,
-          searchQuery: req.query.query
+          searchQuery: req.query.query,
         });
       }
     } catch (error) {
       console.error(error);
-      res.status(500).send('Internal Server Error');
+      res.status(500).send("Internal Server Error");
     }
   },
 
@@ -390,31 +439,33 @@ module.exports = {
       let query = { blocked: false };
       if (req.query.query) {
         const searchQuery = req.query.query;
-        query.name = { $regex: new RegExp(searchQuery, 'i') };
+        query.name = { $regex: new RegExp(searchQuery, "i") };
       }
 
-      filteredProducts = await Product.find(query)
-        .populate('category')
-        .exec();
+      filteredProducts = await Product.find(query).populate("category").exec();
 
       if (req.query.color) {
-        filteredProducts = filteredProducts.filter(product => product.color === req.query.color);
+        filteredProducts = filteredProducts.filter(
+          (product) => product.color === req.query.color
+        );
       }
 
       if (req.query.size) {
-        filteredProducts = filteredProducts.filter(product => product.size.includes(req.query.size));
+        filteredProducts = filteredProducts.filter((product) =>
+          product.size.includes(req.query.size)
+        );
       }
 
-      if (req.query.sortOption === 'priceLowToHigh') {
+      if (req.query.sortOption === "priceLowToHigh") {
         filteredProducts.sort((a, b) => a.price - b.price);
-      } else if (req.query.sortOption === 'priceHighToLow') {
+      } else if (req.query.sortOption === "priceHighToLow") {
         filteredProducts.sort((a, b) => b.price - a.price);
       }
 
       res.json(filteredProducts);
     } catch (error) {
       console.error(error);
-      res.status(500).send('Internal Server Error');
+      res.status(500).send("Internal Server Error");
     }
   },
 };
