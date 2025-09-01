@@ -273,9 +273,7 @@ module.exports = {
         }
       }
 
-      // Convert amount from rupees to paise
-      const amountInPaise = amount * 100;
-
+      const amountInPaise = Math.floor(parseFloat(amount) * 100);
       // If we reach here, all items are valid and available
       const razorpayOptions = {
         amount: amountInPaise, // Amount in paise
@@ -785,11 +783,9 @@ module.exports = {
       } else {
         await session.abortTransaction();
         session.endSession();
-        return res
-          .status(400)
-          .json({
-            error: "Order cannot be returned because it is not delivered yet",
-          });
+        return res.status(400).json({
+          error: "Order cannot be returned because it is not delivered yet",
+        });
       }
     } catch (error) {
       await session.abortTransaction();
