@@ -273,61 +273,68 @@ module.exports = {
 
   // Get product details
   getproductdetails: async (req, res) => {
-    try {
-      const productId = req.params.id;
-      const product = await Product.findById(productId).populate({
-        path: "category",
-        select: "name-_id",
-      });
+  try {
+    const productId = req.params.id;
+    const product = await Product.findById(productId).populate({
+      path: "category",
+      select: "name" // Keep 'name' for display, no need to exclude '_id' explicitly
+    });
 
-      if (!product) {
-        return res
-          .status(404)
-          .render("error", { message: "Product not found" });
-      }
-
-      const user = req.session.user;
-      let productInWishlist = false;
-      const cart = await Cart.findOne({ user })
-        .populate("items.product")
-        .exec();
-      var wishlist = await Wishlist.findOne({ user });
-
-      if (user) {
-        wishlist = await Wishlist.findOne({ user: user._id });
-
-        if (wishlist) {
-          productInWishlist = wishlist.items.some(
-            (item) => item.product.toString() === productId
-          );
-        }
-      }
-
-      const products = await Product.find();
-      const selectedCategory = product.category;
-
-      const productOffers = await ProductOffer.find({
-        product: productId,
-        startDate: { $lte: new Date() },
-        expiryDate: { $gte: new Date() },
-      });
-
-      res.render("userviews/productdetails", {
-        title: "Products in category",
-        category: selectedCategory,
-        selectedCategory: selectedCategory,
-        products: products,
-        product: product,
-        productInWishlist: productInWishlist,
-        productOffers: productOffers,
-        wishlist: wishlist,
-        cart,
-      });
-    } catch (error) {
-      console.error("Error in getproductdetails:", error);
-      res.status(500).send("Internal Server Error");
+    if (!product) {
+      return res
+        .status(404)
+        .render("error", { message: "Product not found" });
     }
-  },
+
+    const user = req.session.user;
+    let productInWishlist = false;
+    const cart = await Cart.findOne({ user })
+      .populate("items.product")
+      .exec();
+    var wishlist = await Wishlist.findOne({ user });
+
+    if (user) {
+      wishlist = await Wishlist.findOne({ user: user._id });
+      if (wishlist) {
+        productInWishlist = wishlist.items.some(
+          (item) => item.product.toString() === productId
+        );
+      }
+    }
+
+    // Fetch similar products (same category, excluding current product)
+    const similarProducts = await Product.find({
+      category: product.category, // Use product.category directly
+      _id: { $ne: productId }, // Exclude the current product
+      blocked: false // Only include unblocked products
+    })
+      .limit(4) // Limit to 4 similar products
+      .exec();
+
+    console.log("Similar Products:", similarProducts); // Debug log
+
+    const productOffers = await ProductOffer.find({
+      product: productId,
+      startDate: { $lte: new Date() },
+      expiryDate: { $gte: new Date() },
+    });
+
+    res.render("userviews/productdetails", {
+      title: "Product Details",
+      category: product.category,
+      selectedCategory: product.category,
+      product: product,
+      productInWishlist: productInWishlist,
+      productOffers: productOffers,
+      wishlist: wishlist,
+      cart,
+      similarProducts: similarProducts // Pass similar products to the template
+    });
+  } catch (error) {
+    console.error("Error in getproductdetails:", error);
+    res.status(500).send("Internal Server Error");
+  }
+},
 
   // Block and unblock a product
   blockProduct: async (req, res) => {

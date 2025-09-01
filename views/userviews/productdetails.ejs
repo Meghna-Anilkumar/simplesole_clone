@@ -1,4 +1,4 @@
-<%- include('./header', { title: 'Products in category', category: selectedCategory, selectedCategory: selectedCategory, products: products }) %>
+<%- include('./header', { title: 'Product Details', category: category, selectedCategory: selectedCategory }) %>
 
 <style>
   #navbar {
@@ -230,6 +230,64 @@
     background-color: #dc3545 !important;
   }
 
+  .similar-products {
+    margin-top: 40px;
+    padding: 20px;
+    background: #f9f9f9;
+    border-radius: 8px;
+  }
+
+  .similar-products h3 {
+    font-size: 1.8rem;
+    margin-bottom: 20px;
+    text-align: center;
+    color: #333;
+  }
+
+  .similar-products-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+  }
+
+  .similar-product-card {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 15px;
+    text-align: center;
+    transition: transform 0.2s;
+  }
+
+  .similar-product-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  }
+
+  .similar-product-card img {
+    max-width: 100%;
+    height: 150px;
+    object-fit: cover;
+    border-radius: 4px;
+  }
+
+  .similar-product-card h4 {
+    font-size: 1.2rem;
+    margin: 10px 0;
+    color: #333;
+  }
+
+  .similar-product-card p {
+    font-size: 1rem;
+    color: rgb(255, 63, 108);
+    margin: 5px 0;
+  }
+
+  .similar-product-card a {
+    text-decoration: none;
+    color: inherit;
+  }
+
   @keyframes opacity {
     0% {
       opacity: 0;
@@ -351,6 +409,34 @@
       </div>
     </div>
   </div>
+
+  <!-- Similar Products Section -->
+  <% if (similarProducts && similarProducts.length > 0) { %>
+    <div class="similar-products container">
+      <h3>Similar Products</h3>
+      <div class="similar-products-grid">
+        <% similarProducts.forEach(similarProduct => { %>
+          <a href="/product/<%= similarProduct._id %>">
+            <div class="similar-product-card">
+              <img src="<%= similarProduct.images[0] %>" alt="<%= similarProduct.name %>">
+              <h4><%= similarProduct.name %></h4>
+              <% 
+                // Check for product-specific offer
+                let displayPrice = similarProduct.price;
+                const similarProductOffer = productOffers.find(offer => offer.product.toString() === similarProduct._id.toString());
+                if (similarProductOffer) {
+                  displayPrice = similarProductOffer.newPrice;
+                } else if (similarProduct.categoryofferprice && similarProduct.categoryofferprice < similarProduct.price) {
+                  displayPrice = similarProduct.categoryofferprice;
+                }
+              %>
+              <p>&#8377;<%= displayPrice %></p>
+            </div>
+          </a>
+        <% }); %>
+      </div>
+    </div>
+  <% } %>
 </div>
 
 <!-- SweetAlert2 -->
