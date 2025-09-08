@@ -49,13 +49,37 @@ module.exports = {
   },
 
   // Create new offer by admin
-saveProductOffer: async (req, res) => {
+  saveProductOffer: async (req, res) => {
     try {
       const { productId, discountPercentage, startDate, expiryDate } = req.body;
 
       // Validate inputs
       if (!productId || !discountPercentage || !startDate || !expiryDate) {
         return res.status(400).json({ message: "All fields are required" });
+      }
+
+      // Validate discount percentage
+      const discountPercentageValue = parseInt(discountPercentage);
+      if (isNaN(discountPercentageValue) || discountPercentageValue < 1 || discountPercentageValue > 100) {
+        return res.status(400).json({ message: "Discount percentage must be between 1 and 100" });
+      }
+
+      // Validate dates
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Reset time to midnight
+      const start = new Date(startDate);
+      const end = new Date(expiryDate);
+
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+        return res.status(400).json({ message: "Invalid date format" });
+      }
+
+      if (start < today) {
+        return res.status(400).json({ message: "Start date cannot be in the past" });
+      }
+
+      if (end <= start) {
+        return res.status(400).json({ message: "End date must be after start date" });
       }
 
       // Check if there's an existing product offer for the specified product
@@ -78,8 +102,8 @@ saveProductOffer: async (req, res) => {
       const productOffer = new ProductOffer({
         product: productId,
         discountPercentage,
-        startDate: new Date(startDate),
-        expiryDate: new Date(expiryDate),
+        startDate: start,
+        expiryDate: end,
         newPrice,
       });
 
@@ -100,7 +124,6 @@ saveProductOffer: async (req, res) => {
     try {
       const products = await Product.find({}, "name");
       const offers = await ProductOffer.find().populate("product");
-      console.log(offers, "llllll");
       res.render("adminviews/productoffer", {
         title: "Product offer",
         products,
@@ -112,21 +135,44 @@ saveProductOffer: async (req, res) => {
     }
   },
 
-  //update product offer
+  // Update product offer
   updateProductOffer: async (req, res) => {
     try {
-      const { offerId, productId, discountPercentage, startDate, expiryDate } =
-        req.body;
+      const { offerId, productId, discountPercentage, startDate, expiryDate } = req.body;
 
       // Validate inputs
-      if (
-        !offerId ||
-        !productId ||
-        !discountPercentage ||
-        !startDate ||
-        !expiryDate
-      ) {
+      if (!offerId || !productId || !discountPercentage || !startDate || !expiryDate) {
         return res.status(400).json({ message: "All fields are required" });
+      }
+
+
+      const existingOffer=await ProductOffer.findOne({product:productId,_id:{$ne:offerId}})
+      if(existingOffer){
+        return res.status(400).json({message:'Offer already exists for this product'})
+      }
+
+      // Validate discount percentage
+      const discountPercentageValue = parseInt(discountPercentage);
+      if (isNaN(discountPercentageValue) || discountPercentageValue < 1 || discountPercentageValue > 100) {
+        return res.status(400).json({ message: "Discount percentage must be between 1 and 100" });
+      }
+
+      // Validate dates
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Reset time to midnight
+      const start = new Date(startDate);
+      const end = new Date(expiryDate);
+
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+        return res.status(400).json({ message: "Invalid date format" });
+      }
+
+      if (start < today) {
+        return res.status(400).json({ message: "Start date cannot be in the past" });
+      }
+
+      if (end <= start) {
+        return res.status(400).json({ message: "End date must be after start date" });
       }
 
       const product = await Product.findById(productId);
@@ -142,8 +188,8 @@ saveProductOffer: async (req, res) => {
         {
           product: productId,
           discountPercentage,
-          startDate: new Date(startDate),
-          expiryDate: new Date(expiryDate),
+          startDate: start,
+          expiryDate: end,
           newPrice,
         },
         { new: true }
@@ -163,11 +209,10 @@ saveProductOffer: async (req, res) => {
     }
   },
 
-  //delete product offer
+  // Delete product offer
   deleteproductoffer: async (req, res) => {
     try {
       const offerId = req.params.id;
-      console.log(offerId, "kkkkkkkk");
       const deletedOffer = await ProductOffer.findByIdAndDelete(offerId);
       if (!deletedOffer) {
         return res.status(404).json({ message: "Offer not found" });

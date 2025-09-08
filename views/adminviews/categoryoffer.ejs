@@ -128,7 +128,7 @@
         <div class="mb-3">
           <label for="editCategoryDropdown" class="form-label">Select Category</label>
           <select class="form-select" id="editCategoryDropdown">
-            <option value="" selected disabled>Select a category</option>
+            <option value="" disabled>Select a category</option>
             <% categories.forEach(category => { %>
               <option value="<%= category._id %>"><%= category.name %></option>
             <% }); %>
@@ -160,6 +160,76 @@
 
 <script>
   document.addEventListener('DOMContentLoaded', function () {
+    // Function to reset form fields
+    function resetAddOfferForm() {
+      document.getElementById('categoryDropdown').value = '';
+      document.getElementById('discountPercentage').value = '';
+      document.getElementById('startDate').value = '';
+      document.getElementById('expiryDate').value = '';
+    }
+
+    function resetEditOfferForm() {
+      document.getElementById('editCategoryOfferId').value = '';
+      const editDropdown = document.getElementById('editCategoryDropdown');
+      editDropdown.selectedIndex = 0; // Reset to first option (disabled "Select a category")
+      document.getElementById('editDiscountPercentage').value = '';
+      document.getElementById('editStartDate').value = '';
+      document.getElementById('editExpiryDate').value = '';
+    }
+
+    // Reset forms when modals are hidden
+    const addCategoryOfferModal = document.getElementById('addCategoryOfferModal');
+    const editCategoryOfferModal = document.getElementById('editCategoryOfferModal');
+
+    addCategoryOfferModal.addEventListener('hidden.bs.modal', function () {
+      resetAddOfferForm();
+    });
+
+    editCategoryOfferModal.addEventListener('hidden.bs.modal', function () {
+      resetEditOfferForm();
+    });
+
+    // Handle edit modal show event to ensure proper population
+    editCategoryOfferModal.addEventListener('show.bs.modal', function (event) {
+      // Get the button that triggered the modal
+      const button = event.relatedTarget;
+      
+      if (button && button.classList.contains('edit-category-offer-btn')) {
+        const categoryOfferId = button.getAttribute('data-category-offer-id');
+        const categoryId = button.getAttribute('data-category-id');
+        const discountPercentage = button.getAttribute('data-discount-percentage');
+        const startDate = button.getAttribute('data-start-date');
+        const expiryDate = button.getAttribute('data-expiry-date');
+
+        // Small delay to ensure modal is fully rendered
+        setTimeout(() => {
+          // Populate the edit modal fields
+          document.getElementById('editCategoryOfferId').value = categoryOfferId;
+          
+          // Set the category dropdown value
+          const editCategoryDropdown = document.getElementById('editCategoryDropdown');
+          editCategoryDropdown.value = categoryId;
+          
+          // Force browser to update the display
+          editCategoryDropdown.dispatchEvent(new Event('change', { bubbles: true }));
+          
+          document.getElementById('editDiscountPercentage').value = discountPercentage;
+          document.getElementById('editStartDate').value = formatDateForInput(startDate);
+          document.getElementById('editExpiryDate').value = formatDateForInput(expiryDate);
+
+          console.log('Edit modal populated - Category ID:', categoryId);
+          console.log('Selected option:', editCategoryDropdown.options[editCategoryDropdown.selectedIndex]?.text);
+        }, 50);
+      }
+    });
+
+    function formatDateForInput(dateString) {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return '';
+      return date.toISOString().split('T')[0];
+    }
+
+    // Add Category Offer functionality
     const submitCategoryOfferBtn = document.getElementById('submitCategoryOfferBtn');
 
     submitCategoryOfferBtn.addEventListener('click', async function () {
@@ -188,7 +258,12 @@
         return;
       }
 
-      if (startDate.value === "") {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const selectedStartDate = new Date(startDate.value);
+      const selectedExpiryDate = new Date(expiryDate.value);
+
+      if (!startDate.value) {
         Swal.fire({
           icon: 'error',
           title: 'Missing Start Date',
@@ -197,11 +272,29 @@
         return;
       }
 
-      if (expiryDate.value === "") {
+      if (!expiryDate.value) {
         Swal.fire({
           icon: 'error',
           title: 'Missing Expiry Date',
           text: 'Please select an expiry date'
+        });
+        return;
+      }
+
+      if (selectedStartDate < today) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Invalid Start Date',
+          text: 'Start date cannot be in the past'
+        });
+        return;
+      }
+
+      if (selectedExpiryDate <= selectedStartDate) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Invalid Expiry Date',
+          text: 'Expiry date must be after the start date'
         });
         return;
       }
@@ -230,9 +323,11 @@
             title: 'Success',
             text: 'Category offer added successfully'
           });
-          const modal = new bootstrap.Modal(document.getElementById('addCategoryOfferModal'));
+          const modal = bootstrap.Modal.getInstance(addCategoryOfferModal);
           modal.hide();
-          window.location.reload();
+          setTimeout(() => {
+            window.location.reload();
+          }, 1500);
         } else {
           Swal.fire({
             icon: 'error',
@@ -249,45 +344,19 @@
         });
       }
     });
-  });
-</script>
 
-<script>
-  document.addEventListener('DOMContentLoaded', function () {
+    // Edit Category Offer functionality
     const editCategoryOfferBtns = document.querySelectorAll('.edit-category-offer-btn');
 
     editCategoryOfferBtns.forEach(editCategoryOfferBtn => {
       editCategoryOfferBtn.addEventListener('click', function (event) {
-        event.preventDefault();
-
-        const categoryOfferId = this.getAttribute('data-category-offer-id');
-        const categoryId = this.getAttribute('data-category-id');
-        const discountPercentage = this.getAttribute('data-discount-percentage');
-        const startDate = this.getAttribute('data-start-date');
-        const expiryDate = this.getAttribute('data-expiry-date');
-
-        // Populate the edit modal fields
-        document.getElementById('editCategoryOfferId').value = categoryOfferId;
-        document.getElementById('editCategoryDropdown').value = categoryId;
-        document.getElementById('editDiscountPercentage').value = discountPercentage;
-        document.getElementById('editStartDate').value = formatDateForInput(startDate);
-        document.getElementById('editExpiryDate').value = formatDateForInput(expiryDate);
-
-        const editCategoryOfferModal = new bootstrap.Modal(document.getElementById('editCategoryOfferModal'));
-        editCategoryOfferModal.show();
+        // The modal population is now handled by the 'show.bs.modal' event
+        // This click handler is mainly for any additional logic if needed
+        console.log('Edit button clicked for category offer:', this.getAttribute('data-category-offer-id'));
       });
     });
 
-    function formatDateForInput(dateString) {
-      const date = new Date(dateString);
-      if (isNaN(date.getTime())) return '';
-      return date.toISOString().split('T')[0];
-    }
-  });
-</script>
-
-<script>
-  document.addEventListener('DOMContentLoaded', function () {
+    // Update Category Offer functionality
     const updateCategoryOfferBtn = document.getElementById('updateCategoryOfferBtn');
 
     updateCategoryOfferBtn.addEventListener('click', async function () {
@@ -317,7 +386,12 @@
         return;
       }
 
-      if (editStartDate.value === "") {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const selectedStartDate = new Date(editStartDate.value);
+      const selectedExpiryDate = new Date(editExpiryDate.value);
+
+      if (!editStartDate.value) {
         Swal.fire({
           icon: 'error',
           title: 'Missing Start Date',
@@ -326,11 +400,29 @@
         return;
       }
 
-      if (editExpiryDate.value === "") {
+      if (!editExpiryDate.value) {
         Swal.fire({
           icon: 'error',
           title: 'Missing Expiry Date',
           text: 'Please select an expiry date'
+        });
+        return;
+      }
+
+      if (selectedStartDate < today) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Invalid Start Date',
+          text: 'Start date cannot be in the past'
+        });
+        return;
+      }
+
+      if (selectedExpiryDate <= selectedStartDate) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Invalid Expiry Date',
+          text: 'Expiry date must be after the start date'
         });
         return;
       }
@@ -359,9 +451,11 @@
             title: 'Success',
             text: 'Category offer updated successfully'
           });
-          const editCategoryOfferModal = new bootstrap.Modal(document.getElementById('editCategoryOfferModal'));
-          editCategoryOfferModal.hide();
-          window.location.reload();
+          const modal = bootstrap.Modal.getInstance(editCategoryOfferModal);
+          modal.hide();
+          setTimeout(() => {
+            window.location.reload();
+          }, 1500);
         } else {
           Swal.fire({
             icon: 'error',
@@ -378,11 +472,8 @@
         });
       }
     });
-  });
-</script>
 
-<script>
-  document.addEventListener('DOMContentLoaded', function () {
+    // Delete Category Offer functionality
     const deleteCategoryOfferBtns = document.querySelectorAll('.delete-category-offer-btn');
 
     deleteCategoryOfferBtns.forEach(deleteCategoryOfferBtn => {
@@ -390,6 +481,21 @@
         event.preventDefault();
 
         const categoryOfferId = this.getAttribute('data-category-offer-id');
+
+        // Show confirmation dialog
+        const result = await Swal.fire({
+          title: 'Are you sure?',
+          text: 'You will not be able to recover this category offer!',
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonColor: '#d33',
+          cancelButtonColor: '#3085d6',
+          confirmButtonText: 'Yes, delete it!'
+        });
+
+        if (!result.isConfirmed) {
+          return;
+        }
 
         try {
           const response = await fetch(`/delete-category-offer/${categoryOfferId}`, {
@@ -401,10 +507,10 @@
           if (response.ok) {
             Swal.fire({
               icon: 'success',
-              title: 'Success',
-              text: 'Category offer deleted successfully'
+              title: 'Deleted!',
+              text: 'Category offer has been deleted successfully'
             });
-            this.parentElement.remove();
+            this.closest('.offer-box').remove();
           } else {
             Swal.fire({
               icon: 'error',

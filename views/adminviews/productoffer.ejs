@@ -88,6 +88,7 @@
               data-bs-target="#editOfferModal"
               data-offer-id="<%= offer._id %>"
               data-product-id="<%= offer.product._id %>"
+              data-product-name="<%= offer.product.name %>"
               data-discount-percentage="<%= offer.discountPercentage %>"
               data-start-date="<%= offer.startDate %>"
               data-expiry-date="<%= offer.expiryDate %>">Edit</button>
@@ -128,7 +129,7 @@
         <div class="mb-3">
           <label for="editProductDropdown" class="form-label">Select Product</label>
           <select class="form-select" id="editProductDropdown">
-            <option value="" selected disabled>Select a product</option>
+            <option value="" disabled>Select a product</option>
             <% products.forEach(product => { %>
               <option value="<%= product._id %>"><%= product.name %></option>
             <% }); %>
@@ -160,6 +161,35 @@
 
 <script>
   document.addEventListener('DOMContentLoaded', function () {
+    // Function to reset form fields
+    function resetAddOfferForm() {
+      document.getElementById('productDropdown').value = '';
+      document.getElementById('offerPercentage').value = '';
+      document.getElementById('startDate').value = '';
+      document.getElementById('endDate').value = '';
+    }
+
+    function resetEditOfferForm() {
+      document.getElementById('editOfferId').value = '';
+      document.getElementById('editProductDropdown').value = '';
+      document.getElementById('editOfferPercentage').value = '';
+      document.getElementById('editStartDate').value = '';
+      document.getElementById('editEndDate').value = '';
+    }
+
+    // Reset forms when modals are hidden
+    const addProductOfferModal = document.getElementById('addProductOfferModal');
+    const editOfferModal = document.getElementById('editOfferModal');
+
+    addProductOfferModal.addEventListener('hidden.bs.modal', function () {
+      resetAddOfferForm();
+    });
+
+    editOfferModal.addEventListener('hidden.bs.modal', function () {
+      resetEditOfferForm();
+    });
+
+    // Add Product Offer functionality
     const submitOfferBtn = document.getElementById('submitOfferBtn');
 
     submitOfferBtn.addEventListener('click', async function () {
@@ -188,7 +218,12 @@
         return;
       }
 
-      if (startDate.value === "") {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const selectedStartDate = new Date(startDate.value);
+      const selectedEndDate = new Date(endDate.value);
+
+      if (!startDate.value) {
         Swal.fire({
           icon: 'error',
           title: 'Missing Start Date',
@@ -197,11 +232,29 @@
         return;
       }
 
-      if (endDate.value === "") {
+      if (!endDate.value) {
         Swal.fire({
           icon: 'error',
           title: 'Missing End Date',
           text: 'Please select an end date'
+        });
+        return;
+      }
+
+      if (selectedStartDate < today) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Invalid Start Date',
+          text: 'Start date cannot be in the past'
+        });
+        return;
+      }
+
+      if (selectedEndDate <= selectedStartDate) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Invalid End Date',
+          text: 'End date must be after the start date'
         });
         return;
       }
@@ -230,9 +283,11 @@
             title: 'Success',
             text: 'Product offer added successfully'
           });
-          const modal = new bootstrap.Modal(document.getElementById('addProductOfferModal'));
+          const modal = bootstrap.Modal.getInstance(addProductOfferModal);
           modal.hide();
-          window.location.reload();
+          setTimeout(() => {
+            window.location.reload();
+          }, 1500);
         } else {
           Swal.fire({
             icon: 'error',
@@ -249,11 +304,8 @@
         });
       }
     });
-  });
-</script>
 
-<script>
-  document.addEventListener('DOMContentLoaded', function () {
+    // Edit Product Offer functionality
     const editOfferBtns = document.querySelectorAll('.edit-offer-btn');
 
     editOfferBtns.forEach(editOfferBtn => {
@@ -272,9 +324,6 @@
         document.getElementById('editOfferPercentage').value = discountPercentage;
         document.getElementById('editStartDate').value = formatDateForInput(startDate);
         document.getElementById('editEndDate').value = formatDateForInput(expiryDate);
-
-        const editOfferModal = new bootstrap.Modal(document.getElementById('editOfferModal'));
-        editOfferModal.show();
       });
     });
 
@@ -283,11 +332,8 @@
       if (isNaN(date.getTime())) return '';
       return date.toISOString().split('T')[0];
     }
-  });
-</script>
 
-<script>
-  document.addEventListener('DOMContentLoaded', function () {
+    // Update Product Offer functionality
     const updateOfferBtn = document.getElementById('updateOfferBtn');
 
     updateOfferBtn.addEventListener('click', async function () {
@@ -317,7 +363,12 @@
         return;
       }
 
-      if (editStartDate.value === "") {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const selectedStartDate = new Date(editStartDate.value);
+      const selectedEndDate = new Date(editEndDate.value);
+
+      if (!editStartDate.value) {
         Swal.fire({
           icon: 'error',
           title: 'Missing Start Date',
@@ -326,11 +377,29 @@
         return;
       }
 
-      if (editEndDate.value === "") {
+      if (!editEndDate.value) {
         Swal.fire({
           icon: 'error',
           title: 'Missing End Date',
           text: 'Please select an end date'
+        });
+        return;
+      }
+
+      if (selectedStartDate < today) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Invalid Start Date',
+          text: 'Start date cannot be in the past'
+        });
+        return;
+      }
+
+      if (selectedEndDate <= selectedStartDate) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Invalid End Date',
+          text: 'End date must be after the start date'
         });
         return;
       }
@@ -360,9 +429,11 @@
             title: 'Success',
             text: 'Product offer updated successfully'
           });
-          const editOfferModal = new bootstrap.Modal(document.getElementById('editOfferModal'));
-          editOfferModal.hide();
-          window.location.reload();
+          const modal = bootstrap.Modal.getInstance(editOfferModal);
+          modal.hide();
+          setTimeout(() => {
+            window.location.reload();
+          }, 1500);
         } else {
           Swal.fire({
             icon: 'error',
@@ -379,11 +450,8 @@
         });
       }
     });
-  });
-</script>
 
-<script>
-  document.addEventListener('DOMContentLoaded', function () {
+    // Delete Product Offer functionality
     const deleteOfferBtns = document.querySelectorAll('.delete-offer-btn');
 
     deleteOfferBtns.forEach(deleteOfferBtn => {
@@ -391,6 +459,21 @@
         event.preventDefault();
 
         const offerId = this.getAttribute('data-offer-id');
+
+        // Show confirmation dialog
+        const result = await Swal.fire({
+          title: 'Are you sure?',
+          text: 'You will not be able to recover this product offer!',
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonColor: '#d33',
+          cancelButtonColor: '#3085d6',
+          confirmButtonText: 'Yes, delete it!'
+        });
+
+        if (!result.isConfirmed) {
+          return;
+        }
 
         try {
           const response = await fetch(`/delete-product-offer/${offerId}`, {
@@ -402,10 +485,10 @@
           if (response.ok) {
             Swal.fire({
               icon: 'success',
-              title: 'Success',
-              text: 'Product offer deleted successfully'
+              title: 'Deleted!',
+              text: 'Product offer has been deleted successfully'
             });
-            this.parentElement.remove();
+            this.closest('.offer-box').remove();
           } else {
             Swal.fire({
               icon: 'error',
