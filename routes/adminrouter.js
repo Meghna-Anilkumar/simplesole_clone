@@ -59,9 +59,9 @@ router.post('/delete-product-offer/:id', productoffercontroller.deleteproductoff
 
 //category offers
 router.get('/categoryoffer', categoryoffercontroller.getcategoryofferspage)
-router.post('/save-category-offer', categoryoffercontroller.savecategoryoffer)
-router.post('/update-category-offer/:id', categoryoffercontroller.editcategoryoffer)
-router.post('/delete-category-offer/:id', categoryoffercontroller.deletecategoryoffer)
+router.post('/save-category-offer', categoryoffercontroller.saveCategoryOffer)
+router.post('/update-category-offer/:id', categoryoffercontroller.updateCategoryOffer)
+router.post('/delete-category-offer/:id', categoryoffercontroller.deleteCategoryOffer)
 
 
 //sales report

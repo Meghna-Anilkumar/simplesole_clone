@@ -12,6 +12,9 @@ require("dotenv").config();
 const PDFDocument = require("pdfkit");
 const Wishlist = require("../models/wishlist");
 const placeOrderHelper = require("../utils/placeorderhelper");
+const ProductOffer = require('../models/productoffermodel');
+const CategoryOffer = require('../models/categoryoffer');
+const { calculateTotalPrice } = require('../utils/cartfunctions');
 
 const instance = new Razorpay({
   key_id: process.env.key_id,
@@ -29,11 +32,31 @@ module.exports = {
       const cart = await Cart.findOne({ user })
         .populate("items.product")
         .exec();
-      const wishlist = await Wishlist.findOne({ user }).populate(
-        "items.product"
-      );
+      const wishlist = await Wishlist.findOne({ user }).populate("items.product");
       const discount = req.session.discount || 0;
-      req.session.totalpay = cart.total;
+
+      if (cart) {
+        const productOffers = await ProductOffer.find({
+          startDate: { $lte: new Date() },
+          expiryDate: { $gte: new Date() },
+        });
+        const categoryOffers = await CategoryOffer.find({
+          startDate: { $lte: new Date() },
+          expiryDate: { $gte: new Date() },
+        });
+        const totalPrice = await calculateTotalPrice(cart.items, productOffers, categoryOffers);
+        cart.total = totalPrice;
+        // Reset newTotal unless a coupon is actively applied
+        if (!req.session.couponCode) {
+          cart.newTotal = totalPrice;
+          cart.couponApplied = null;
+          await cart.save();
+        }
+        console.log('Checkout cart state:', { total: cart.total, newTotal: cart.newTotal, couponApplied: cart.couponApplied });
+      }
+
+      req.session.totalpay = cart ? (cart.newTotal || cart.total) : 0;
+
       res.render("userviews/checkout", {
         title: "Checkout Page",
         category: categories,
@@ -45,9 +68,7 @@ module.exports = {
       });
     } catch (error) {
       console.error("Error in checkoutpage:", error);
-      res
-        .status(500)
-        .render("userviews/error", { error: "Internal Server Error" });
+      res.status(500).render("userviews/error", { error: "Internal Server Error" });
     }
   },
 
@@ -55,7 +76,7 @@ module.exports = {
     try {
       const { paymentMethod, appliedCouponCode, selectedAddress } = req.body;
       const userId = req.session.user._id;
-      req.session.coupon = appliedCouponCode;
+      req.session.couponCode = appliedCouponCode;
       const user = await User.findById(userId);
       const cart = await Cart.findOne({ user: userId })
         .populate("items.product")
@@ -64,9 +85,7 @@ module.exports = {
       if (!cart || !cart.items.length) {
         const categories = await Category.find();
         const addresses = await Address.find({ user: userId });
-        const wishlist = await Wishlist.findOne({ user: userId }).populate(
-          "items.product"
-        );
+        const wishlist = await Wishlist.findOne({ user: userId }).populate("items.product");
         return res.render("userviews/checkout", {
           title: "Checkout Page",
           wishlist,
@@ -80,9 +99,7 @@ module.exports = {
       if (!selectedAddress) {
         const categories = await Category.find();
         const addresses = await Address.find({ user: userId });
-        const wishlist = await Wishlist.findOne({ user: userId }).populate(
-          "items.product"
-        );
+        const wishlist = await Wishlist.findOne({ user: userId }).populate("items.product");
         return res.render("userviews/checkout", {
           title: "Checkout Page",
           wishlist,
@@ -97,9 +114,7 @@ module.exports = {
       if (!address) {
         const categories = await Category.find();
         const addresses = await Address.find({ user: userId });
-        const wishlist = await Wishlist.findOne({ user: userId }).populate(
-          "items.product"
-        );
+        const wishlist = await Wishlist.findOne({ user: userId }).populate("items.product");
         return res.render("userviews/checkout", {
           title: "Checkout Page",
           wishlist,
@@ -119,9 +134,7 @@ module.exports = {
         if (cart.total > 1000) {
           const categories = await Category.find();
           const addresses = await Address.find({ user: userId });
-          const wishlist = await Wishlist.findOne({ user: userId }).populate(
-            "items.product"
-          );
+          const wishlist = await Wishlist.findOne({ user: userId }).populate("items.product");
           return res.render("userviews/checkout", {
             title: "Checkout Page",
             wishlist,
@@ -132,13 +145,7 @@ module.exports = {
           });
         }
 
-        await placeOrderHelper(
-          user,
-          selectedAddress,
-          paymentMethod,
-          cart,
-          appliedCouponCode
-        );
+        await placeOrderHelper(user, selectedAddress, paymentMethod, cart, appliedCouponCode);
         return res.render("userviews/successpage");
       } else if (paymentMethod === "WALLET") {
         const userWallet = await Wallet.findOne({ user: userId });
@@ -146,9 +153,7 @@ module.exports = {
         if (!userWallet || userWallet.balance < totalAmount) {
           const categories = await Category.find();
           const addresses = await Address.find({ user: userId });
-          const wishlist = await Wishlist.findOne({ user: userId }).populate(
-            "items.product"
-          );
+          const wishlist = await Wishlist.findOne({ user: userId }).populate("items.product");
           return res.render("userviews/checkout", {
             title: "Checkout Page",
             wishlist,
@@ -161,13 +166,7 @@ module.exports = {
 
         userWallet.balance -= totalAmount;
         await userWallet.save();
-        await placeOrderHelper(
-          user,
-          selectedAddress,
-          paymentMethod,
-          cart,
-          appliedCouponCode
-        );
+        await placeOrderHelper(user, selectedAddress, paymentMethod, cart, appliedCouponCode);
         return res.render("userviews/successpage");
       } else {
         return res.status(400).json({ error: "Invalid payment method" });
@@ -177,9 +176,7 @@ module.exports = {
       const userId = req.session.user._id;
       const categories = await Category.find();
       const addresses = await Address.find({ user: userId });
-      const wishlist = await Wishlist.findOne({ user: userId }).populate(
-        "items.product"
-      );
+      const wishlist = await Wishlist.findOne({ user: userId }).populate("items.product");
       const cart = await Cart.findOne({ user: userId })
         .populate("items.product")
         .exec();
@@ -199,7 +196,7 @@ module.exports = {
     session.startTransaction();
 
     try {
-      const { amount } = req.body; // Amount in rupees
+      const { amount } = req.body;
       const user = req.session.user;
       const cart = await Cart.findOne({ user })
         .populate("items.product")
@@ -211,7 +208,33 @@ module.exports = {
         return res.status(400).json({ success: false, error: "Cart is empty" });
       }
 
-      // Check stock availability and reservation expiry
+      const productOffers = await ProductOffer.find({
+        startDate: { $lte: new Date() },
+        expiryDate: { $gte: new Date() },
+      }).session(session);
+      const categoryOffers = await CategoryOffer.find({
+        startDate: { $lte: new Date() },
+        expiryDate: { $gte: new Date() },
+      }).session(session);
+      const calculatedTotal = await calculateTotalPrice(cart.items, productOffers, categoryOffers);
+
+      const expectedAmount = cart.newTotal || calculatedTotal;
+      console.log('Razorpay order validation:', {
+        providedAmount: amount,
+        expectedAmount,
+        cartTotal: cart.total,
+        cartNewTotal: cart.newTotal,
+      });
+
+      if (Math.abs(parseFloat(amount) - expectedAmount) > 0.01) {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(400).json({
+          success: false,
+          error: `Provided amount (₹${amount}) does not match cart total (₹${expectedAmount})`,
+        });
+      }
+
       for (const item of cart.items) {
         const product = item.product;
         if (!product) {
@@ -220,21 +243,16 @@ module.exports = {
           return res.status(404).json({ error: "Product not found" });
         }
 
-        // Check if reservation has expired (10 minutes)
         if (item.reservedAt < new Date(Date.now() - 10 * 60 * 1000)) {
-          // Release expired reservation
           await Product.findByIdAndUpdate(
             item.product._id,
             { $inc: { reserved: -item.quantity, version: 1 } },
             { session }
           );
-
-          // Remove expired item from cart
           cart.items = cart.items.filter(
             (i) => i.product._id.toString() !== item.product._id.toString()
           );
           await cart.save({ session });
-
           await session.commitTransaction();
           session.endSession();
           return res.status(400).json({
@@ -243,40 +261,29 @@ module.exports = {
           });
         }
 
-        // For items in cart, check if they can still be fulfilled
-        const availableStock =
-          product.stock - (product.reserved - item.quantity);
-
+        const availableStock = product.stock - (product.reserved - item.quantity);
         if (availableStock < item.quantity) {
           await session.abortTransaction();
           session.endSession();
           return res.status(400).json({
             success: false,
-            error: `Insufficient stock for ${
-              product.name
-            }. Only ${availableStock} item${
-              availableStock !== 1 ? "s" : ""
-            } available.`,
+            error: `Insufficient stock for ${product.name}. Only ${availableStock} item${availableStock !== 1 ? 's' : ''} available.`,
           });
         }
 
-        // Additional check: ensure the product actually has enough total stock
         if (product.stock < item.quantity) {
           await session.abortTransaction();
           session.endSession();
           return res.status(400).json({
             success: false,
-            error: `Insufficient stock for ${product.name}. Only ${
-              product.stock
-            } item${product.stock !== 1 ? "s" : ""} in stock.`,
+            error: `Insufficient stock for ${product.name}. Only ${product.stock} item${product.stock !== 1 ? 's' : ''} in stock.`,
           });
         }
       }
 
       const amountInPaise = Math.floor(parseFloat(amount) * 100);
-      // If we reach here, all items are valid and available
       const razorpayOptions = {
-        amount: amountInPaise, // Amount in paise
+        amount: amountInPaise,
         currency: "INR",
         receipt: `order_rcpt_${Math.random().toString(36).substring(7)}`,
         notes: {
@@ -302,7 +309,7 @@ module.exports = {
       res.json({
         success: true,
         orderId: razorpayOrder.id,
-        amount: razorpayOrder.amount, // Amount in paise
+        amount: razorpayOrder.amount,
         currency: razorpayOrder.currency,
       });
     } catch (error) {
@@ -340,7 +347,6 @@ module.exports = {
         return res.status(400).json({ success: false, error: "Cart is empty" });
       }
 
-      // Verify Razorpay signature
       const generatedSignature = crypto
         .createHmac("sha256", process.env.key_secret)
         .update(order_id + "|" + payment_id)
@@ -349,16 +355,11 @@ module.exports = {
       if (generatedSignature !== signature) {
         await session.abortTransaction();
         session.endSession();
-        return res
-          .status(400)
-          .json({ success: false, error: "Invalid payment signature" });
+        return res.status(400).json({ success: false, error: "Invalid payment signature" });
       }
 
-      // Calculate total amount (accounting for discounts if applied)
-      const totalAmount =
-        appliedCouponCode && cart.newTotal ? cart.newTotal : cart.total;
+      const totalAmount = cart.newTotal || cart.total;
 
-      // Create order
       const orderItems = cart.items.map((item) => ({
         product: item.product._id,
         quantity: item.quantity,
@@ -368,12 +369,11 @@ module.exports = {
       const order = new Order({
         user: user._id,
         items: orderItems,
-        totalAmount: totalAmount, // Fix: Use 'totalAmount' and calculated value
+        totalAmount: totalAmount,
         shippingAddress: selectedAddress,
         paymentMethod,
         couponCode: appliedCouponCode || null,
-        discountAmount:
-          appliedCouponCode && cart.newTotal ? cart.total - cart.newTotal : 0, // Set discountAmount
+        discountAmount: cart.couponApplied ? cart.total - cart.newTotal : 0,
         status: "Pending",
         paymentStatus: "Completed",
       });
@@ -405,7 +405,8 @@ module.exports = {
 
       cart.items = [];
       cart.total = 0;
-      cart.newTotal = 0; // Reset newTotal if used
+      cart.newTotal = 0;
+      cart.couponApplied = null;
       await cart.save({ session });
 
       await session.commitTransaction();
@@ -416,9 +417,7 @@ module.exports = {
       await session.abortTransaction();
       session.endSession();
       console.error("Error processing payment:", error);
-      res
-        .status(500)
-        .json({ success: false, error: "Failed to process payment" });
+      res.status(500).json({ success: false, error: "Failed to process payment" });
     }
   },
 
@@ -441,9 +440,7 @@ module.exports = {
 
       for (const item of cart.items) {
         if (productIds.includes(item.product._id.toString())) {
-          const product = await Product.findById(item.product._id).session(
-            session
-          );
+          const product = await Product.findById(item.product._id).session(session);
           if (product.reserved >= item.quantity) {
             await Product.findByIdAndUpdate(
               item.product._id,
@@ -457,7 +454,22 @@ module.exports = {
         }
       }
 
+      const totalPrice = await calculateTotalPrice(cart.items, await ProductOffer.find({
+        startDate: { $lte: new Date() },
+        expiryDate: { $gte: new Date() },
+      }), await CategoryOffer.find({
+        startDate: { $lte: new Date() },
+        expiryDate: { $gte: new Date() },
+      }));
+      cart.total = totalPrice;
+      if (!req.session.couponCode) {
+        cart.newTotal = totalPrice;
+        cart.couponApplied = null;
+      }
       await cart.save({ session });
+
+      console.log('Cart updated (paymentFailure):', { total: cart.total, newTotal: cart.newTotal });
+
       await session.commitTransaction();
       session.endSession();
 
@@ -497,9 +509,7 @@ module.exports = {
       const cleanedOrders = orders.map((order) => {
         const validItems = order.items.filter((item) => {
           if (!item.product) {
-            console.warn(
-              `Found null product in order ${order._id}, item will be filtered out`
-            );
+            console.warn(`Found null product in order ${order._id}, item will be filtered out`);
             return false;
           }
           return true;
@@ -510,9 +520,7 @@ module.exports = {
       const totalPages = Math.ceil(totalOrders / limit);
 
       const categories = await Category.find();
-      const wishlist = await Wishlist.findOne({ user }).populate(
-        "items.product"
-      );
+      const wishlist = await Wishlist.findOne({ user }).populate("items.product");
       const cart = await Cart.findOne({ user })
         .populate("items.product")
         .exec();
@@ -542,9 +550,7 @@ module.exports = {
         .populate("items.product")
         .populate("shippingAddress")
         .exec();
-      const wishlist = await Wishlist.findOne({ user }).populate(
-        "items.product"
-      );
+      const wishlist = await Wishlist.findOne({ user }).populate("items.product");
       const cart = await Cart.findOne({ user })
         .populate("items.product")
         .exec();
@@ -585,9 +591,7 @@ module.exports = {
       if (order.orderStatus !== "CANCELLED") {
         await Promise.all(
           order.items.map(async (item) => {
-            const product = await Product.findById(item.product._id).session(
-              session
-            );
+            const product = await Product.findById(item.product._id).session(session);
             if (product) {
               product.stock += item.quantity;
               product.version += 1;
@@ -601,9 +605,7 @@ module.exports = {
           order.paymentMethod === "WALLET" ||
           order.paymentMethod === "RAZORPAY"
         ) {
-          const userWallet = await Wallet.findOne({ user: order.user }).session(
-            session
-          );
+          const userWallet = await Wallet.findOne({ user: order.user }).session(session);
           if (userWallet) {
             userWallet.balance += order.totalAmount;
             await userWallet.save({ session });
@@ -664,9 +666,7 @@ module.exports = {
           const cancelledItemTotal = item.product.price * item.quantity;
           order.totalAmount -= cancelledItemTotal;
 
-          const product = await Product.findById(item.product._id).session(
-            session
-          );
+          const product = await Product.findById(item.product._id).session(session);
           if (product) {
             product.stock += item.quantity;
             product.version += 1;
@@ -736,9 +736,7 @@ module.exports = {
       const category = await Category.find();
       const walletBalance = wallet.balance;
       const walletHistory = await Order.find({ user }).sort({ orderdate: -1 });
-      const wishlist = await Wishlist.findOne({ user }).populate(
-        "items.product"
-      );
+      const wishlist = await Wishlist.findOne({ user }).populate("items.product");
       const cart = await Cart.findOne({ user })
         .populate("items.product")
         .exec();

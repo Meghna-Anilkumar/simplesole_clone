@@ -1,115 +1,88 @@
 <%- include('./header', { title: 'Product Details', category: category, selectedCategory: selectedCategory }) %>
 
 <style>
+  /* Existing styles unchanged */
   #navbar {
     padding-right: 50px;
     background-color: black;
   }
-
   .nav-link:not(:last-child) {
     color: white;
     margin-right: 10px;
   }
-
-  #signupbody {
+  #signupbody, #loginbody {
     padding-top: 50px;
     background-image: url(/images/wallpaper.jpg);
     background-size: cover;
     background-position: center;
     width: 100%;
   }
-
-  #loginbody {
-    padding-top: 50px;
-    background-image: url(/images/wallpaper.jpg);
-    background-size: cover;
-    background-position: center;
-    width: 100%;
-  }
-
   .nav-link {
     color: white;
   }
-
   #logo {
     height: 80px;
   }
-
   img {
     max-width: 70%;
   }
-
   .preview {
     display: flex;
     flex-direction: column;
   }
-
   @media screen and (max-width: 996px) {
     .preview {
       margin-bottom: 20px;
     }
   }
-
   .preview-pic {
     flex-grow: 1;
   }
-
   .preview-thumbnail.nav-tabs {
     border: none;
     margin-top: 15px;
   }
-
   .preview-thumbnail.nav-tabs li {
     width: 18%;
     margin-right: 2.5%;
   }
-
   .preview-thumbnail.nav-tabs li img {
     max-width: 100%;
     display: block;
   }
-
   .preview-thumbnail.nav-tabs li a {
     padding: 0;
     margin: 0;
   }
-
   .preview-thumbnail.nav-tabs li:last-of-type {
     margin-right: 0;
   }
-
   .tab-content {
     overflow: hidden;
   }
-
   .tab-content img {
     width: 100%;
     animation-name: opacity;
     animation-duration: .3s;
   }
-
   .card {
     margin-top: 50px;
     background: #eee;
     padding: 3em;
     line-height: 1.5em;
   }
-
   @media screen and (min-width: 997px) {
     .wrapper {
       display: flex;
     }
   }
-
   .details {
     display: flex;
     flex-direction: column;
   }
-
   .colors {
     flex-grow: 1;
   }
-
   .product-title,
   .price,
   .sizes,
@@ -117,12 +90,10 @@
     text-transform: uppercase;
     font-weight: bold;
   }
-
   .checked,
   .price span {
     color: rgb(255, 63, 108);
   }
-
   .product-title,
   .rating,
   .product-description,
@@ -131,19 +102,15 @@
   .sizes {
     margin-bottom: 15px;
   }
-
   .product-title {
     margin-top: 0;
   }
-
   .size {
     margin-right: 10px;
   }
-
   .size:first-of-type {
     margin-left: 40px;
   }
-
   .color {
     display: inline-block;
     vertical-align: middle;
@@ -152,11 +119,9 @@
     width: 2em;
     border-radius: 2px;
   }
-
   .color:first-of-type {
     margin-left: 20px;
   }
-
   .add-to-cart,
   .like {
     background: rgb(255, 63, 108);
@@ -168,88 +133,72 @@
     transition: background .3s ease;
     margin-right: 10px;
   }
-
   .add-to-cart:hover,
   .like:hover {
     background: rgb(255, 63, 108);
     color: #fff;
   }
-
   .not-available {
     text-align: center;
     line-height: 2em;
   }
-
   .not-available:before {
     content: "\f00d";
     color: #fff;
   }
-
   .tooltip-inner {
     padding: 1.3em;
   }
-
   .contant {
     margin-top: 7rem;
   }
-
   .out-of-stock {
     color: red;
     font-weight: bold;
     margin-bottom: 10px;
   }
-
   .alert {
     margin-top: 15px;
     padding: 10px;
     border-radius: 5px;
     display: none;
   }
-
   .alert.show {
     display: block;
   }
-
   .alert-danger {
     background-color: #f8d7da;
     border-color: #f5c6cb;
     color: #721c24;
   }
-
   .quantity-input {
     margin-left: 10px;
     padding: 5px;
     width: 80px;
   }
-
   .action {
     margin-top: 20px;
   }
-
   .wishlisted {
     background-color: #dc3545 !important;
   }
-
   .similar-products {
     margin-top: 40px;
     padding: 20px;
     background: #f9f9f9;
     border-radius: 8px;
   }
-
   .similar-products h3 {
     font-size: 1.8rem;
     margin-bottom: 20px;
     text-align: center;
     color: #333;
   }
-
   .similar-products-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 20px;
   }
-
   .similar-product-card {
     background: #fff;
     border: 1px solid #ddd;
@@ -258,45 +207,33 @@
     text-align: center;
     transition: transform 0.2s;
   }
-
   .similar-product-card:hover {
     transform: translateY(-5px);
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   }
-
   .similar-product-card img {
     max-width: 100%;
     height: 150px;
     object-fit: cover;
     border-radius: 4px;
   }
-
   .similar-product-card h4 {
     font-size: 1.2rem;
     margin: 10px 0;
     color: #333;
   }
-
   .similar-product-card p {
     font-size: 1rem;
     color: rgb(255, 63, 108);
     margin: 5px 0;
   }
-
   .similar-product-card a {
     text-decoration: none;
     color: inherit;
   }
-
   @keyframes opacity {
-    0% {
-      opacity: 0;
-      transform: scale(3);
-    }
-    100% {
-      opacity: 1;
-      transform: scale(1);
-    }
+    0% { opacity: 0; transform: scale(3); }
+    100% { opacity: 1; transform: scale(1); }
   }
 </style>
 
@@ -346,17 +283,29 @@
           <p class="product-description"><%= product.description %></p>
 
           <!-- Price Display with Offers -->
+          <% let displayPrice = product.price; %>
+          <% let offerDescription = ''; %>
           <% if (productOffers.length > 0) { %>
-            <% productOffers.forEach(offer => { %>
-              <h4 class="price">Price: <span style="text-decoration: line-through;">&#8377;<%= product.price %></span> &#8377;<%= offer.newPrice %></h4>
-              <div class="offer-details">
-                <p>Offer: Flat <%= offer.discountPercentage %>% discount</p>
-              </div>
-            <% }); %>
+            <% const activeOffer = productOffers.find(offer => new Date() >= offer.startDate && new Date() <= offer.expiryDate); %>
+            <% if (activeOffer) { %>
+              <% displayPrice = activeOffer.newPrice; %>
+              <% offerDescription = `Flat ${activeOffer.discountPercentage}% discount`; %>
+            <% } %>
           <% } else if (product.categoryofferprice && product.categoryofferprice < product.price) { %>
-            <h4 class="price">Price: <span style="text-decoration: line-through;">&#8377;<%= product.price %></span> &#8377;<%= product.categoryofferprice %></h4>
-          <% } else { %>
-            <h4 class="price">Price: &#8377;<%= product.price %></h4>
+            <% displayPrice = product.categoryofferprice; %>
+            <% offerDescription = 'Category offer applied'; %>
+          <% } %>
+          <h4 class="price">
+            Price: 
+            <% if (displayPrice < product.price) { %>
+              <span style="text-decoration: line-through;">₹<%= product.price %></span> 
+            <% } %>
+            ₹<%= displayPrice.toFixed(2) %>
+          </h4>
+          <% if (offerDescription) { %>
+            <div class="offer-details">
+              <p><%= offerDescription %></p>
+            </div>
           <% } %>
 
           <!-- Sizes -->
@@ -421,16 +370,26 @@
               <img src="<%= similarProduct.images[0] %>" alt="<%= similarProduct.name %>">
               <h4><%= similarProduct.name %></h4>
               <% 
-                // Check for product-specific offer
-                let displayPrice = similarProduct.price;
-                const similarProductOffer = productOffers.find(offer => offer.product.toString() === similarProduct._id.toString());
+                let similarDisplayPrice = similarProduct.price;
+                let similarOfferDescription = '';
+                const similarProductOffer = productOffers.find(offer => offer.product.toString() === similarProduct._id.toString() && new Date() >= offer.startDate && new Date() <= offer.expiryDate);
                 if (similarProductOffer) {
-                  displayPrice = similarProductOffer.newPrice;
+                  similarDisplayPrice = similarProductOffer.newPrice;
+                  similarOfferDescription = `Flat ${similarProductOffer.discountPercentage}% discount`;
                 } else if (similarProduct.categoryofferprice && similarProduct.categoryofferprice < similarProduct.price) {
-                  displayPrice = similarProduct.categoryofferprice;
+                  similarDisplayPrice = similarProduct.categoryofferprice;
+                  similarOfferDescription = 'Category offer applied';
                 }
               %>
-              <p>&#8377;<%= displayPrice %></p>
+              <p>
+                <% if (similarDisplayPrice < similarProduct.price) { %>
+                  <span style="text-decoration: line-through;">₹<%= similarProduct.price %></span>
+                <% } %>
+                ₹<%= similarDisplayPrice.toFixed(2) %>
+              </p>
+              <% if (similarOfferDescription) { %>
+                <p><%= similarOfferDescription %></p>
+              <% } %>
             </div>
           </a>
         <% }); %>

@@ -10,16 +10,24 @@ const Address = require('../models/address')
 
 module.exports = {
     checkoutpage: async (req, res) => {
-        const user = req.session.user
-        const order=await Order.find()
-        const coupon=await Coupon.find()
-        const categories = await Category.find();
-        const addresses = await Address.find({ user: user });
-        const cart = await Cart.findOne({ user }).populate('items.product').exec();
-        var wishlist = await Wishlist.findOne({ user });
-        const discount = req.session.discount || 0;
-        req.session.totalpay=cart.total
-        res.render('userviews/checkout', { title: 'checkout page', category: categories, cart, addresses: addresses ,order,wishlist,discount})
-    },
-
+  const user = req.session.user;
+  const order = await Order.find();
+  const coupon = await Coupon.find();
+  const categories = await Category.find();
+  const addresses = await Address.find({ user: user });
+  const cart = await Cart.findOne({ user }).populate('items.product').exec();
+  const wishlist = await Wishlist.findOne({ user }).populate('items.product');
+  const discount = req.session.discount || 0;
+  // Use cart.newTotal if available, else cart.total
+  req.session.totalpay = cart.newTotal || cart.total;
+  res.render('userviews/checkout', {
+    title: 'Checkout Page',
+    category: categories,
+    cart,
+    addresses,
+    order,
+    wishlist,
+    discount,
+  });
+},
 }

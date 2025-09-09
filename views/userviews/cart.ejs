@@ -7,12 +7,10 @@
     font-size: 0.9rem;
     font-weight: 600;
   }
-
   .container {
-    padding-top: 100px; /* Prevent overlap with fixed navbar */
+    padding-top: 100px;
     padding-bottom: 2rem;
   }
-
   .card {
     margin: 2rem auto;
     max-width: 1000px;
@@ -21,47 +19,39 @@
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     overflow: hidden;
   }
-
   .cart {
     padding: 2rem;
     border-radius: 12px 0 0 12px;
     background: #fff;
   }
-
   .summary {
     background: #e8ecef;
     padding: 2rem;
     border-radius: 0 12px 12px 0;
     color: #333;
   }
-
   .title {
     margin-bottom: 2rem;
   }
-
   .title h4 {
     color: rgb(255, 63, 108);
     font-size: 1.5rem;
     font-weight: 700;
   }
-
   .row {
     margin: 0;
   }
-
   .main {
     padding: 1.5rem 0;
     align-items: center;
     border-bottom: 1px solid #eee;
   }
-
   .cart-item img {
     width: 120px;
     height: 120px;
     object-fit: cover;
     border-radius: 8px;
   }
-
   .quantity-button {
     background: #f5f5f5;
     border: 1px solid #ddd;
@@ -70,18 +60,15 @@
     border-radius: 4px;
     transition: background 0.3s ease;
   }
-
   .quantity-button:hover {
     background: rgb(255, 63, 108);
     color: white;
     border-color: rgb(255, 63, 108);
   }
-
   .quantity {
     padding: 0 1rem;
     font-size: 1rem;
   }
-
   .remove-button {
     background: none;
     border: none;
@@ -90,25 +77,20 @@
     cursor: pointer;
     transition: color 0.3s ease;
   }
-
   .remove-button:hover {
     color: rgb(255, 63, 108);
   }
-
   .text-muted {
     color: #666 !important;
   }
-
   .summary h5 {
     font-size: 1.25rem;
     font-weight: 600;
     margin-bottom: 1.5rem;
   }
-
   .summary .row {
     margin-bottom: 1rem;
   }
-
   .btn {
     background: #000;
     color: white;
@@ -118,18 +100,15 @@
     border-radius: 6px;
     transition: background 0.3s ease, transform 0.2s ease;
   }
-
   .btn:hover {
     background: rgb(255, 63, 108);
     color: white;
     transform: translateY(-2px);
   }
-
   .btn:disabled {
     background: #ccc;
     cursor: not-allowed;
   }
-
   .empty-cart {
     display: flex;
     flex-direction: column;
@@ -137,78 +116,67 @@
     justify-content: center;
     height: 300px;
   }
-
   .empty-cart img {
     width: 100%;
     max-width: 300px;
     height: auto;
     margin-bottom: 1rem;
   }
-
   .back-to-shop a {
     color: rgb(255, 63, 108);
     font-weight: 600;
     text-decoration: none;
     transition: color 0.3s ease;
   }
-
   .back-to-shop a:hover {
     color: #000;
   }
-
   .stock-message {
     color: rgb(200, 0, 255);
     font-size: 0.85rem;
     display: none;
   }
-
   .stock-message.show {
     display: block;
   }
-
+  .offer-details {
+    font-size: 0.85rem;
+    color: #666;
+  }
   @media (max-width: 767px) {
     .card {
       margin: 1rem;
     }
-
     .cart {
       border-radius: 12px 12px 0 0;
       padding: 1.5rem;
     }
-
     .summary {
       border-radius: 0 0 12px 12px;
       padding: 1.5rem;
     }
-
     .cart-item img {
       width: 100px;
       height: 100px;
     }
-
     .title h4 {
       font-size: 1.25rem;
     }
-
     .summary h5 {
       font-size: 1.1rem;
     }
   }
-
   @media (max-width: 576px) {
     .container {
       padding-top: 90px;
     }
-
     .cart-item img {
       width: 80px;
       height: 80px;
     }
-
     .quantity-button {
       padding: 0.3rem 0.8rem;
     }
-
     .quantity {
       font-size: 0.9rem;
     }
@@ -239,6 +207,19 @@
               </div>
               <div class="col">
                 <div class="row text-muted"><%= item.product.name %></div>
+                <% 
+                  let displayPrice = item.product.price;
+                  let offerDescription = '';
+                  const productOffer = productOffers.find(offer => offer.product.toString() === item.product._id.toString() && new Date() >= offer.startDate && new Date() <= offer.expiryDate);
+                  if (productOffer) {
+                    displayPrice = productOffer.newPrice;
+                    offerDescription = `Flat ${productOffer.discountPercentage}% discount`;
+                  } else if (item.product.categoryofferprice && item.product.categoryofferprice < item.product.price) {
+                    displayPrice = item.product.categoryofferprice;
+                    offerDescription = 'Category offer applied';
+                  }
+                %>
+                <div class="row offer-details"><%= offerDescription %></div>
               </div>
               <div class="col">
                 <div>
@@ -253,13 +234,9 @@
                 </div>
               </div>
               <div class="col" id="price_<%= item.product._id %>">
-                <% const productOffer = productOffers.find(offer => offer.product.toString() === item.product._id.toString()); %>
-                <% if (productOffer) { %>
-                  ₹<%= productOffer.newPrice %>
-                <% } else if (item.product.categoryofferprice && item.product.categoryofferprice < item.product.price) { %>
-                  ₹<%= item.product.categoryofferprice %>
-                <% } else { %>
-                  ₹<%= item.product.price %>
+                ₹<%= (displayPrice * item.quantity).toFixed(2) %>
+                <% if (displayPrice < item.product.price) { %>
+                  <span style="text-decoration: line-through;">₹<%= (item.product.price * item.quantity).toFixed(2) %></span>
                 <% } %>
                 <button type="button" class="remove-button" onclick="removeItem('<%= item.product._id %>')">X</button>
               </div>
@@ -280,11 +257,11 @@
           <hr>
           <div class="row">
             <div class="col" style="padding-left:0;">PRICE (<%= cart && cart.items ? cart.items.length : 0 %> ITEMS)</div>
-            <div id="totalPrice" class="col text-right">₹<%= data.total %></div>
+            <div id="totalPrice" class="col text-right">₹<%= data.total.toFixed(2) %></div>
           </div>
           <div class="row" style="border-top: 1px solid rgba(0,0,0,.1); padding: 2vh 0;">
             <div class="col">TOTAL PRICE</div>
-            <div class="col text-right">₹<%= data.total %></div>
+            <div class="col text-right">₹<%= data.total.toFixed(2) %></div>
           </div>
           <a id="proceedToCheckoutButton" href='<%= cart && cart.items && cart.items.length > 0 ? "/proceedtocheckout" : "#" %>'>
             <button class="btn" <%= cart && cart.items && cart.items.length === 0 ? 'disabled' : '' %>>PROCEED TO CHECKOUT</button>
@@ -297,7 +274,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@10"></script>
 <script>
- function updateQuantity(productId, change) {
+function updateQuantity(productId, change) {
   const quantityElement = document.getElementById(`quantity_${productId}`);
   const stockMessageElement = document.getElementById(`stock-message_${productId}`);
   const totalPriceElement = document.getElementById('totalPrice');
@@ -357,11 +334,19 @@
 
         // Show or hide stock message
         stockMessageElement.classList.toggle('show', data.quantity >= maxStock);
+
+        // Update individual item price
+        const priceElement = document.getElementById(`price_${productId}`);
+        priceElement.innerHTML = `₹${data.itemPrice.toFixed(2)}`;
       }
     })
     .catch(error => {
-      if (error.message === 'Quantity exceeds available stock') {
+      if (error.message.includes('available in stock')) {
         stockMessageElement.classList.add('show');
+        Swal.fire({
+          icon: 'error',
+          text: error.message,
+        });
       } else {
         Swal.fire({
           icon: 'error',
@@ -371,7 +356,6 @@
     });
   }
 }
-
 
 function removeItem(productId) {
   fetch(`/removeItem/${productId}`, { 

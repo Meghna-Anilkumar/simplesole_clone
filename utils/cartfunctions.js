@@ -1,55 +1,59 @@
-const Category = require('../models/category'); 
+const Category = require('../models/category');
+const Product = require('../models/product');
 
 const calculateTotalPrice = async (items, productOffers, categoryOffers) => {
-    let total = 0;
-    if (!items || !Array.isArray(items)) {
-        console.error('Items array is undefined or not an array:', items);
-        return total;
+  let totalPrice = 0;
+
+  for (const item of items) {
+    // Ensure product is populated and exists
+    if (!item.product || !item.product._id) {
+      console.warn(`Skipping item with missing product: ${JSON.stringify(item)}`);
+      continue;
     }
 
-    for (const item of items) {
-        console.log('item:', item);
-
-        if (item.product) {
-            let itemPrice = item.product.price; 
-
-            if (productOffers && Array.isArray(productOffers)) {
-                // Fetch the offers for the current product
-                const productOffersFiltered = productOffers.filter(offer => offer.product.toString() === item.product._id.toString() &&
-                    new Date() >= offer.startDate && new Date() <= offer.expiryDate);
-
-                if (productOffersFiltered.length > 0) {
-                    const offer = productOffersFiltered[0]; // Assuming there's only one valid offer for simplicity
-                    itemPrice = offer.newPrice;
-                }
-            }
-
-            // Check if categoryOffers is defined
-            if (categoryOffers && Array.isArray(categoryOffers)) {
-                // Fetch the offers for the category of the current product
-                const category = await Category.findById(item.product.category); // Assuming you have a Category model
-                if (category) {
-                    const categoryOffersFiltered = categoryOffers.filter(offer =>
-                        offer.category.toString() === category._id.toString() &&
-                        new Date() >= offer.startDate && new Date() <= offer.expiryDate);
-
-                    if (categoryOffersFiltered.length > 0) {
-                        const offer = categoryOffersFiltered[0]; // Assuming there's only one valid offer for simplicity
-                        itemPrice -= (itemPrice * offer.discountPercentage / 100);
-                    }
-                }
-            }
-
-            total += itemPrice * item.quantity;
-        } else {
-            console.error('Product is undefined for item:', item);
-        }
+    const product = await Product.findById(item.product._id).exec();
+    if (!product) {
+      console.warn(`Product not found for ID: ${item.product._id}`);
+      continue;
     }
 
-    return Number(total.toFixed(2)); // Convert total to number and return
-}
+    console.log('Processing item:', {
+      productId: item.product._id,
+      productName: product.name,
+      quantity: item.quantity,
+      price: item.price,
+    });
 
+    let price = item.price || product.price; // Use stored item.price if available, else product.price
+    const productOffer = productOffers.find((offer) => offer.product.toString() === item.product._id.toString());
+    if (productOffer && productOffer.newPrice < price) {
+      price = productOffer.newPrice;
+      console.log(`Using product offer price for ${product.name}: ₹${price}`);
+    } else if (product.categoryofferprice && product.categoryofferprice < price) {
+      price = product.categoryofferprice;
+      console.log(`Using category offer price for ${product.name}: ₹${price}`);
+    }
+
+    const subtotal = price * item.quantity;
+    if (isNaN(subtotal)) {
+      console.warn(`Invalid subtotal for ${product.name}: price = ₹${price}, quantity = ${item.quantity}`);
+      continue;
+    }
+
+    console.log(`Item ${product.name}: price = ₹${price}, quantity = ${item.quantity}, subtotal = ₹${subtotal}`);
+    totalPrice += subtotal;
+  }
+
+  console.log(`Total price calculated: ₹${totalPrice}`);
+  return totalPrice;
+};
+
+const calculateCategoryOfferPrice = (originalPrice, discountPercentage) => {
+    const discountAmount = (originalPrice * discountPercentage) / 100;
+    return Number((originalPrice - discountAmount).toFixed(2));
+};
 
 module.exports = {
     calculateTotalPrice,
+    calculateCategoryOfferPrice
 };

@@ -29,8 +29,14 @@ module.exports = {
       }
 
       const categories = await Category.find();
-      const productOffers = await ProductOffer.find();
-      const categoryOffers = await CategoryOffer.find();
+      const productOffers = await ProductOffer.find({
+        startDate: { $lte: new Date() },
+        expiryDate: { $gte: new Date() },
+      });
+      const categoryOffers = await CategoryOffer.find({
+        startDate: { $lte: new Date() },
+        expiryDate: { $gte: new Date() },
+      });
       const totalPrice = await calculateTotalPrice(cart.items, productOffers, categoryOffers);
 
       if (isNaN(totalPrice)) {
@@ -39,7 +45,13 @@ module.exports = {
       }
 
       cart.total = totalPrice;
+      // Reset newTotal unless a coupon is actively applied in the session
+      if (!req.session.couponCode) {
+        cart.newTotal = totalPrice;
+      }
       await cart.save();
+
+      console.log('Cart state:', { total: cart.total, newTotal: cart.newTotal });
 
       const data = { total: totalPrice };
       let product;
@@ -82,7 +94,6 @@ module.exports = {
       const requestedQuantity = parseInt(quantity);
       const availableStock = product.stock - product.reserved;
 
-      // Check if product is completely out of stock
       if (availableStock < 1) {
         await session.abortTransaction();
         session.endSession();
@@ -92,7 +103,6 @@ module.exports = {
         });
       }
 
-      // Check if requested quantity exceeds available stock
       if (availableStock < requestedQuantity) {
         await session.abortTransaction();
         session.endSession();
@@ -109,15 +119,13 @@ module.exports = {
         cart = new Cart({ user, items: [] });
       }
 
-      // Check if item already exists in cart
       const existingItem = cart.items.find((item) => item.product.equals(productId));
       if (existingItem) {
-        // Check if adding more quantity would exceed available stock
         const totalQuantityAfterAdd = existingItem.quantity + requestedQuantity;
-        if (totalQuantityAfterAdd > availableStock + existingItem.quantity) {
+        if (totalQuantityAfterAdd > availableStock) {
           await session.abortTransaction();
           session.endSession();
-          const maxAdditional = availableStock;
+          const maxAdditional = availableStock - existingItem.quantity;
           return res.status(400).json({ 
             success: false, 
             error: `You already have ${existingItem.quantity} in cart. You can add maximum ${maxAdditional} more item${maxAdditional !== 1 ? 's' : ''}` 
@@ -132,20 +140,22 @@ module.exports = {
         });
       }
 
-      // Reserve the stock
+      let price = product.price;
+      const productOffers = await ProductOffer.find({
+        product: productId,
+        startDate: { $lte: new Date() },
+        expiryDate: { $gte: new Date() },
+      }).session(session);
+      if (productOffers.length > 0) {
+        price = productOffers[0].newPrice;
+      } else if (product.categoryofferprice && product.categoryofferprice < product.price) {
+        price = product.categoryofferprice;
+      }
+
       product.reserved += requestedQuantity;
       product.version += 1;
       await product.save({ session });
 
-      // Determine the price to use
-      let price = product.price;
-      if (product.categoryofferprice && product.categoryofferprice < product.price) {
-        price = product.categoryofferprice;
-      } else if (product.productOffer && product.productOffer.newPrice < product.price) {
-        price = product.productOffer.newPrice;
-      }
-
-      // Add item to cart
       cart.items.push({
         product: productId,
         quantity: requestedQuantity,
@@ -153,7 +163,19 @@ module.exports = {
         reservedAt: new Date(),
       });
 
+      const totalPrice = await calculateTotalPrice(cart.items, productOffers, await CategoryOffer.find({
+        startDate: { $lte: new Date() },
+        expiryDate: { $gte: new Date() },
+      }));
+      cart.total = totalPrice;
+      // Reset newTotal unless a coupon is actively applied
+      if (!req.session.couponCode) {
+        cart.newTotal = totalPrice;
+      }
       await cart.save({ session });
+
+      console.log('Cart updated (addtocart):', { total: cart.total, newTotal: cart.newTotal });
+
       await session.commitTransaction();
       session.endSession();
 
@@ -161,7 +183,6 @@ module.exports = {
         success: true, 
         message: 'Product added to cart successfully' 
       });
-
     } catch (error) {
       await session.abortTransaction();
       session.endSession();
@@ -206,7 +227,6 @@ module.exports = {
         return res.status(400).json({ error: 'Quantity cannot be less than 1' });
       }
 
-      // Calculate available stock (including currently reserved quantity for this item)
       const availableStock = product.stock - product.reserved + currentQuantity;
       
       if (newQuantity > availableStock) {
@@ -217,17 +237,28 @@ module.exports = {
         });
       }
 
-      // Update product reservation
+      let itemPrice = product.price;
+      const productOffers = await ProductOffer.find({
+        product: productId,
+        startDate: { $lte: new Date() },
+        expiryDate: { $gte: new Date() },
+      }).session(session);
+      if (productOffers.length > 0) {
+        itemPrice = productOffers[0].newPrice;
+      } else if (product.categoryofferprice && product.categoryofferprice < product.price) {
+        itemPrice = product.categoryofferprice;
+      }
+
       product.reserved += changeAmount;
       product.version += 1;
       await product.save({ session });
 
-      // Update cart item
       const updatedCart = await Cart.findOneAndUpdate(
         { 'items.product': productId },
         { 
           $set: { 
             'items.$.quantity': newQuantity, 
+            'items.$.price': itemPrice,
             'items.$.reservedAt': new Date() 
           } 
         },
@@ -238,65 +269,25 @@ module.exports = {
         (item) => item.product._id.toString() === productId
       );
 
-      // Calculate prices with offers
-      const productOffers = await ProductOffer.find();
-      const categoryOffers = await CategoryOffer.find();
-      let itemPrice = updatedItem.product.price;
-
-      // Apply product offers
-      if (productOffers && Array.isArray(productOffers)) {
-        const productOffersFiltered = productOffers.filter(
-          (offer) =>
-            offer.product.toString() === productId &&
-            new Date() >= offer.startDate &&
-            new Date() <= offer.expiryDate
-        );
-        if (productOffersFiltered.length > 0) {
-          itemPrice = productOffersFiltered[0].newPrice;
-        }
+      const cartTotal = await calculateTotalPrice(updatedCart.items, productOffers, await CategoryOffer.find({
+        startDate: { $lte: new Date() },
+        expiryDate: { $gte: new Date() },
+      }));
+      updatedCart.total = cartTotal;
+      // Reset newTotal unless a coupon is actively applied
+      if (!req.session.couponCode) {
+        updatedCart.newTotal = cartTotal;
       }
+      await updatedCart.save({ session });
 
-      // Apply category offers if no product offer
-      if (categoryOffers && Array.isArray(categoryOffers) && 
-          !productOffers.some((offer) => 
-            offer.product.toString() === productId &&
-            new Date() >= offer.startDate &&
-            new Date() <= offer.expiryDate
-          )) {
-        const category = await Category.findById(updatedItem.product.category);
-        if (category) {
-          const categoryOffersFiltered = categoryOffers.filter(
-            (offer) =>
-              offer.category.toString() === category._id.toString() &&
-              new Date() >= offer.startDate &&
-              new Date() <= offer.expiryDate
-          );
-          if (categoryOffersFiltered.length > 0) {
-            itemPrice -= (itemPrice * categoryOffersFiltered[0].discountPercentage) / 100;
-          }
-        }
-      }
-
-      // Fallback to categoryofferprice if available
-      if (!productOffers.some((offer) => 
-            offer.product.toString() === productId &&
-            new Date() >= offer.startDate &&
-            new Date() <= offer.expiryDate
-          ) &&
-          updatedItem.product.categoryofferprice &&
-          updatedItem.product.categoryofferprice < updatedItem.product.price) {
-        itemPrice = updatedItem.product.categoryofferprice;
-      }
-
-      const totalItemPrice = itemPrice * newQuantity;
-      const cartTotal = await calculateTotalPrice(updatedCart.items, productOffers, categoryOffers);
+      console.log('Cart updated (updatequantity):', { total: updatedCart.total, newTotal: updatedCart.newTotal });
 
       await session.commitTransaction();
       session.endSession();
 
       res.json({
         quantity: newQuantity,
-        itemPrice: totalItemPrice,
+        itemPrice: itemPrice * newQuantity,
         total: cartTotal,
       });
     } catch (error) {
@@ -340,6 +331,22 @@ module.exports = {
         { new: true }
       ).session(session);
 
+      const totalPrice = await calculateTotalPrice(updatedCart.items, await ProductOffer.find({
+        startDate: { $lte: new Date() },
+        expiryDate: { $gte: new Date() },
+      }), await CategoryOffer.find({
+        startDate: { $lte: new Date() },
+        expiryDate: { $gte: new Date() },
+      }));
+      updatedCart.total = totalPrice;
+      // Reset newTotal unless a coupon is actively applied
+      if (!req.session.couponCode) {
+        updatedCart.newTotal = totalPrice;
+      }
+      await updatedCart.save({ session });
+
+      console.log('Cart updated (deleteitem):', { total: updatedCart.total, newTotal: updatedCart.newTotal });
+
       await session.commitTransaction();
       session.endSession();
 
@@ -361,9 +368,28 @@ module.exports = {
         return res.status(404).json({ success: false, error: 'Cart not found' });
       }
 
+      const productOffers = await ProductOffer.find({
+        startDate: { $lte: new Date() },
+        expiryDate: { $gte: new Date() },
+      });
+      const categoryOffers = await CategoryOffer.find({
+        startDate: { $lte: new Date() },
+        expiryDate: { $gte: new Date() },
+      });
+      const total = await calculateTotalPrice(cart.items, productOffers, categoryOffers);
+
+      cart.total = total;
+      // Reset newTotal unless a coupon is actively applied
+      if (!req.session.couponCode) {
+        cart.newTotal = total;
+      }
+      await cart.save();
+
+      console.log('Cart state (getCartTotal):', { total: cart.total, newTotal: cart.newTotal });
+
       res.json({
         success: true,
-        total: cart.total,
+        total,
         newTotal: cart.newTotal,
       });
     } catch (error) {

@@ -3,11 +3,10 @@ const Cart = require("../models/cartSchema");
 const User = require("../models/user");
 
 module.exports = {
-  // Get coupon page with pagination
   couponpage: async (req, res) => {
     try {
       const page = parseInt(req.query.page) || 1;
-      const limit = parseInt(req.query.limit) || 6; // Show 6 coupons per page
+      const limit = parseInt(req.query.limit) || 6;
       const skip = (page - 1) * limit;
 
       const totalCoupons = await Coupon.countDocuments();
@@ -17,7 +16,7 @@ module.exports = {
         title: "Coupon Page",
         coupons,
         currentPage: page,
-        totalPages: Math.ceil(totalCoupons / limit) || 1, // Ensure at least 1 page
+        totalPages: Math.ceil(totalCoupons / limit) || 1,
         limit,
       });
     } catch (error) {
@@ -26,13 +25,10 @@ module.exports = {
     }
   },
 
-  // Create new coupon
   createcoupon: async (req, res) => {
     try {
-      const { couponCode, discountRate, minPurchaseAmount, expiryDate } =
-        req.body;
+      const { couponCode, discountRate, minPurchaseAmount, expiryDate } = req.body;
 
-      // Validate inputs
       if (!couponCode || !discountRate || !minPurchaseAmount || !expiryDate) {
         return res.status(400).json({ message: "All fields are required" });
       }
@@ -44,34 +40,21 @@ module.exports = {
       currentDate.setHours(0, 0, 0, 0);
 
       if (couponCode.trim() === "" || couponCode.includes(" ")) {
-        return res
-          .status(400)
-          .json({ message: "Coupon code cannot be empty or contain spaces" });
+        return res.status(400).json({ message: "Coupon code cannot be empty or contain spaces" });
       }
 
-      if (
-        isNaN(discountRateValue) ||
-        discountRateValue < 1 ||
-        discountRateValue > 100
-      ) {
-        return res
-          .status(400)
-          .json({ message: "Discount rate must be between 1 and 100" });
+      if (isNaN(discountRateValue) || discountRateValue < 1 || discountRateValue > 100) {
+        return res.status(400).json({ message: "Discount rate must be between 1 and 100" });
       }
 
       if (isNaN(minPurchaseAmountValue) || minPurchaseAmountValue < 0) {
-        return res.status(400).json({
-          message: "Minimum purchase amount must be a non-negative number",
-        });
+        return res.status(400).json({ message: "Minimum purchase amount must be a non-negative number" });
       }
 
       if (expiryDateValue < currentDate) {
-        return res
-          .status(400)
-          .json({ message: "Expiry date cannot be before the current date" });
+        return res.status(400).json({ message: "Expiry date cannot be before the current date" });
       }
 
-      // Check if a coupon with the same code already exists
       const existingCoupon = await Coupon.findOne({ couponCode });
       if (existingCoupon) {
         return res.status(400).json({ message: "Coupon code already exists" });
@@ -96,7 +79,6 @@ module.exports = {
     }
   },
 
-  // Get all coupons
   getCoupons: async (req, res) => {
     try {
       const coupons = await Coupon.find().lean();
@@ -113,42 +95,31 @@ module.exports = {
     }
   },
 
-// Updated coupons function - Display all unused, non-expired coupons
-coupons: async (req, res) => {
-  try {
-    const userId = req.session.user._id;
-    console.log(userId, 'User ID for coupon fetch');
-    
-    const user = await User.findById(userId);
-    const cart = await Cart.findOne({ user: userId });
+  coupons: async (req, res) => {
+    try {
+      const userId = req.session.user._id;
+      console.log(userId, "User ID for coupon fetch");
 
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      const user = await User.findById(userId);
+      const cart = await Cart.findOne({ user: userId });
+
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const currentDate = new Date();
+      const coupons = await Coupon.find({
+        expiryDate: { $gte: currentDate },
+        _id: { $nin: user.usedCoupons || [] },
+      }).sort({ discountRate: -1 });
+
+      res.json(coupons);
+    } catch (error) {
+      console.error("Error fetching coupons:", error);
+      res.status(500).json({ message: "Error fetching coupons" });
     }
+  },
 
-    // Optional: You can still check for cart existence if you want
-    // but allow users to see coupons even with empty cart
-    // if (!cart) {
-    //   return res.status(400).json({ message: 'Cart is empty' });
-    // }
-
-    const currentDate = new Date();
-    
-    // Find all non-expired coupons that user hasn't used yet
-    const coupons = await Coupon.find({
-      expiryDate: { $gte: currentDate }, // Not expired
-      _id: { $nin: user.usedCoupons || [] }, // Not used by user
-      // Removed the minimumPurchaseAmount filter to show all available coupons
-    }).sort({ discountRate: -1 }); // Sort by discount rate (highest first)
-
-    res.json(coupons);
-  } catch (error) {
-    console.error('Error fetching coupons:', error);
-    res.status(500).json({ message: 'Error fetching coupons' });
-  }
-},
-
-  // Apply coupon
   applyCoupon: async (req, res) => {
     try {
       const { couponCode } = req.body;
@@ -159,48 +130,55 @@ coupons: async (req, res) => {
         return res.status(404).json({ message: "User not found" });
       }
 
-      const cart = await Cart.findOne({ user })
+      const cart = await Cart.findOne({ user: userId })
         .populate("items.product")
         .exec();
 
       if (!couponCode) {
+        cart.newTotal = cart.total; // Reset newTotal if no coupon code provided
+        await cart.save();
         return res.status(400).json({ message: "Coupon code is required" });
       }
 
       const coupon = await Coupon.findOne({ couponCode });
 
       if (!coupon) {
-        return res
-          .status(400)
-          .json({ message: "Invalid or expired coupon code" });
+        cart.newTotal = cart.total; // Reset newTotal if coupon is invalid
+        await cart.save();
+        return res.status(400).json({ message: "Invalid or expired coupon code" });
       }
 
       if (cart.total < coupon.minimumPurchaseAmount) {
-        return res
-          .status(400)
-          .json({ message: "Minimum purchase amount not met for this coupon" });
+        cart.newTotal = cart.total; // Reset newTotal if minimum purchase not met
+        await cart.save();
+        return res.status(400).json({ message: "Minimum purchase amount not met for this coupon" });
       }
 
       if (user.usedCoupons && user.usedCoupons.includes(coupon._id)) {
+        cart.newTotal = cart.total; // Reset newTotal if coupon already used
+        await cart.save();
         return res.status(400).json({ message: "Coupon already used" });
       }
 
       const discount = (cart.total * coupon.discountRate) / 100;
       const newTotal = cart.total - discount;
       cart.newTotal = newTotal;
+      cart.couponApplied = couponCode; // Store the applied coupon code
       await cart.save();
+
+      console.log('Coupon applied:', { couponCode, discount, newTotal, total: cart.total });
 
       req.session.couponCode = couponCode;
       req.session.discount = discount;
+      req.session.totalpay = newTotal;
 
       return res.json({ success: true, newTotal, coupon, discount });
     } catch (error) {
-      console.error(error);
-      return res.status(500).json({ message: "Internal server error" });
+      console.error('Error applying coupon:', error);
+      return res.status(500).json({ message: 'Internal server error' });
     }
   },
 
-  // Remove coupon
   removeCoupon: async (req, res) => {
     try {
       const userId = req.session.user._id;
@@ -210,24 +188,27 @@ coupons: async (req, res) => {
         return res.status(404).json({ message: "User not found" });
       }
 
-      const cart = await Cart.findOne({ user })
+      const cart = await Cart.findOne({ user: userId })
         .populate("items.product")
         .exec();
 
       cart.newTotal = cart.total;
+      cart.couponApplied = null; // Clear the applied coupon
       await cart.save();
+
+      console.log('Coupon removed:', { total: cart.total, newTotal: cart.newTotal });
 
       req.session.couponCode = "";
       req.session.discount = 0;
+      req.session.totalpay = cart.total;
 
-      return res.json({ success: true, newTotal: cart.newTotal });
+      return res.json({ success: true, newTotal: cart.total });
     } catch (error) {
-      console.error(error);
-      return res.status(500).json({ message: "Internal server error" });
+      console.error('Error removing coupon:', error);
+      return res.status(500).json({ message: 'Internal server error' });
     }
   },
 
-  // Update coupon
   editCoupon: async (req, res) => {
     try {
       const {
@@ -255,31 +236,19 @@ coupons: async (req, res) => {
       currentDate.setHours(0, 0, 0, 0);
 
       if (editCouponCode.trim() === "" || editCouponCode.includes(" ")) {
-        return res
-          .status(400)
-          .json({ message: "Coupon code cannot be empty or contain spaces" });
+        return res.status(400).json({ message: "Coupon code cannot be empty or contain spaces" });
       }
 
-      if (
-        isNaN(discountRateValue) ||
-        discountRateValue < 1 ||
-        discountRateValue > 100
-      ) {
-        return res
-          .status(400)
-          .json({ message: "Discount rate must be between 1 and 100" });
+      if (isNaN(discountRateValue) || discountRateValue < 1 || discountRateValue > 100) {
+        return res.status(400).json({ message: "Discount rate must be between 1 and 100" });
       }
 
       if (isNaN(minPurchaseAmountValue) || minPurchaseAmountValue < 0) {
-        return res.status(400).json({
-          message: "Minimum purchase amount must be a non-negative number",
-        });
+        return res.status(400).json({ message: "Minimum purchase amount must be a non-negative number" });
       }
 
       if (expiryDateValue < currentDate) {
-        return res
-          .status(400)
-          .json({ message: "Expiry date cannot be before the current date" });
+        return res.status(400).json({ message: "Expiry date cannot be before the current date" });
       }
 
       const existingCoupon = await Coupon.findOne({
@@ -315,7 +284,6 @@ coupons: async (req, res) => {
     }
   },
 
-  // Delete coupon
   deleteCoupon: async (req, res) => {
     try {
       const { id } = req.params;

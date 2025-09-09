@@ -354,42 +354,42 @@
   </header>
 
   <div class="summary">
-    <h5><b>Order Summary</b></h5>
-    <hr />
-    <div class="row">
-      <div>Items (<%= cart.items.length %>)</div>
-      <div>₹<%= cart.total %></div>
-    </div>
-    <div class="row">
-      <div>Coupon Discount</div>
-      <div>-<span id="discount">0</span></div>
-    </div>
-    <div class="coupon-section">
-      <p>Apply Coupon</p>
-      <div class="coupon-input-group">
-        <input id="code" placeholder="Enter coupon code" name="couponcode" />
-        <button
-          id="applyCouponBtn"
-          class="button-base-button"
-          data-applied="false"
-        >
-          Apply
-        </button>
-      </div>
-    </div>
-    <div class="row total-row">
-      <div>Total Price</div>
-      <div>₹<span id="newTotal"><%= cart.total %></span></div>
-    </div>
-    <button
-      id="viewCouponsBtn"
-      class="button-base-button"
-      style="margin-top: 15px"
-    >
-      View Available Coupons
-    </button>
-    <div class="coupon-container" id="couponsContainer"></div>
+  <h5><b>Order Summary</b></h5>
+  <hr />
+  <div class="row">
+    <div>Items (<%= cart.items.length %>)</div>
+    <div>₹<%= cart.total %></div>
   </div>
+  <div class="row">
+    <div>Coupon Discount</div>
+    <div>-<span id="discount"><%= discount || 0 %></span></div>
+  </div>
+  <div class="coupon-section">
+    <p>Apply Coupon</p>
+    <div class="coupon-input-group">
+      <input id="code" placeholder="Enter coupon code" name="couponcode" />
+      <button
+        id="applyCouponBtn"
+        class="button-base-button"
+        data-applied="false"
+      >
+        Apply
+      </button>
+    </div>
+  </div>
+  <div class="row total-row">
+    <div>Total Price</div>
+    <div>₹<span id="newTotal"><%= cart.newTotal || cart.total %></span></div>
+  </div>
+  <button
+    id="viewCouponsBtn"
+    class="button-base-button"
+    style="margin-top: 15px"
+  >
+    View Available Coupons
+  </button>
+  <div class="coupon-container" id="couponsContainer"></div>
+</div>
 
   <div class="payment__shipping">
     <div class="payment__title">
@@ -437,25 +437,25 @@
         value=""
       />
       <div class="payment__types">
-        <div
-          class="payment__type payment__type--cc <% if (cart.total > 1000) { %> disabled <% } %>"
-        >
-          <input
-  type="radio"
-  name="paymentMethod"
-  id="paymentCC"
-  value="CASH_ON_DELIVERY"
-  <% if (cart.total > 1000) { %> disabled <% } %>
+  <div
+  class="payment__type payment__type--cc <% if (cart.total > 1000) { %> disabled <% } %>"
 >
-          <label for="paymentCC">
-            <i class="icon icon-credit-card"></i>Cash on Delivery
-          </label>
-          <% if (cart.total > 1000) { %>
-          <div class="error-message">
-            COD not available for orders above ₹1000
-          </div>
-          <% } %>
-        </div>
+  <input
+    type="radio"
+    name="paymentMethod"
+    id="paymentCC"
+    value="CASH_ON_DELIVERY"
+    <% if (cart.total > 1000) { %> disabled <% } %>
+  >
+  <label for="paymentCC">
+    <i class="icon icon-credit-card"></i>Cash on Delivery
+  </label>
+  <% if (cart.total > 1000) { %>
+  <div class="error-message">
+    COD not available for orders above ₹1000
+  </div>
+  <% } %>
+</div>
         <div class="payment__type payment__type--paypal">
           <input
             type="radio"
@@ -579,7 +579,7 @@
             return;
           }
 
-          // Send amount in rupees, let backend convert to paise
+          // Use newTotal if available, else total
           const amountInRupees = cartData.newTotal || cartData.total;
 
           // Create Razorpay order
@@ -588,7 +588,7 @@
             headers: {
               "Content-Type": "application/json",
             },
-            body: JSON.stringify({ amount: amountInRupees }), // Send in rupees
+            body: JSON.stringify({ amount: amountInRupees }),
           });
           const orderData = await orderResponse.json();
 
@@ -602,7 +602,7 @@
 
           var options = {
             key: "rzp_test_RXM5ojGKCHke94",
-            amount: orderData.amount, // This will be in paise from backend
+            amount: orderData.amount, // Amount in paise from backend
             currency: "INR",
             name: "Simple Sole",
             description: "Test Transaction",

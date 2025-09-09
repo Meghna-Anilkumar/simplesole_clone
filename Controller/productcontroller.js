@@ -6,6 +6,7 @@ const CategoryOffer = require("../models/categoryoffer");
 const Cart = require("../models/cartSchema");
 const cloudinary = require("cloudinary").v2;
 const { HttpStatusCode } = require("../enums/statusCodes");
+const { calculateCategoryOfferPrice } = require("../utils/cartfunctions");
 
 // Configure Cloudinary with environment variables
 cloudinary.config({
@@ -13,6 +14,29 @@ cloudinary.config({
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
+
+// Update categoryofferprice for all products in a category
+const updateCategoryOfferPrice = async (categoryId) => {
+  try {
+    const categoryOffer = await CategoryOffer.findOne({
+      category: categoryId,
+      startDate: { $lte: new Date() },
+      expiryDate: { $gte: new Date() },
+    }).exec();
+
+    const products = await Product.find({ category: categoryId }).exec();
+
+    for (const product of products) {
+      let categoryOfferPrice = product.price;
+      if (categoryOffer) {
+        categoryOfferPrice = calculateCategoryOfferPrice(product.price, categoryOffer.discountPercentage);
+      }
+      await Product.findByIdAndUpdate(product._id, { categoryofferprice: categoryOfferPrice });
+    }
+  } catch (error) {
+    console.error(`Error updating categoryofferprice for category ${categoryId}:`, error);
+  }
+};
 
 module.exports = {
   // Get add product page
@@ -32,7 +56,6 @@ module.exports = {
       const skip = (page - 1) * limit;
       const search = req.query.search || "";
 
-      // Build search query
       const searchQuery = search
         ? {
             $or: [
@@ -42,16 +65,13 @@ module.exports = {
           }
         : {};
 
-      // Fetch products with pagination and search
       const product = await Product.find(searchQuery)
         .populate({ path: "category", select: "name" })
         .skip(skip)
         .limit(limit)
         .exec();
 
-      // Get total count of matching products
       const totalProducts = await Product.countDocuments(searchQuery);
-
       const totalPages = Math.ceil(totalProducts / limit);
 
       res.render("adminviews/products", {
@@ -75,7 +95,6 @@ module.exports = {
         throw new Error("Please upload at least one image.");
       }
 
-      // Upload images to Cloudinary
       const uploadPromises = req.files.map((file) =>
         cloudinary.uploader.upload(file.path, {
           folder: "products",
@@ -97,6 +116,9 @@ module.exports = {
       });
 
       await product.save();
+
+      // Update categoryofferprice for the new product
+      await updateCategoryOfferPrice(req.body.category);
 
       req.session.message = {
         type: "success",
@@ -135,7 +157,7 @@ module.exports = {
     }
   },
 
-  // Upload cropped image (modified to handle Cloudinary upload without cropping)
+  // Upload cropped image
   croppedimageupload: async (req, res) => {
     try {
       if (!req.files || req.files.length === 0) {
@@ -174,7 +196,6 @@ module.exports = {
 
       let updatedImages = [...existingProduct.images];
 
-      // Handle deleted images
       if (req.body.deletedImages) {
         const deletedImages = req.body.deletedImages
           .split(",")
@@ -183,15 +204,13 @@ module.exports = {
           (image) => !deletedImages.includes(image)
         );
 
-        // Delete images from Cloudinary
         const deletePromises = deletedImages.map((imageUrl) => {
-          const publicId = imageUrl.split("/").pop().split(".")[0]; // Extract public ID from URL
+          const publicId = imageUrl.split("/").pop().split(".")[0];
           return cloudinary.uploader.destroy(`products/${publicId}`);
         });
         await Promise.all(deletePromises);
       }
 
-      // Upload new images to Cloudinary
       if (req.files && req.files.length > 0) {
         const uploadPromises = req.files.map((file) =>
           cloudinary.uploader.upload(file.path, {
@@ -215,20 +234,22 @@ module.exports = {
         images: updatedImages,
       };
 
+      // Update categoryofferprice
       let categoryOfferPrice = updatedProduct.price;
       const categoryOffer = await CategoryOffer.findOne({
         category: updatedProduct.category,
+        startDate: { $lte: new Date() },
+        expiryDate: { $gte: new Date() },
       }).exec();
       if (categoryOffer) {
-        const discountPercentage = categoryOffer.discountPercentage;
-        const discountAmount =
-          (updatedProduct.price * discountPercentage) / 100;
-        categoryOfferPrice = updatedProduct.price - discountAmount;
+        categoryOfferPrice = calculateCategoryOfferPrice(updatedProduct.price, categoryOffer.discountPercentage);
       }
-
       updatedProduct.categoryofferprice = categoryOfferPrice;
 
       await Product.findByIdAndUpdate(id, updatedProduct);
+
+      // Update categoryofferprice for all products in the category if changed
+      await updateCategoryOfferPrice(updatedProduct.category);
 
       req.session.message = {
         type: "success",
@@ -248,7 +269,11 @@ module.exports = {
       const categoryId = req.params.categoryId;
       const selectedCategory = await Category.findById(categoryId);
       const products = await Product.find({ category: categoryId });
-      const categoryOffers = await CategoryOffer.find({ category: categoryId });
+      const categoryOffers = await CategoryOffer.find({ 
+        category: categoryId,
+        startDate: { $lte: new Date() },
+        expiryDate: { $gte: new Date() },
+      });
 
       const user = req.session.user;
       const cart = await Cart.findOne({ user })
@@ -273,68 +298,65 @@ module.exports = {
 
   // Get product details
   getproductdetails: async (req, res) => {
-  try {
-    const productId = req.params.id;
-    const product = await Product.findById(productId).populate({
-      path: "category",
-      select: "name" // Keep 'name' for display, no need to exclude '_id' explicitly
-    });
+    try {
+      const productId = req.params.id;
+      const product = await Product.findById(productId).populate({
+        path: "category",
+        select: "name"
+      });
 
-    if (!product) {
-      return res
-        .status(404)
-        .render("error", { message: "Product not found" });
-    }
-
-    const user = req.session.user;
-    let productInWishlist = false;
-    const cart = await Cart.findOne({ user })
-      .populate("items.product")
-      .exec();
-    var wishlist = await Wishlist.findOne({ user });
-
-    if (user) {
-      wishlist = await Wishlist.findOne({ user: user._id });
-      if (wishlist) {
-        productInWishlist = wishlist.items.some(
-          (item) => item.product.toString() === productId
-        );
+      if (!product) {
+        return res
+          .status(404)
+          .render("error", { message: "Product not found" });
       }
+
+      const user = req.session.user;
+      let productInWishlist = false;
+      const cart = await Cart.findOne({ user })
+        .populate("items.product")
+        .exec();
+      let wishlist = await Wishlist.findOne({ user });
+
+      if (user) {
+        wishlist = await Wishlist.findOne({ user: user._id });
+        if (wishlist) {
+          productInWishlist = wishlist.items.some(
+            (item) => item.product.toString() === productId
+          );
+        }
+      }
+
+      const similarProducts = await Product.find({
+        category: product.category,
+        _id: { $ne: productId },
+        blocked: false
+      })
+        .limit(4)
+        .exec();
+
+      const productOffers = await ProductOffer.find({
+        product: productId,
+        startDate: { $lte: new Date() },
+        expiryDate: { $gte: new Date() },
+      });
+
+      res.render("userviews/productdetails", {
+        title: "Product Details",
+        category: product.category,
+        selectedCategory: product.category,
+        product: product,
+        productInWishlist: productInWishlist,
+        productOffers: productOffers,
+        wishlist: wishlist,
+        cart,
+        similarProducts: similarProducts
+      });
+    } catch (error) {
+      console.error("Error in getproductdetails:", error);
+      res.status(500).send("Internal Server Error");
     }
-
-    // Fetch similar products (same category, excluding current product)
-    const similarProducts = await Product.find({
-      category: product.category, // Use product.category directly
-      _id: { $ne: productId }, // Exclude the current product
-      blocked: false // Only include unblocked products
-    })
-      .limit(4) // Limit to 4 similar products
-      .exec();
-
-    console.log("Similar Products:", similarProducts); // Debug log
-
-    const productOffers = await ProductOffer.find({
-      product: productId,
-      startDate: { $lte: new Date() },
-      expiryDate: { $gte: new Date() },
-    });
-
-    res.render("userviews/productdetails", {
-      title: "Product Details",
-      category: product.category,
-      selectedCategory: product.category,
-      product: product,
-      productInWishlist: productInWishlist,
-      productOffers: productOffers,
-      wishlist: wishlist,
-      cart,
-      similarProducts: similarProducts // Pass similar products to the template
-    });
-  } catch (error) {
-    console.error("Error in getproductdetails:", error);
-    res.status(500).send("Internal Server Error");
-  }
-},
+  },
 
   // Block and unblock a product
   blockProduct: async (req, res) => {
@@ -387,7 +409,7 @@ module.exports = {
       if (req.query.sortOption === "priceLowToHigh") {
         allProducts.sort((a, b) => a.price - b.price);
       } else if (req.query.sortOption === "priceHighToLow") {
-        allProducts.sort((a, b) => b.price - a.price);
+        allProducts.sort((a, b) => b.price - b.price);
       }
 
       const totalProducts = allProducts.length;
@@ -466,7 +488,7 @@ module.exports = {
       if (req.query.sortOption === "priceLowToHigh") {
         filteredProducts.sort((a, b) => a.price - b.price);
       } else if (req.query.sortOption === "priceHighToLow") {
-        filteredProducts.sort((a, b) => b.price - a.price);
+        filteredProducts.sort((a, b) => b.price - b.price);
       }
 
       res.json(filteredProducts);
@@ -475,4 +497,6 @@ module.exports = {
       res.status(500).send("Internal Server Error");
     }
   },
+
+  updateCategoryOfferPrice, // Export the new function
 };

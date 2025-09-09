@@ -1,11 +1,6 @@
-const Category = require('../models/category');
-const isAuth = require('../middlewares/isAuth');
-const Product = require('../models/product');
-const Order = require('../models/orderSchema');
-const User = require('../models/user');
 const CategoryOffer = require('../models/categoryoffer');
-const mongoose = require('mongoose');
-const { calculateCategoryOfferPrice } = require('../utils/categoryofferprice');
+const { updateCategoryOfferPrice } = require('./productcontroller');
+const Category=require('../models/category')
 
 module.exports = {
   // Get category offers page
@@ -37,130 +32,93 @@ module.exports = {
     }
   },
 
-  // Create new category offer
-  savecategoryoffer: async (req, res) => {
+  saveCategoryOffer: async (req, res) => {
     try {
       const { categoryId, discountPercentage, startDate, expiryDate } = req.body;
 
-      // Validate inputs
-      if (!categoryId || !discountPercentage || !startDate || !expiryDate) {
-        return res.status(400).json({ message: 'All fields are required' });
+      if (discountPercentage < 1 || discountPercentage > 100) {
+        return res.status(400).json({ message: 'Discount percentage must be between 1 and 100' });
       }
 
-      // Check if a category offer already exists for the selected category
-      const existingCategoryOffer = await CategoryOffer.findOne({ category: categoryId });
-
-      if (existingCategoryOffer) {
-        return res.status(400).json({ message: 'This category already has an offer' });
+      if (new Date(startDate) < new Date()) {
+        return res.status(400).json({ message: 'Start date cannot be in the past' });
       }
 
-      const categoryProducts = await Product.find({ category: categoryId });
-
-      for (const product of categoryProducts) {
-        const categoryOfferPrice = calculateCategoryOfferPrice(product.price, discountPercentage);
-        await Product.findByIdAndUpdate(product._id, { categoryofferprice: categoryOfferPrice });
+      if (new Date(expiryDate) <= new Date(startDate)) {
+        return res.status(400).json({ message: 'Expiry date must be after start date' });
       }
 
       const categoryOffer = new CategoryOffer({
         category: categoryId,
         discountPercentage,
-        startDate: new Date(startDate),
-        expiryDate: new Date(expiryDate),
+        startDate,
+        expiryDate,
       });
 
-      const savedCategoryOffer = await categoryOffer.save();
+      await categoryOffer.save();
 
-      res.status(200).json({
-        message: 'Category offer added successfully',
-        offer: savedCategoryOffer,
-      });
+      // Update categoryofferprice for all products in the category
+      await updateCategoryOfferPrice(categoryId);
+
+      res.json({ success: true, message: 'Category offer added successfully' });
     } catch (error) {
       console.error('Error saving category offer:', error);
-      res.status(500).json({ message: 'Failed to save category offer' });
+      res.status(500).json({ message: 'Internal Server Error' });
     }
   },
 
-  // Edit category offer
-  editcategoryoffer: async (req, res) => {
+  // Update an existing category offer
+  updateCategoryOffer: async (req, res) => {
     try {
-      const { categoryId, discountPercentage, startDate, expiryDate } = req.body;
-      const categoryOfferId = req.params.id;
+      const { offerId, categoryId, discountPercentage, startDate, expiryDate } = req.body;
 
-      // Validate inputs
-      if (!categoryId || !discountPercentage || !startDate || !expiryDate || !categoryOfferId) {
-        return res.status(400).json({ message: 'All fields are required' });
+      if (discountPercentage < 1 || discountPercentage > 100) {
+        return res.status(400).json({ message: 'Discount percentage must be between 1 and 100' });
       }
 
-      // Check if another offer exists for the category (excluding the current offer)
-      const existingCategoryOffer = await CategoryOffer.findOne({
+      if (new Date(startDate) < new Date()) {
+        return res.status(400).json({ message: 'Start date cannot be in the past' });
+      }
+
+      if (new Date(expiryDate) <= new Date(startDate)) {
+        return res.status(400).json({ message: 'Expiry date must be after start date' });
+      }
+
+      await CategoryOffer.findByIdAndUpdate(offerId, {
         category: categoryId,
-        _id: { $ne: categoryOfferId },
+        discountPercentage,
+        startDate,
+        expiryDate,
       });
 
-      if (existingCategoryOffer) {
-        return res.status(400).json({ message: 'This category already has another offer' });
-      }
+      // Update categoryofferprice for all products in the category
+      await updateCategoryOfferPrice(categoryId);
 
-      const categoryProducts = await Product.find({ category: categoryId });
-
-      for (const product of categoryProducts) {
-        const categoryOfferPrice = calculateCategoryOfferPrice(product.price, discountPercentage);
-        await Product.findByIdAndUpdate(product._id, {
-          categoryofferprice: categoryOfferPrice,
-        });
-      }
-
-      const updatedCategoryOffer = await CategoryOffer.findByIdAndUpdate(
-        categoryOfferId,
-        {
-          category: categoryId,
-          discountPercentage,
-          startDate: new Date(startDate),
-          expiryDate: new Date(expiryDate),
-        },
-        { new: true }
-      );
-
-      if (!updatedCategoryOffer) {
-        return res.status(404).json({ message: 'Category offer not found' });
-      }
-
-      res.status(200).json({
-        message: 'Category offer updated successfully',
-        offer: updatedCategoryOffer,
-      });
+      res.json({ success: true, message: 'Category offer updated successfully' });
     } catch (error) {
       console.error('Error updating category offer:', error);
-      res.status(500).json({ message: 'Failed to update category offer' });
+      res.status(500).json({ message: 'Internal Server Error' });
     }
   },
 
-  // Delete category offer
-  deletecategoryoffer: async (req, res) => {
+  // Delete a category offer
+  deleteCategoryOffer: async (req, res) => {
     try {
-      const categoryOfferId = req.params.id;
-
-      const deletedCategoryOffer = await CategoryOffer.findByIdAndDelete(categoryOfferId);
-
-      if (!deletedCategoryOffer) {
+      const offerId = req.params.id;
+      const categoryOffer = await CategoryOffer.findById(offerId);
+      if (!categoryOffer) {
         return res.status(404).json({ message: 'Category offer not found' });
       }
 
-      const categoryId = deletedCategoryOffer.category;
-      const categoryProducts = await Product.find({ category: categoryId });
+      await CategoryOffer.findByIdAndDelete(offerId);
 
-      for (const product of categoryProducts) {
-        await Product.findByIdAndUpdate(product._id, {
-          categoryofferprice: 0,
-        });
-      }
+      // Update categoryofferprice for all products in the category
+      await updateCategoryOfferPrice(categoryOffer.category);
 
-      res.status(200).json({
-        message: 'Category offer deleted successfully',
-      });
+      res.json({ success: true, message: 'Category offer deleted successfully' });
     } catch (error) {
       console.error('Error deleting category offer:', error);
-      res.status(500).json({ message: 'Failed to delete category offer' });
+      res.status(500).json({ message: 'Internal Server Error' });
     }
   },
 };
