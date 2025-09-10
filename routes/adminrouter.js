@@ -1,6 +1,6 @@
 const express = require('express')
 const router = express.Router()
-var upload = require('../middlewares/multer')
+const { diskUpload, memoryUpload } = require('../middlewares/multer');
 const customercontroller = require('../Controller/customercontroller');
 const admincontroller = require('../Controller/admincontroller');
 const productcontroller = require('../Controller/productcontroller');
@@ -10,7 +10,9 @@ const adminordercontroller = require('../Controller/adminordercontroller')
 const couponcontroller = require('../Controller/couponcontroller')
 const productoffercontroller = require('../Controller/productoffercontroller')
 const categoryoffercontroller = require('../Controller/categoryoffercontroller')
-
+const bodyParser = require('body-parser');
+router.use(bodyParser.urlencoded({ extended: true }));
+router.use(bodyParser.json());
 
 
 router.get('/adminlogin', adminAuth.isadminlogged, admincontroller.toadminlogin)
@@ -28,9 +30,9 @@ router.post('/updateCategory/:id', categorycontroller.updatecategory)
 router.post('/blockCat', categorycontroller.blockCategory)
 router.get('/products', adminAuth.adminexist, productcontroller.getproducts)
 router.get('/addProduct', productcontroller.addProduct)
-router.post('/addProduct', upload, productcontroller.addnewproduct)
+router.post('/addProduct', express.urlencoded({ extended: true }), productcontroller.addnewproduct)
 router.get('/editProduct/:id', productcontroller.editproduct)
-router.post('/updateProduct/:id', upload, productcontroller.updateproduct)
+router.post('/updateProduct/:id', express.urlencoded({ extended: true }), diskUpload, productcontroller.updateproduct);
 router.post('/verify-otp', customercontroller.verifyotp)
 router.post('/blockProduct', productcontroller.blockProduct)
 
@@ -73,7 +75,7 @@ router.get('/resend-otp', customercontroller.resendOTP)
 router.post('/resend-otp', customercontroller.resendOTP);
 
 //crop image
-router.post('/uploadCroppedImage', productcontroller.croppedimageupload)
+router.post('/upload-cropped-image', memoryUpload, productcontroller.uploadCroppedImage);
 
 //return requests
 router.get('/returnrequests',adminordercontroller.getreturnrequestspage)

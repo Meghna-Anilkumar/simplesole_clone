@@ -5,7 +5,7 @@ const ProductOffer = require("../models/productoffermodel");
 const CategoryOffer = require("../models/categoryoffer");
 const Cart = require("../models/cartSchema");
 const cloudinary = require("cloudinary").v2;
-const { HttpStatusCode } = require("../enums/statusCodes");
+const HttpStatusCode = require("../enums/statusCodes");
 const { calculateCategoryOfferPrice } = require("../utils/cartfunctions");
 
 // Configure Cloudinary with environment variables
@@ -29,12 +29,20 @@ const updateCategoryOfferPrice = async (categoryId) => {
     for (const product of products) {
       let categoryOfferPrice = product.price;
       if (categoryOffer) {
-        categoryOfferPrice = calculateCategoryOfferPrice(product.price, categoryOffer.discountPercentage);
+        categoryOfferPrice = calculateCategoryOfferPrice(
+          product.price,
+          categoryOffer.discountPercentage
+        );
       }
-      await Product.findByIdAndUpdate(product._id, { categoryofferprice: categoryOfferPrice });
+      await Product.findByIdAndUpdate(product._id, {
+        categoryofferprice: categoryOfferPrice,
+      });
     }
   } catch (error) {
-    console.error(`Error updating categoryofferprice for category ${categoryId}:`, error);
+    console.error(
+      `Error updating categoryofferprice for category ${categoryId}:`,
+      error
+    );
   }
 };
 
@@ -91,28 +99,63 @@ module.exports = {
   // Insert a new product into database
   addnewproduct: async (req, res) => {
     try {
-      if (!req.files || req.files.length === 0) {
-        throw new Error("Please upload at least one image.");
+      console.log("addnewproduct req.body:", req.body); // Debugging
+      console.log("addnewproduct req.file:", req.file); // Debugging for any file upload
+
+      // Handle croppedImages parsing
+      let croppedImages = [];
+
+      if (req.body.croppedImages) {
+        try {
+          croppedImages = JSON.parse(req.body.croppedImages);
+          console.log("Parsed croppedImages:", croppedImages); // Debugging
+        } catch (parseError) {
+          console.error("Error parsing croppedImages:", parseError);
+          return res.status(400).json({
+            message: "Invalid croppedImages format",
+            type: "danger",
+          });
+        }
       }
 
-      const uploadPromises = req.files.map((file) =>
-        cloudinary.uploader.upload(file.path, {
-          folder: "products",
-          resource_type: "image",
-        })
-      );
-      const uploadResults = await Promise.all(uploadPromises);
-      const imageUrls = uploadResults.map((result) => result.secure_url);
+      // Validate that we have at least one image
+      if (!Array.isArray(croppedImages) || croppedImages.length === 0) {
+        return res.status(400).json({
+          message: "Please upload and crop at least one image.",
+          type: "danger",
+        });
+      }
+
+      // Validate required fields
+      const requiredFields = [
+        "name",
+        "description",
+        "category",
+        "price",
+        "stock",
+        "size",
+        "color",
+      ];
+      for (const field of requiredFields) {
+        if (!req.body[field] || req.body[field].toString().trim() === "") {
+          return res.status(400).json({
+            message: `${
+              field.charAt(0).toUpperCase() + field.slice(1)
+            } is required`,
+            type: "danger",
+          });
+        }
+      }
 
       const product = new Product({
-        name: req.body.name,
-        description: req.body.description,
+        name: req.body.name.trim(),
+        description: req.body.description.trim(),
         category: req.body.category,
-        price: req.body.price,
-        stock: req.body.stock,
-        size: req.body.size,
-        color: req.body.color,
-        images: imageUrls,
+        price: parseFloat(req.body.price),
+        stock: parseInt(req.body.stock),
+        size: req.body.size.trim(),
+        color: req.body.color.trim(),
+        images: croppedImages,
       });
 
       await product.save();
@@ -127,8 +170,11 @@ module.exports = {
 
       res.redirect("/products");
     } catch (error) {
-      console.error(error);
-      res.json({ message: error.message, type: "danger" });
+      console.error("addnewproduct error:", error);
+      res.status(500).json({
+        message: error.message || "Internal server error",
+        type: "danger",
+      });
     }
   },
 
@@ -158,26 +204,29 @@ module.exports = {
   },
 
   // Upload cropped image
-  croppedimageupload: async (req, res) => {
+  uploadCroppedImage: async (req, res) => {
     try {
-      if (!req.files || req.files.length === 0) {
+      if (!req.file) {
         return res
           .status(HttpStatusCode.BAD_REQUEST)
-          .json({ error: "No file uploaded" });
+          .json({ error: "No cropped image uploaded" });
       }
 
-      const uploadPromises = req.files.map((file) =>
-        cloudinary.uploader.upload(file.path, {
-          folder: "products",
-          resource_type: "image",
-        })
-      );
-      const uploadResults = await Promise.all(uploadPromises);
-      const filenames = uploadResults.map((result) => result.secure_url);
+      const result = await new Promise((resolve, reject) => {
+        cloudinary.uploader
+          .upload_stream(
+            { folder: "products", resource_type: "image" },
+            (error, result) => {
+              if (error) reject(error);
+              else resolve(result);
+            }
+          )
+          .end(req.file.buffer);
+      });
 
-      res.status(HttpStatusCode.OK).json({ filenames: filenames });
+      res.status(HttpStatusCode.OK).json({ filename: result.secure_url });
     } catch (error) {
-      console.error(error);
+      console.error("Error uploading cropped image:", error);
       res
         .status(HttpStatusCode.INTERNAL_SERVER_ERROR)
         .json({ error: "Internal server error" });
@@ -188,30 +237,74 @@ module.exports = {
   updateproduct: async (req, res) => {
     try {
       const id = req.params.id;
+      console.log("Update product request body:", req.body);
+      console.log("Update product files:", req.files);
 
       const existingProduct = await Product.findById(id).exec();
       if (!existingProduct) {
-        throw new Error("Product not found");
+        return res.status(404).json({
+          message: "Product not found",
+          type: "danger",
+        });
       }
 
       let updatedImages = [...existingProduct.images];
 
+      // Handle deleted images
       if (req.body.deletedImages) {
         const deletedImages = req.body.deletedImages
           .split(",")
-          .map((image) => image.trim());
+          .map((image) => image.trim())
+          .filter((image) => image !== ""); // Remove empty strings
+
+        console.log("Images to delete:", deletedImages);
+
+        // Remove deleted images from the array
         updatedImages = existingProduct.images.filter(
           (image) => !deletedImages.includes(image)
         );
 
-        const deletePromises = deletedImages.map((imageUrl) => {
-          const publicId = imageUrl.split("/").pop().split(".")[0];
-          return cloudinary.uploader.destroy(`products/${publicId}`);
+        // Delete images from Cloudinary
+        const deletePromises = deletedImages.map(async (imageUrl) => {
+          try {
+            // Extract public ID from Cloudinary URL
+            const urlParts = imageUrl.split("/");
+            const fileName = urlParts[urlParts.length - 1];
+            const publicId = `products/${fileName.split(".")[0]}`;
+
+            console.log("Deleting from Cloudinary:", publicId);
+            return await cloudinary.uploader.destroy(publicId);
+          } catch (deleteError) {
+            console.error("Error deleting image from Cloudinary:", deleteError);
+            // Continue with other deletions even if one fails
+          }
         });
-        await Promise.all(deletePromises);
+
+        await Promise.allSettled(deletePromises);
       }
 
+      // Handle new cropped images
+      if (req.body.croppedImages) {
+        try {
+          const croppedImages = JSON.parse(req.body.croppedImages);
+          console.log("New cropped images:", croppedImages);
+
+          if (Array.isArray(croppedImages) && croppedImages.length > 0) {
+            // Add new cropped images to the array
+            updatedImages = [...updatedImages, ...croppedImages];
+          }
+        } catch (parseError) {
+          console.error("Error parsing croppedImages:", parseError);
+          return res.status(400).json({
+            message: "Invalid cropped images format",
+            type: "danger",
+          });
+        }
+      }
+
+      // Handle traditional file uploads (if any - fallback)
       if (req.files && req.files.length > 0) {
+        console.log("Processing traditional file uploads");
         const uploadPromises = req.files.map((file) =>
           cloudinary.uploader.upload(file.path, {
             folder: "products",
@@ -223,16 +316,47 @@ module.exports = {
         updatedImages = [...updatedImages, ...newImageUrls];
       }
 
+      // Validate that we have at least one image
+      if (!updatedImages || updatedImages.length === 0) {
+        return res.status(400).json({
+          message: "Product must have at least one image",
+          type: "danger",
+        });
+      }
+
+      // Validate required fields
+      const requiredFields = [
+        "name",
+        "description",
+        "category",
+        "price",
+        "stock",
+        "size",
+        "color",
+      ];
+      for (const field of requiredFields) {
+        if (!req.body[field] || req.body[field].toString().trim() === "") {
+          return res.status(400).json({
+            message: `${
+              field.charAt(0).toUpperCase() + field.slice(1)
+            } is required`,
+            type: "danger",
+          });
+        }
+      }
+
       const updatedProduct = {
-        name: req.body.name,
-        description: req.body.description,
+        name: req.body.name.trim(),
+        description: req.body.description.trim(),
         category: req.body.category,
-        price: req.body.price,
-        stock: req.body.stock,
-        size: req.body.size,
-        color: req.body.color,
+        price: parseFloat(req.body.price),
+        stock: parseInt(req.body.stock),
+        size: req.body.size.trim(),
+        color: req.body.color.trim(),
         images: updatedImages,
       };
+
+      console.log("Final updated product data:", updatedProduct);
 
       // Update categoryofferprice
       let categoryOfferPrice = updatedProduct.price;
@@ -241,15 +365,24 @@ module.exports = {
         startDate: { $lte: new Date() },
         expiryDate: { $gte: new Date() },
       }).exec();
+
       if (categoryOffer) {
-        categoryOfferPrice = calculateCategoryOfferPrice(updatedProduct.price, categoryOffer.discountPercentage);
+        categoryOfferPrice = calculateCategoryOfferPrice(
+          updatedProduct.price,
+          categoryOffer.discountPercentage
+        );
       }
       updatedProduct.categoryofferprice = categoryOfferPrice;
 
       await Product.findByIdAndUpdate(id, updatedProduct);
 
-      // Update categoryofferprice for all products in the category if changed
-      await updateCategoryOfferPrice(updatedProduct.category);
+      // Update categoryofferprice for all products in the category if category changed
+      if (updatedProduct.category !== existingProduct.category.toString()) {
+        await updateCategoryOfferPrice(updatedProduct.category);
+        await updateCategoryOfferPrice(existingProduct.category);
+      } else {
+        await updateCategoryOfferPrice(updatedProduct.category);
+      }
 
       req.session.message = {
         type: "success",
@@ -258,8 +391,11 @@ module.exports = {
 
       res.redirect("/products");
     } catch (err) {
-      console.error(err);
-      res.json({ message: err.message, type: "danger" });
+      console.error("Update product error:", err);
+      res.status(500).json({
+        message: err.message || "Internal server error",
+        type: "danger",
+      });
     }
   },
 
@@ -269,7 +405,7 @@ module.exports = {
       const categoryId = req.params.categoryId;
       const selectedCategory = await Category.findById(categoryId);
       const products = await Product.find({ category: categoryId });
-      const categoryOffers = await CategoryOffer.find({ 
+      const categoryOffers = await CategoryOffer.find({
         category: categoryId,
         startDate: { $lte: new Date() },
         expiryDate: { $gte: new Date() },
@@ -302,7 +438,7 @@ module.exports = {
       const productId = req.params.id;
       const product = await Product.findById(productId).populate({
         path: "category",
-        select: "name"
+        select: "name",
       });
 
       if (!product) {
@@ -330,7 +466,7 @@ module.exports = {
       const similarProducts = await Product.find({
         category: product.category,
         _id: { $ne: productId },
-        blocked: false
+        blocked: false,
       })
         .limit(4)
         .exec();
@@ -350,7 +486,7 @@ module.exports = {
         productOffers: productOffers,
         wishlist: wishlist,
         cart,
-        similarProducts: similarProducts
+        similarProducts: similarProducts,
       });
     } catch (error) {
       console.error("Error in getproductdetails:", error);
@@ -498,5 +634,45 @@ module.exports = {
     }
   },
 
-  updateCategoryOfferPrice, 
+  getProductOffers: async (req, res) => {
+    try {
+      const productId = req.query.productId;
+      if (!productId.match(/^[0-9a-fA-F]{24}$/)) {
+        return res.status(400).json({ message: "Invalid product ID" });
+      }
+
+      const productOffers = await ProductOffer.find({
+        product: productId,
+        startDate: { $lte: new Date() },
+        expiryDate: { $gte: new Date() },
+      }).lean();
+
+      res.json(productOffers);
+    } catch (error) {
+      console.error("Error fetching product offers:", error);
+      res.status(500).json({ message: "Internal Server Error" });
+    }
+  },
+
+  getCategoryOffers: async (req, res) => {
+    try {
+      const categoryId = req.query.categoryId;
+      if (!categoryId.match(/^[0-9a-fA-F]{24}$/)) {
+        return res.status(400).json({ message: "Invalid category ID" });
+      }
+
+      const categoryOffers = await CategoryOffer.find({
+        category: categoryId,
+        startDate: { $lte: new Date() },
+        expiryDate: { $gte: new Date() },
+      }).lean();
+
+      res.json(categoryOffers);
+    } catch (error) {
+      console.error("Error fetching category offers:", error);
+      res.status(500).json({ message: "Internal Server Error" });
+    }
+  },
+
+  updateCategoryOfferPrice,
 };

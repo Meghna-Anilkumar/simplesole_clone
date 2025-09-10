@@ -1,17 +1,28 @@
-const multer = require('multer')
+const multer = require('multer');
 
-//image upload
-var storage = multer.diskStorage({
-  destination: function (req, res, cb) {
-    cb(null, './uploads')
+// Disk storage for regular file uploads
+const diskStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, './Uploads');
   },
   filename: function (req, file, cb) {
-    cb(null, file.fieldname + "_" + Date.now() + "_" + file.originalname)
+    cb(null, file.fieldname + '_' + Date.now() + '_' + file.originalname);
   }
-})
+});
 
-var upload = multer({
-  storage: storage,
-}).array('images', 10)
+// Memory storage for cropped image uploads
+const memoryStorage = multer.memoryStorage();
 
-module.exports = upload
+// Multer instances
+const diskUpload = multer({
+  storage: diskStorage,
+}).array('images', 10);
+
+const memoryUpload = multer({
+  storage: memoryStorage,
+}).single('croppedImage');
+
+module.exports = {
+  diskUpload,
+  memoryUpload,
+};
