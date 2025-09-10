@@ -498,5 +498,5 @@ module.exports = {
     }
   },
 
-  updateCategoryOfferPrice, // Export the new function
+  updateCategoryOfferPrice, 
 };

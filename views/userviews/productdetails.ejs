@@ -235,6 +235,34 @@
     0% { opacity: 0; transform: scale(3); }
     100% { opacity: 1; transform: scale(1); }
   }
+
+  /* Zoom Effect Styles */
+  .carousel-inner {
+    position: relative;
+    overflow: visible; /* Allow zoomed image to overflow */
+  }
+  .zoomable-image {
+    transition: transform 0.3s ease;
+    cursor: zoom-in;
+    max-width: 70%;
+    display: block;
+    margin: 0 auto;
+  }
+  .zoomable-image.zoomed {
+    transform: scale(1.5); /* Zoom level */
+    z-index: 10;
+    position: relative;
+    border: 2px solid #ddd;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  }
+  @media screen and (max-width: 768px) {
+    .zoomable-image {
+      cursor: default; /* Disable zoom on mobile */
+    }
+    .zoomable-image.zoomed {
+      transform: scale(1); /* No zoom on mobile */
+    }
+  }
 </style>
 
 <div class="contant container">
@@ -365,7 +393,7 @@
       <h3>Similar Products</h3>
       <div class="similar-products-grid">
         <% similarProducts.forEach(similarProduct => { %>
-          <a href="/product/<%= similarProduct._id %>">
+          <a href="/products/<%= similarProduct._id %>">
             <div class="similar-product-card">
               <img src="<%= similarProduct.images[0] %>" alt="<%= similarProduct.name %>">
               <h4><%= similarProduct.name %></h4>
@@ -469,6 +497,26 @@ document.addEventListener('DOMContentLoaded', function () {
       });
     });
   }
+
+  // Zoom Effect Script
+  const zoomableImages = document.querySelectorAll('.zoomable-image');
+  zoomableImages.forEach(image => {
+    image.addEventListener('click', function () {
+      // Only toggle zoom on non-mobile devices
+      if (window.innerWidth > 768) {
+        this.classList.toggle('zoomed');
+      }
+    });
+  });
+
+  // Reset zoom when carousel slides
+  const carousel = document.getElementById('carouselExample');
+  carousel.addEventListener('slide.bs.carousel', function () {
+    const activeImage = document.querySelector('.carousel-item.active .zoomable-image');
+    if (activeImage) {
+      activeImage.classList.remove('zoomed');
+    }
+  });
 });
 </script>
 
@@ -518,15 +566,6 @@ function addToWishlist(productId) {
     });
   });
 }
-</script>
-
-<!-- Medium Zoom for Image Zoom -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/medium-zoom/0.8.3/medium-zoom.min.js"></script>
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-  const images = document.querySelectorAll('.zoomable-image');
-  mediumZoom(images);
-});
 </script>
 
 <%- include('./footer') %>
