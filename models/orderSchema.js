@@ -18,13 +18,15 @@ const orderSchema = new mongoose.Schema({
       price: {
         type: Number,
       },
-
+      size: {
+        type: String,
+        required: true, // Size is required for each item
+      },
       itemstatus: {
         type: String,
         enum: ["PENDING", "CANCELLED"],
         default: "PENDING",
       },
-
       cancellationReason: {
         type: String,
         required: function () {
@@ -83,16 +85,13 @@ const orderSchema = new mongoose.Schema({
     type: String,
     unique: true,
   },
-
   discountAmount: {
     type: Number,
     default: 0,
   },
-
   couponApplied: {
     type: String,
   },
-
   transactiontype: {
     type: String,
   },
@@ -100,12 +99,8 @@ const orderSchema = new mongoose.Schema({
 
 orderSchema.pre("save", async function (next) {
   try {
-    // Generate a random number between 10000 and 99999
     const randomNumber = Math.floor(Math.random() * 90000) + 10000;
-
-    // Create the order ID with the '#' symbol and the random number
     this.orderId = `#${randomNumber}`;
-
     next();
   } catch (error) {
     next(error);

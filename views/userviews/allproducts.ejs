@@ -1,403 +1,500 @@
-<%- include('./sidebar') %>
+<%- include('./header') %>
 <style>
-  body {
-    font-family: Arial, sans-serif;
-    margin: 20px;
-  }
+  @import url("https://fonts.googleapis.com/css2?family=Poppins&display=swap");
 
-  form {
-    max-width: 600px;
-    margin: auto;
-  }
-
-  label {
-    display: block;
-    margin-top: 10px;
-  }
-
-  input,
-  select {
-    width: 100%;
-    padding: 8px;
-    margin-top: 5px;
-    margin-bottom: 10px;
+  * {
+    padding: 0;
+    margin: 0;
     box-sizing: border-box;
+    font-family: "Poppins", sans-serif;
   }
 
-  button {
-    background-color: #4CAF50;
-    color: white;
-    padding: 10px 15px;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
+  body {
+    background-color: #f4f4f4;
+    padding-top: 80px;
   }
 
-  #imagePreview img {
-    max-width: 100px;
-    max-height: 100px;
-    margin: 5px;
+  .container {
+    max-width: 1200px;
+    margin: 20px auto;
+    padding: 0 15px;
   }
 
-  .preview-container {
-    position: relative;
-    display: inline-block;
-  }
-
-  .delete-button {
-    position: absolute;
-    top: 0;
-    right: 0;
-    background: red;
-    color: white;
-    border: none;
-    border-radius: 50%;
-    width: 20px;
-    height: 20px;
-    line-height: 20px;
-    text-align: center;
-    cursor: pointer;
-  }
-
-  .modal-content {
-    padding: 20px;
-  }
-
-  #cropper-container {
-    max-width: 100%;
-    max-height: 400px;
-    margin-bottom: 10px;
-  }
-
-  #cropper-container img {
-    max-width: 100%;
-    max-height: 400px;
-  }
-
-  .cropper-buttons {
+  #search-bar {
     display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 30px;
+    background-color: #fff;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  }
+
+  #searchForm {
+    display: flex;
+    flex: 1;
     gap: 10px;
   }
 
-  #imageQueue {
-    margin-top: 10px;
-    font-size: 14px;
+  #searchInput {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 1rem;
+  }
+
+  .css-huh2rh {
+    padding: 10px 20px;
+    font-size: 1rem;
+    font-weight: 600;
+    border-radius: 4px;
+    background-color: #fff;
+    color: rgb(255, 63, 108);
+    border: 1px solid rgb(255, 63, 108);
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+
+  .css-huh2rh:hover {
+    background-color: rgb(255, 63, 108);
+    color: #fff;
+  }
+
+  #colorFilter,
+  #sizeFilter,
+  #sortOption {
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 1rem;
+    color: #333;
+    background-color: #fff;
+  }
+
+  #sort-by {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  #productList {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 20px;
+  }
+
+  .card {
+    background-color: #fff;
+    border-radius: 8px;
+    overflow: hidden;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    height: 380px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 15px;
+    border: 1px solid #ddd;
+    position: relative;
+  }
+
+  .card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(253, 154, 108, 0.3);
+  }
+
+  .card-img {
+    width: 100%;
+    height: 180px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .card-img img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    transition: transform 0.3s ease;
+  }
+
+  .card-img:hover img {
+    transform: scale(1.2);
+  }
+
+  .product-name {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin: 10px 0;
+    text-align: center;
+  }
+
+  .price {
+    font-size: 1rem;
+    color: #333;
+  }
+
+  .price s {
+    color: red;
+    margin-right: 5px;
+  }
+
+  .offer-details {
+    font-size: 0.9rem;
+    color: rgb(255, 63, 108);
+    margin-top: 5px;
+    text-align: center;
+  }
+
+  .discount-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background-color: #ff935d;
+    color: #fff;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    font-weight: bold;
+    z-index: 2;
+  }
+
+  .pagination-container {
+    margin-top: 30px;
+    display: flex;
+    justify-content: center;
+  }
+
+  .pagination {
+    display: inline-flex;
+    gap: 5px;
+  }
+
+  .pagination .page-item .page-link {
+    color: #333;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 8px 12px;
+    font-size: 1rem;
+    transition: background-color 0.3s ease;
+  }
+
+  .pagination .page-item.active .page-link {
+    background-color: rgb(255, 63, 108);
+    color: #fff;
+    border-color: rgb(255, 63, 108);
+  }
+
+  .pagination .page-item .page-link:hover {
+    background-color: #f0f0f0;
+  }
+
+  .pagination .page-item.disabled .page-link {
+    color: #999;
+    cursor: not-allowed;
+  }
+
+  @media (max-width: 767px) {
+    body {
+      padding-top: 60px;
+    }
+
+    #search-bar {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    #searchForm {
+      width: 100%;
+    }
+
+    #searchInput {
+      width: 100%;
+    }
+
+    #sort-by {
+      width: 100%;
+      justify-content: space-between;
+    }
+
+    #colorFilter,
+    #sizeFilter,
+    #sortOption {
+      width: 100%;
+    }
+  }
+
+  @media (max-width: 575px) {
+    #productList {
+      grid-template-columns: 1fr;
+    }
+
+    .pagination {
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .card-img {
+      position: relative;
+      width: 100%;
+      height: 180px;
+      overflow: hidden;
+    }
+
+    .card-img a {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      text-decoration: none;
+      z-index: 1;
+    }
+
+    .card-img img {
+      pointer-events: none;
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
   }
 </style>
 
-<body>
-  <div class="content">
-    <form id="productForm" action="/addProduct" method="post" class="form-horizontal" enctype="multipart/form-data">
-      <h2 style="color: blue;">Add New Product</h2>
-
-      <div class="form-group">
-        <label class="col-md-4 control-label" for="product_name">NAME</label>
-        <div class="col-md-8">
-          <input id="product_name" name="name" placeholder="" class="form-control input-md" required="true" type="text">
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label class="col-md-4 control-label" for="product_name_fr">DESCRIPTION</label>
-        <div class="col-md-8">
-          <input id="product_name_fr" name="description" placeholder="" class="form-control input-md" required="" type="text">
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label class="col-md-4 control-label" for="product_categorie">CATEGORY</label>
-        <div class="col-md-4">
-          <select id="product_categorie" name="category" class="form-control" required>
-            <option value="" disabled selected>Select Category</option>
-            <% category.forEach(cat => { %>
-              <option value="<%= cat._id %>"><%= cat.name %></option>
-            <% }); %>
-          </select>
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label class="col-md-4 control-label" for="price">PRICE</label>
-        <div class="col-md-4">
-          <input id="price" name="price" placeholder="" class="form-control input-md" required="true" type="text">
-        </div>
-        <label class="col-md-4 control-label" for="stock">STOCK</label>
-        <div class="col-md-4">
-          <input id="stock" name="stock" placeholder="" class="form-control input-md" required="true" type="text">
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label class="col-md-4 control-label" for="size">SIZE</label>
-        <div class="col-md-4">
-          <input id="size" name="size" placeholder="" class="form-control input-md" required="" type="text">
-        </div>
-        <label class="col-md-4 control-label" for="color">COLOR</label>
-        <div class="col-md-4">
-          <input id="color" name="color" placeholder="" class="form-control input-md" required="" type="text">
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label class="col-md-4 control-label" for="filebutton">IMAGES</label>
-        <div class="col-md-4">
-          <input id="filebutton" name="images" class="input-file" type="file" multiple accept="image/*" onchange="openCropperModal(this)">
-        </div>
-      </div>
-      <div class="image-preview" id="imagePreview"></div>
-      <input type="hidden" name="croppedImages" id="croppedImages">
-
-      <div class="form-group">
-        <label class="col-md-4 control-label" for="singlebutton"></label>
-        <div class="col-md-4">
-          <button id="singlebutton" name="singlebutton" class="btn btn-success">Save Product</button>
-        </div>
-      </div>
+<div class="container">
+  <div id="search-bar">
+    <form id="searchForm" action="/search" method="GET" class="search-form">
+      <input
+        type="text"
+        name="query"
+        id="searchInput"
+        placeholder="Search for products"
+        value="<%= searchQuery || '' %>"
+      />
+      <button type="submit" class="css-huh2rh">Search</button>
     </form>
-  </div>
-
-  <!-- Cropper Modal -->
-  <div class="modal fade" id="cropperModal" tabindex="-1" aria-labelledby="cropperModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="cropperModalLabel">Crop Image</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          <div id="cropper-container">
-            <img id="imageToCrop" src="" alt="Image to crop">
-          </div>
-          <div id="imageQueue">Images remaining: <span id="queueCount">0</span></div>
-          <div class="cropper-buttons">
-            <button type="button" id="cropButton" class="btn btn-primary">Crop and Next</button>
-            <button type="button" id="skipButton" class="btn btn-warning">Skip</button>
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Done</button>
-          </div>
-        </div>
-      </div>
+    <select id="colorFilter">
+      <option value="">All Colors</option>
+      <option value="black">Black</option>
+      <option value="brown">Brown</option>
+      <option value="white">White</option>
+      <option value="lilac">Lilac</option>
+    </select>
+    <select id="sizeFilter">
+      <option value="">All Sizes</option>
+      <option value="4">4</option>
+      <option value="5">5</option>
+      <option value="6">6</option>
+    </select>
+    <div id="sort-by">
+      <label for="sortOption">Sort by:</label>
+      <select id="sortOption" name="sortOption">
+        <option value="priceLowToHigh">Price: Low to High</option>
+        <option value="priceHighToLow">Price: High to Low</option>
+      </select>
+      <button id="applySort" class="css-huh2rh">Apply</button>
     </div>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css" rel="stylesheet">
-
-  <script>
-    let cropper;
-    let fileQueue = [];
-    let croppedImages = [];
-    let currentFileIndex = 0;
-
-    function openCropperModal(input) {
-      fileQueue = Array.from(input.files);
-      currentFileIndex = 0;
-      if (fileQueue.length > 0) {
-        processNextImage();
-      } else {
-        Swal.fire({
-          icon: 'error',
-          title: 'No Images',
-          text: 'Please select at least one image to upload.',
-        });
-      }
-    }
-
-    function processNextImage() {
-      if (currentFileIndex >= fileQueue.length) {
-        bootstrap.Modal.getInstance(document.getElementById('cropperModal')).hide();
-        document.getElementById('filebutton').value = '';
-        return;
-      }
-
-      const currentFile = fileQueue[currentFileIndex];
-      const reader = new FileReader();
-      reader.onload = function (e) {
-        const imageToCrop = document.getElementById('imageToCrop');
-        imageToCrop.src = e.target.result;
-        document.getElementById('queueCount').textContent = `${fileQueue.length - currentFileIndex - 1}`;
-        const modal = new bootstrap.Modal(document.getElementById('cropperModal'), { backdrop: 'static' });
-        modal.show();
-
-        if (cropper) {
-          cropper.destroy();
-        }
-        cropper = new Cropper(imageToCrop, {
-          aspectRatio: 1,
-          viewMode: 1,
-          autoCropArea: 0.8,
-          responsive: true,
-        });
-      };
-      reader.readAsDataURL(currentFile);
-    }
-
-    document.getElementById('cropButton').addEventListener('click', async function () {
-      if (cropper) {
-        const canvas = cropper.getCroppedCanvas({
-          width: 300,
-          height: 300,
-        });
-
-        canvas.toBlob(async (blob) => {
-          const formData = new FormData();
-          formData.append('croppedImage', blob, `cropped_${fileQueue[currentFileIndex].name}`);
-
-          try {
-            const response = await fetch('/upload-cropped-image', {
-              method: 'POST',
-              body: formData,
-            });
-            const result = await response.json();
-            console.log('Upload response:', result);
-            if (response.ok) {
-              croppedImages.push(result.filename);
-              document.getElementById('croppedImages').value = JSON.stringify(croppedImages);
-              console.log('Cropped images updated:', croppedImages);
-              console.log('Hidden input value:', document.getElementById('croppedImages').value);
-
-              // Add to preview
-              const previewContainer = document.getElementById('imagePreview');
-              const previewDiv = document.createElement('div');
-              previewDiv.className = 'preview-container';
-              const img = document.createElement('img');
-              img.src = result.filename;
-              const deleteButton = document.createElement('button');
-              deleteButton.className = 'delete-button';
-              deleteButton.innerHTML = 'X';
-              deleteButton.onclick = function () {
-                previewContainer.removeChild(previewDiv);
-                croppedImages = croppedImages.filter(url => url !== result.filename);
-                document.getElementById('croppedImages').value = JSON.stringify(croppedImages);
-                console.log('Cropped images after delete:', croppedImages);
-              };
-              previewDiv.appendChild(img);
-              previewDiv.appendChild(deleteButton);
-              previewContainer.appendChild(previewDiv);
-
-              cropper.destroy();
-              cropper = null;
-              currentFileIndex++;
-              processNextImage();
-            } else {
-              console.error('Upload failed:', result.error);
-              Swal.fire({
-                icon: 'error',
-                title: 'Upload Failed',
-                text: result.error || 'Failed to upload cropped image',
-              });
-            }
-          } catch (error) {
-            console.error('Error uploading cropped image:', error);
-            Swal.fire({
-              icon: 'error',
-              title: 'Upload Failed',
-              text: 'Error uploading cropped image',
-            });
+  <div id="productList">
+    <% allProducts.filter(product => !product.category.blocked && !product.blocked).forEach(product => { %>
+    <div class="filter-products">
+      <div class="card">
+        <div class="product-name"><%= product.name %></div>
+        <% 
+          const productOffer = productOffers.find(offer => offer.product._id.toString() === product._id.toString() && new Date() >= new Date(offer.startDate) && new Date() <= new Date(offer.expiryDate)); 
+          const categoryOffer = categoryOffers.find(offer => offer.category._id.toString() === product.category.toString() && new Date() >= new Date(offer.startDate) && new Date() <= new Date(offer.expiryDate));
+          let displayPrice = product.price;
+          let offerDescription = '';
+          let discountPercentage = 0;
+          
+          if (productOffer) {
+            displayPrice = productOffer.newPrice;
+            offerDescription = `${productOffer.discountPercentage}% OFF`;
+            discountPercentage = productOffer.discountPercentage;
+          } else if (categoryOffer && product.categoryofferprice && product.categoryofferprice < product.price) {
+            displayPrice = product.categoryofferprice;
+            offerDescription = `${categoryOffer.discountPercentage}% OFF`;
+            discountPercentage = categoryOffer.discountPercentage;
           }
-        }, 'image/jpeg', 0.8);
-      }
+        %>
+        <% if (productOffer || (categoryOffer && product.categoryofferprice < product.price)) { %>
+        <div class="discount-badge">
+          <%= discountPercentage %>% OFF
+        </div>
+        <% } %>
+        <a href="/products/<%= product._id %>" class="product-link">
+          <div class="card-img">
+            <img src="<%= product.images[0] %>" alt="<%= product.name %>" />
+          </div>
+        </a>
+        <div class="price">
+          <% if (displayPrice < product.price) { %>
+            <s>₹<%= product.price.toFixed(2) %></s> ₹<%= displayPrice.toFixed(2) %>
+          <% } else { %>
+            ₹<%= product.price.toFixed(2) %>
+          <% } %>
+        </div>
+        <% if (offerDescription) { %>
+          <div class="offer-details"><%= offerDescription %></div>
+        <% } %>
+      </div>
+    </div>
+    <% }) %>
+  </div>
+
+  <div class="pagination-container">
+    <nav aria-label="Page navigation">
+      <ul class="pagination">
+        <li class="page-item <%= currentPage === 1 ? 'disabled' : '' %>">
+          <a class="page-link" href="?page=<%= currentPage - 1 %>" aria-label="Previous">
+            <span aria-hidden="true">«</span>
+          </a>
+        </li>
+        <% for (let i = 1; i <= totalPages; i++) { %>
+        <li class="page-item <%= currentPage === i ? 'active' : '' %>">
+          <a class="page-link" href="?page=<%= i %>"><%= i %></a>
+        </li>
+        <% } %>
+        <li class="page-item <%= currentPage === totalPages ? 'disabled' : '' %>">
+          <a class="page-link" href="?page=<%= currentPage + 1 %>" aria-label="Next">
+            <span aria-hidden="true">»</span>
+          </a>
+        </li>
+      </ul>
+    </nav>
+  </div>
+</div>
+
+<script>
+  document.getElementById("applySort").addEventListener("click", function (event) {
+    event.preventDefault();
+    const sortOption = document.getElementById("sortOption").value;
+    const colorFilter = document.getElementById("colorFilter").value;
+    const sizeFilter = document.getElementById("sizeFilter").value;
+    const searchQuery = document.getElementById("searchInput").value;
+    fetchFilteredProducts(colorFilter, sizeFilter, searchQuery, sortOption);
+  });
+
+  function fetchAllProducts() {
+    fetch(`/allProducts?json=true&t=${new Date().getTime()}`)
+      .then((response) => response.json())
+      .then((data) => {
+        updateProductList(data);
+      })
+      .catch((error) => console.error("Error fetching all products:", error));
+  }
+
+  function fetchFilteredProducts(colorFilter, sizeFilter, searchQuery, sortOption) {
+    let url = `/filteredProducts?color=${encodeURIComponent(colorFilter)}&size=${encodeURIComponent(sizeFilter)}&t=${new Date().getTime()}`;
+    if (searchQuery) url += `&query=${encodeURIComponent(searchQuery)}`;
+    if (sortOption) url += `&sortOption=${encodeURIComponent(sortOption)}`;
+    fetch(url)
+      .then((response) => response.json())
+      .then((data) => {
+        updateProductList(data);
+      })
+      .catch((error) => console.error("Error fetching filtered products:", error));
+  }
+
+  function handleSearchFormSubmit(event) {
+    event.preventDefault();
+    const searchQuery = document.getElementById("searchInput").value;
+    const colorFilter = document.getElementById("colorFilter").value;
+    const sizeFilter = document.getElementById("sizeFilter").value;
+    const sortOption = document.getElementById("sortOption").value;
+    fetchFilteredProducts(colorFilter, sizeFilter, searchQuery, sortOption);
+  }
+
+  document.getElementById("searchForm").addEventListener("submit", handleSearchFormSubmit);
+
+  function updateProductList(products) {
+    const productList = document.getElementById("productList");
+    productList.innerHTML = "";
+
+    products.forEach((product) => {
+      const imageURL = `${product.images[0]}`;
+      let displayPrice = product.price;
+      let offerDescription = '';
+      let discountBadge = '';
+
+      // Fetch offers for dynamic products
+      fetch(`/productOffers?productId=${product._id}&t=${new Date().getTime()}`)
+        .then(response => response.json())
+        .then(offers => {
+          const productOffer = offers.find(offer => new Date() >= new Date(offer.startDate) && new Date() <= new Date(offer.expiryDate));
+          if (productOffer) {
+            displayPrice = productOffer.newPrice;
+            offerDescription = `${productOffer.discountPercentage}% OFF`;
+            discountBadge = `<div class="discount-badge">${productOffer.discountPercentage}% OFF</div>`;
+          } else if (product.categoryofferprice && product.categoryofferprice < product.price) {
+            // Calculate category discount percentage
+            const discountPercentage = Math.round(((product.price - product.categoryofferprice) / product.price) * 100);
+            displayPrice = product.categoryofferprice;
+            offerDescription = `${discountPercentage}% OFF`;
+            discountBadge = `<div class="discount-badge">${discountPercentage}% OFF</div>`;
+          }
+
+          const productCard = `
+            <div class="filter-products">
+              <div class="card">
+                <div class="product-name">${product.name}</div>
+                ${discountBadge}
+                <a href="/products/${product._id}" class="product-link">
+                  <div class="card-img">
+                    <img src="${imageURL}" alt="${product.name}" style="pointer-events: none;" />
+                  </div>
+                </a>
+                <div class="price">
+                  ${displayPrice < product.price ? `<s>₹${product.price.toFixed(2)}</s> ₹${displayPrice.toFixed(2)}` : `₹${product.price.toFixed(2)}`}
+                </div>
+                ${offerDescription ? `<div class="offer-details">${offerDescription}</div>` : ''}
+              </div>
+            </div>`;
+          productList.insertAdjacentHTML("beforeend", productCard);
+        })
+        .catch(error => {
+          console.error("Error fetching offers:", error);
+          // Fallback without offers
+          const productCard = `
+            <div class="filter-products">
+              <div class="card">
+                <div class="product-name">${product.name}</div>
+                <a href="/products/${product._id}" class="product-link">
+                  <div class="card-img">
+                    <img src="${imageURL}" alt="${product.name}" style="pointer-events: none;" />
+                  </div>
+                </a>
+                <div class="price">₹${product.price.toFixed(2)}</div>
+              </div>
+            </div>`;
+          productList.insertAdjacentHTML("beforeend", productCard);
+        });
     });
+  }
 
-    document.getElementById('skipButton').addEventListener('click', function () {
-      if (cropper) {
-        cropper.destroy();
-        cropper = null;
-      }
-      currentFileIndex++;
-      processNextImage();
-    });
+  document.getElementById("colorFilter").addEventListener("change", function () {
+    const colorFilter = this.value;
+    const sizeFilter = document.getElementById("sizeFilter").value;
+    const searchQuery = document.getElementById("searchInput").value;
+    const sortOption = document.getElementById("sortOption").value;
+    fetchFilteredProducts(colorFilter, sizeFilter, searchQuery, sortOption);
+  });
 
-    document.getElementById('cropperModal').addEventListener('hidden.bs.modal', function () {
-      if (cropper) {
-        cropper.destroy();
-        cropper = null;
-      }
-      document.getElementById('filebutton').value = '';
-      currentFileIndex = 0;
-      fileQueue = [];
-      console.log('Modal closed, croppedImages:', croppedImages);
-    });
+  document.getElementById("sizeFilter").addEventListener("change", function () {
+    const sizeFilter = this.value;
+    const colorFilter = document.getElementById("colorFilter").value;
+    const searchQuery = document.getElementById("searchInput").value;
+    const sortOption = document.getElementById("sortOption").value;
+    fetchFilteredProducts(colorFilter, sizeFilter, searchQuery, sortOption);
+  });
 
-    // Form validation and submission
-    document.getElementById('singlebutton').addEventListener('click', function (event) {
-      event.preventDefault();
-      const form = document.getElementById('productForm');
-      const formData = new FormData(form);
-      console.log('Form submission, formData:', Array.from(formData.entries()));
-      console.log('Cropped images:', croppedImages);
-      console.log('Hidden input value:', document.getElementById('croppedImages').value);
+  fetchAllProducts();
+</script>
 
-      const nameInput = document.getElementById('product_name');
-      if (!validateName(nameInput.value)) {
-        Swal.fire({
-          icon: 'error',
-          title: 'Invalid input',
-          text: 'Please enter a valid name.',
-        });
-        return;
-      }
-
-      const priceInput = document.getElementById('price');
-      if (!validatePrice(priceInput.value)) {
-        Swal.fire({
-          icon: 'error',
-          title: 'Invalid input',
-          text: 'Please enter a valid price.',
-        });
-        return;
-      }
-
-      const stockInput = document.getElementById('stock');
-      if (!validateStock(stockInput.value)) {
-        Swal.fire({
-          icon: 'error',
-          title: 'Invalid input',
-          text: 'Please enter a valid stock.',
-        });
-        return;
-      }
-
-      const sizeInput = document.getElementById('size');
-      if (!validateSize(sizeInput.value)) {
-        Swal.fire({
-          icon: 'error',
-          title: 'Invalid input',
-          text: 'Please enter a valid size.',
-        });
-        return;
-      }
-
-      if (croppedImages.length === 0) {
-        Swal.fire({
-          icon: 'error',
-          title: 'Invalid input',
-          text: 'Please upload and crop at least one image.',
-        });
-        return;
-      }
-
-      form.submit();
-    });
-
-    function validateName(name) {
-      return name.trim() !== "";
-    }
-
-    function validatePrice(price) {
-      const numericPrice = parseFloat(price);
-      return !isNaN(numericPrice) && numericPrice > 0;
-    }
-
-    function validateStock(stock) {
-      const numericStock = parseInt(stock, 10);
-      return !isNaN(numericStock) && numericStock >= 0 && Number.isInteger(numericStock);
-    }
-
-    function validateSize(size) {
-      return true;
-    }
-  </script>
-</body>
-</html>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.min.js"></script>
+<%- include('./footer') %>

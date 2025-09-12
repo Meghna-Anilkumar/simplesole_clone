@@ -27,7 +27,8 @@ module.exports = {
 
   createcoupon: async (req, res) => {
     try {
-      const { couponCode, discountRate, minPurchaseAmount, expiryDate } = req.body;
+      const { couponCode, discountRate, minPurchaseAmount, expiryDate } =
+        req.body;
 
       if (!couponCode || !discountRate || !minPurchaseAmount || !expiryDate) {
         return res.status(400).json({ message: "All fields are required" });
@@ -40,19 +41,33 @@ module.exports = {
       currentDate.setHours(0, 0, 0, 0);
 
       if (couponCode.trim() === "" || couponCode.includes(" ")) {
-        return res.status(400).json({ message: "Coupon code cannot be empty or contain spaces" });
+        return res
+          .status(400)
+          .json({ message: "Coupon code cannot be empty or contain spaces" });
       }
 
-      if (isNaN(discountRateValue) || discountRateValue < 1 || discountRateValue > 100) {
-        return res.status(400).json({ message: "Discount rate must be between 1 and 100" });
+      if (
+        isNaN(discountRateValue) ||
+        discountRateValue < 1 ||
+        discountRateValue > 100
+      ) {
+        return res
+          .status(400)
+          .json({ message: "Discount rate must be between 1 and 100" });
       }
 
       if (isNaN(minPurchaseAmountValue) || minPurchaseAmountValue < 0) {
-        return res.status(400).json({ message: "Minimum purchase amount must be a non-negative number" });
+        return res
+          .status(400)
+          .json({
+            message: "Minimum purchase amount must be a non-negative number",
+          });
       }
 
       if (expiryDateValue < currentDate) {
-        return res.status(400).json({ message: "Expiry date cannot be before the current date" });
+        return res
+          .status(400)
+          .json({ message: "Expiry date cannot be before the current date" });
       }
 
       const existingCoupon = await Coupon.findOne({ couponCode });
@@ -135,47 +150,67 @@ module.exports = {
         .exec();
 
       if (!couponCode) {
-        cart.newTotal = cart.total; // Reset newTotal if no coupon code provided
+        cart.newTotal = cart.total;
+        cart.couponApplied = null;
         await cart.save();
+        req.session.couponCode = null;
+        req.session.discount = 0;
         return res.status(400).json({ message: "Coupon code is required" });
       }
 
       const coupon = await Coupon.findOne({ couponCode });
-
       if (!coupon) {
-        cart.newTotal = cart.total; // Reset newTotal if coupon is invalid
+        cart.newTotal = cart.total;
+        cart.couponApplied = null;
         await cart.save();
-        return res.status(400).json({ message: "Invalid or expired coupon code" });
+        req.session.couponCode = null;
+        req.session.discount = 0;
+        return res
+          .status(400)
+          .json({ message: "Invalid or expired coupon code" });
       }
 
       if (cart.total < coupon.minimumPurchaseAmount) {
-        cart.newTotal = cart.total; // Reset newTotal if minimum purchase not met
+        cart.newTotal = cart.total;
+        cart.couponApplied = null;
         await cart.save();
-        return res.status(400).json({ message: "Minimum purchase amount not met for this coupon" });
+        req.session.couponCode = null;
+        req.session.discount = 0;
+        return res
+          .status(400)
+          .json({ message: "Minimum purchase amount not met for this coupon" });
       }
 
       if (user.usedCoupons && user.usedCoupons.includes(coupon._id)) {
-        cart.newTotal = cart.total; // Reset newTotal if coupon already used
+        cart.newTotal = cart.total;
+        cart.couponApplied = null;
         await cart.save();
+        req.session.couponCode = null;
+        req.session.discount = 0;
         return res.status(400).json({ message: "Coupon already used" });
       }
 
       const discount = (cart.total * coupon.discountRate) / 100;
       const newTotal = cart.total - discount;
       cart.newTotal = newTotal;
-      cart.couponApplied = couponCode; // Store the applied coupon code
+      cart.couponApplied = couponCode;
       await cart.save();
-
-      console.log('Coupon applied:', { couponCode, discount, newTotal, total: cart.total });
 
       req.session.couponCode = couponCode;
       req.session.discount = discount;
       req.session.totalpay = newTotal;
 
+      console.log("Coupon applied:", {
+        couponCode,
+        discount,
+        newTotal,
+        total: cart.total,
+      });
+
       return res.json({ success: true, newTotal, coupon, discount });
     } catch (error) {
-      console.error('Error applying coupon:', error);
-      return res.status(500).json({ message: 'Internal server error' });
+      console.error("Error applying coupon:", error);
+      return res.status(500).json({ message: "Internal server error" });
     }
   },
 
@@ -193,19 +228,22 @@ module.exports = {
         .exec();
 
       cart.newTotal = cart.total;
-      cart.couponApplied = null; // Clear the applied coupon
+      cart.couponApplied = null;
       await cart.save();
 
-      console.log('Coupon removed:', { total: cart.total, newTotal: cart.newTotal });
-
-      req.session.couponCode = "";
+      req.session.couponCode = null;
       req.session.discount = 0;
       req.session.totalpay = cart.total;
 
+      console.log("Coupon removed:", {
+        total: cart.total,
+        newTotal: cart.newTotal,
+      });
+
       return res.json({ success: true, newTotal: cart.total });
     } catch (error) {
-      console.error('Error removing coupon:', error);
-      return res.status(500).json({ message: 'Internal server error' });
+      console.error("Error removing coupon:", error);
+      return res.status(500).json({ message: "Internal server error" });
     }
   },
 
@@ -236,19 +274,33 @@ module.exports = {
       currentDate.setHours(0, 0, 0, 0);
 
       if (editCouponCode.trim() === "" || editCouponCode.includes(" ")) {
-        return res.status(400).json({ message: "Coupon code cannot be empty or contain spaces" });
+        return res
+          .status(400)
+          .json({ message: "Coupon code cannot be empty or contain spaces" });
       }
 
-      if (isNaN(discountRateValue) || discountRateValue < 1 || discountRateValue > 100) {
-        return res.status(400).json({ message: "Discount rate must be between 1 and 100" });
+      if (
+        isNaN(discountRateValue) ||
+        discountRateValue < 1 ||
+        discountRateValue > 100
+      ) {
+        return res
+          .status(400)
+          .json({ message: "Discount rate must be between 1 and 100" });
       }
 
       if (isNaN(minPurchaseAmountValue) || minPurchaseAmountValue < 0) {
-        return res.status(400).json({ message: "Minimum purchase amount must be a non-negative number" });
+        return res
+          .status(400)
+          .json({
+            message: "Minimum purchase amount must be a non-negative number",
+          });
       }
 
       if (expiryDateValue < currentDate) {
-        return res.status(400).json({ message: "Expiry date cannot be before the current date" });
+        return res
+          .status(400)
+          .json({ message: "Expiry date cannot be before the current date" });
       }
 
       const existingCoupon = await Coupon.findOne({

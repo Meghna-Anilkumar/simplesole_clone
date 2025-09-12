@@ -80,13 +80,9 @@
     display: flex;
     flex-direction: column;
   }
-  .colors {
-    flex-grow: 1;
-  }
   .product-title,
   .price,
-  .sizes,
-  .colors {
+  .sizes {
     text-transform: uppercase;
     font-weight: bold;
   }
@@ -110,17 +106,6 @@
   }
   .size:first-of-type {
     margin-left: 40px;
-  }
-  .color {
-    display: inline-block;
-    vertical-align: middle;
-    margin-right: 10px;
-    height: 2em;
-    width: 2em;
-    border-radius: 2px;
-  }
-  .color:first-of-type {
-    margin-left: 20px;
   }
   .add-to-cart,
   .like {
@@ -235,11 +220,9 @@
     0% { opacity: 0; transform: scale(3); }
     100% { opacity: 1; transform: scale(1); }
   }
-
-  /* Zoom Effect Styles */
   .carousel-inner {
     position: relative;
-    overflow: visible; /* Allow zoomed image to overflow */
+    overflow: visible;
   }
   .zoomable-image {
     transition: transform 0.3s ease;
@@ -249,7 +232,7 @@
     margin: 0 auto;
   }
   .zoomable-image.zoomed {
-    transform: scale(1.5); /* Zoom level */
+    transform: scale(1.5);
     z-index: 10;
     position: relative;
     border: 2px solid #ddd;
@@ -257,11 +240,18 @@
   }
   @media screen and (max-width: 768px) {
     .zoomable-image {
-      cursor: default; /* Disable zoom on mobile */
+      cursor: default;
     }
     .zoomable-image.zoomed {
-      transform: scale(1); /* No zoom on mobile */
+      transform: scale(1);
     }
+  }
+  .size-select {
+    padding: 5px;
+    margin-left: 10px;
+    width: 150px;
+    border-radius: 4px;
+    border: 1px solid #ccc;
   }
 </style>
 
@@ -271,7 +261,7 @@
       <div class="row">
         <div class="col-md-6">
           <h2><%= product.name %></h2>
-          <% if (product.stock - product.reserved < 1) { %>
+          <% if (product.allVariantsOutOfStock) { %>
             <p class="out-of-stock">Out of Stock</p>
           <% } %>
           
@@ -317,7 +307,7 @@
             <% const activeOffer = productOffers.find(offer => new Date() >= offer.startDate && new Date() <= offer.expiryDate); %>
             <% if (activeOffer) { %>
               <% displayPrice = activeOffer.newPrice; %>
-              <% offerDescription = `Flat ${activeOffer.discountPercentage}% discount`; %>
+              <% offerDescription = 'Flat ' + activeOffer.discountPercentage + '% discount'; %>
             <% } %>
           <% } else if (product.categoryofferprice && product.categoryofferprice < product.price) { %>
             <% displayPrice = product.categoryofferprice; %>
@@ -336,11 +326,16 @@
             </div>
           <% } %>
 
-          <!-- Sizes -->
+          <!-- Size Selection -->
           <h5 class="sizes">Size:
-            <% product.size.forEach(size => { %>
-              <span class="size" data-bs-toggle="tooltip" title="<%= size %>"><%= size %></span>
-            <% }); %>
+            <select class="size-select" name="size" required>
+              <option value="" disabled selected>Select a size</option>
+              <% product.variants.forEach(variant => { %>
+                <option value="<%= variant.size %>" data-max-quantity="<%= variant.availableQuantity %>" <%= !variant.isAvailable ? 'disabled' : '' %>>
+                  <%= variant.size %> <%= !variant.isAvailable ? '(Out of Stock)' : '' %>
+                </option>
+              <% }); %>
+            </select>
           </h5>
 
           <!-- Quantity Input -->
@@ -350,11 +345,11 @@
               class="quantity-input" 
               value="1" 
               min="1" 
-              max="<%= product.stock - product.reserved %>" 
-              <%= product.stock - product.reserved < 1 ? 'disabled' : '' %> 
+              max="1"
+              <%= product.allVariantsOutOfStock ? 'disabled' : '' %> 
               required
               pattern="[1-9]\d*" 
-              oninput="validity.valid||(value='1');"
+              oninput="if (!this.validity.valid) this.value = '1';"
             >
           </h5>
 
@@ -365,23 +360,13 @@
           <div id="stock-error" class="alert alert-danger"></div>
 
           <!-- Action Buttons -->
-          <% if (product.stock - product.reserved >= 1) { %>
-            <div class="action">
-              <button class="add-to-cart btn btn-primary" type="button">Add to Cart</button>
-              <button class="like btn btn-danger <%= productInWishlist ? 'wishlisted' : '' %>" type="button" onclick="addToWishlist('<%= product._id %>')">
-                <span class="fa fa-heart"></span>
-                <%= productInWishlist ? 'Wishlisted' : 'Add to Wishlist' %>
-              </button>
-            </div>
-          <% } else { %>
-            <div class="action" style="pointer-events: none; opacity: 0.5;">
-              <button class="add-to-cart btn btn-primary" type="button" disabled>Out of Stock</button>
-              <button class="like btn btn-danger" type="button" disabled>
-                <span class="fa fa-heart"></span>
-                Add to Wishlist
-              </button>
-            </div>
-          <% } %>
+          <div class="action" id="action-buttons" <%= product.allVariantsOutOfStock ? 'style="pointer-events: none; opacity: 0.5;"' : '' %>>
+            <button class="add-to-cart btn btn-primary" type="button" <%= product.allVariantsOutOfStock ? 'disabled' : '' %>>Add to Cart</button>
+            <button class="like btn btn-danger <%= productInWishlist ? 'wishlisted' : '' %>" type="button" onclick="addToWishlist('<%= product._id %>')" <%= product.allVariantsOutOfStock ? 'disabled' : '' %>>
+              <span class="fa fa-heart"></span>
+              <%= productInWishlist ? 'Wishlisted' : 'Add to Wishlist' %>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -403,7 +388,7 @@
                 const similarProductOffer = productOffers.find(offer => offer.product.toString() === similarProduct._id.toString() && new Date() >= offer.startDate && new Date() <= offer.expiryDate);
                 if (similarProductOffer) {
                   similarDisplayPrice = similarProductOffer.newPrice;
-                  similarOfferDescription = `Flat ${similarProductOffer.discountPercentage}% discount`;
+                  similarOfferDescription = 'Flat ' + similarProductOffer.discountPercentage + '% discount';
                 } else if (similarProduct.categoryofferprice && similarProduct.categoryofferprice < similarProduct.price) {
                   similarDisplayPrice = similarProduct.categoryofferprice;
                   similarOfferDescription = 'Category offer applied';
@@ -433,16 +418,102 @@
 <script>
 document.addEventListener('DOMContentLoaded', function () {
   const addToCartButton = document.querySelector('.add-to-cart');
-  
+  const sizeSelect = document.querySelector('.size-select');
+  const quantityInput = document.querySelector('.quantity-input');
+  const stockErrorDiv = document.getElementById('stock-error');
+  const actionButtons = document.getElementById('action-buttons');
+
+  function updateUIForSelectedSize() {
+    const selectedSize = sizeSelect.value;
+    stockErrorDiv.classList.remove('show');
+    stockErrorDiv.textContent = '';
+
+    if (!selectedSize) {
+      quantityInput.setAttribute('max', 1);
+      quantityInput.value = 1;
+      quantityInput.disabled = false;
+      actionButtons.style.pointerEvents = 'auto';
+      actionButtons.style.opacity = '1';
+      addToCartButton.disabled = false;
+      document.querySelector('.like').disabled = false;
+      return;
+    }
+
+    const selectedOption = sizeSelect.querySelector(`option[value="${selectedSize}"]`);
+    const maxQuantity = selectedOption.dataset.maxQuantity || 1;
+    const isAvailable = selectedOption.disabled === false;
+
+    if (!isAvailable) {
+      stockErrorDiv.textContent = `Size ${selectedSize} is out of stock.`;
+      stockErrorDiv.classList.add('show');
+      quantityInput.setAttribute('max', 1);
+      quantityInput.value = 1;
+      quantityInput.disabled = true;
+      actionButtons.style.pointerEvents = 'none';
+      actionButtons.style.opacity = '0.5';
+      addToCartButton.disabled = true;
+      document.querySelector('.like').disabled = true;
+    } else {
+      quantityInput.setAttribute('max', maxQuantity);
+      quantityInput.value = 1;
+      quantityInput.disabled = false;
+      actionButtons.style.pointerEvents = 'auto';
+      actionButtons.style.opacity = '1';
+      addToCartButton.disabled = false;
+      document.querySelector('.like').disabled = false;
+    }
+  }
+
+  sizeSelect.addEventListener('change', updateUIForSelectedSize);
+  updateUIForSelectedSize(); // Initial call to set correct state
+
   if (addToCartButton) {
     addToCartButton.addEventListener('click', function () {
       const productId = '<%= product._id %>';
-      const quantity = parseInt(document.querySelector('.quantity-input').value);
-      const stockErrorDiv = document.getElementById('stock-error');
+      const quantity = parseInt(quantityInput.value);
+      const size = sizeSelect.value;
 
       // Clear previous error messages
       stockErrorDiv.classList.remove('show');
       stockErrorDiv.textContent = '';
+
+      // Validate size selection
+      if (!size) {
+        stockErrorDiv.textContent = 'Please select a size.';
+        stockErrorDiv.classList.add('show');
+        Swal.fire({
+          title: 'Error',
+          text: 'Please select a size.',
+          icon: 'error',
+        });
+        return;
+      }
+
+      // Validate quantity
+      if (isNaN(quantity) || quantity < 1) {
+        stockErrorDiv.textContent = 'Please enter a valid quantity.';
+        stockErrorDiv.classList.add('show');
+        Swal.fire({
+          title: 'Error',
+          text: 'Please enter a valid quantity.',
+          icon: 'error',
+        });
+        return;
+      }
+
+      // Validate max quantity
+      const selectedOption = sizeSelect.querySelector(`option[value="${size}"]`);
+      const maxQuantity = parseInt(selectedOption.dataset.maxQuantity);
+      if (quantity > maxQuantity) {
+        stockErrorDiv.textContent = 'Insufficient stock for the selected size.';
+        stockErrorDiv.classList.add('show');
+        Swal.fire({
+          title: 'Error',
+          text: 'Insufficient stock for the selected size.',
+          icon: 'error',
+        });
+        return;
+      }
 
       fetch('/cart/add', {
         method: 'POST',
@@ -450,18 +521,20 @@ document.addEventListener('DOMContentLoaded', function () {
           'Content-Type': 'application/json' 
         },
         body: JSON.stringify({ 
-          productId, 
-          quantity 
+          productId: productId, 
+          quantity: quantity,
+          size: size 
         }),
       })
-      .then(response => {
+      .then(function (response) {
+        console.log('Add to cart response status: ' + response.status);
         if (response.redirected) {
           window.location.href = response.url;
           return null;
         }
         return response.json();
       })
-      .then(data => {
+      .then(function (data) {
         if (data) {
           if (data.success) {
             Swal.fire({
@@ -471,9 +544,9 @@ document.addEventListener('DOMContentLoaded', function () {
               timer: 1500,
               showConfirmButton: false,
             });
-            setTimeout(() => window.location.href = '/cart', 1500);
+            setTimeout(function () { window.location.href = '/cart'; }, 1500);
           } else {
-            const errorMessage = data.error || 'Product is out of stock or reserved.';
+            const errorMessage = data.error || 'Product is out of stock for the selected size.';
             stockErrorDiv.textContent = errorMessage;
             stockErrorDiv.classList.add('show');
             Swal.fire({
@@ -484,8 +557,8 @@ document.addEventListener('DOMContentLoaded', function () {
           }
         }
       })
-      .catch(error => {
-        console.error('Error:', error);
+      .catch(function (error) {
+        console.error('Error adding to cart: ' + error);
         const errorMessage = 'An error occurred while adding to cart.';
         stockErrorDiv.textContent = errorMessage;
         stockErrorDiv.classList.add('show');
@@ -500,9 +573,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // Zoom Effect Script
   const zoomableImages = document.querySelectorAll('.zoomable-image');
-  zoomableImages.forEach(image => {
+  zoomableImages.forEach(function (image) {
     image.addEventListener('click', function () {
-      // Only toggle zoom on non-mobile devices
       if (window.innerWidth > 768) {
         this.classList.toggle('zoomed');
       }
@@ -529,16 +601,18 @@ function addToWishlist(productId) {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
     },
-    body: JSON.stringify({ productId }),
+    body: JSON.stringify({ productId: productId }),
   })
-  .then(response => response.json())
-  .then(data => {
+  .then(function (response) {
+    return response.json();
+  })
+  .then(function (data) {
     if (data.message === 'Product added to wishlist successfully') {
       const productInWishlist = data.inWishlist;
       const likeButton = document.querySelector('.like');
       
       if (likeButton) {
-        likeButton.innerHTML = `<span class="fa fa-heart"></span> ${productInWishlist ? 'Wishlisted' : 'Add to Wishlist'}`;
+        likeButton.innerHTML = '<span class="fa fa-heart"></span> ' + (productInWishlist ? 'Wishlisted' : 'Add to Wishlist');
         likeButton.classList.toggle('wishlisted', productInWishlist);
       }
 
@@ -557,8 +631,8 @@ function addToWishlist(productId) {
       });
     }
   })
-  .catch(error => {
-    console.error('Error adding product to wishlist:', error);
+  .catch(function (error) {
+    console.error('Error adding product to wishlist: ' + error);
     Swal.fire({
       title: 'Error',
       text: 'An error occurred while updating the wishlist',

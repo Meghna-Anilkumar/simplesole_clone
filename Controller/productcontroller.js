@@ -8,14 +8,12 @@ const cloudinary = require("cloudinary").v2;
 const HttpStatusCode = require("../enums/statusCodes");
 const { calculateCategoryOfferPrice } = require("../utils/cartfunctions");
 
-// Configure Cloudinary with environment variables
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Update categoryofferprice for all products in a category
 const updateCategoryOfferPrice = async (categoryId) => {
   try {
     const categoryOffer = await CategoryOffer.findOne({
@@ -40,14 +38,13 @@ const updateCategoryOfferPrice = async (categoryId) => {
     }
   } catch (error) {
     console.error(
-      `Error updating categoryofferprice for category ${categoryId}:`,
+      "Error updating categoryofferprice for category " + categoryId + ":",
       error
     );
   }
 };
 
 module.exports = {
-  // Get add product page
   addProduct: async (req, res) => {
     const category = await Category.find().exec();
     res.render("adminviews/addproduct", {
@@ -56,7 +53,6 @@ module.exports = {
     });
   },
 
-  // Get all products
   getproducts: async (req, res) => {
     try {
       const page = parseInt(req.query.page) || 1;
@@ -91,26 +87,22 @@ module.exports = {
         search: search,
       });
     } catch (err) {
-      console.error(err);
-      res.json({ message: err.message, type: "danger" });
+      console.error("Error in getproducts: " + err);
+      res.status(500).json({ message: err.message, type: "danger" });
     }
   },
 
-  // Insert a new product into database
   addnewproduct: async (req, res) => {
     try {
-      console.log("addnewproduct req.body:", req.body); // Debugging
-      console.log("addnewproduct req.file:", req.file); // Debugging for any file upload
+      console.log("addnewproduct req.body: " + JSON.stringify(req.body));
 
-      // Handle croppedImages parsing
       let croppedImages = [];
-
       if (req.body.croppedImages) {
         try {
           croppedImages = JSON.parse(req.body.croppedImages);
-          console.log("Parsed croppedImages:", croppedImages); // Debugging
+          console.log("Parsed croppedImages: " + JSON.stringify(croppedImages));
         } catch (parseError) {
-          console.error("Error parsing croppedImages:", parseError);
+          console.error("Error parsing croppedImages: " + parseError);
           return res.status(400).json({
             message: "Invalid croppedImages format",
             type: "danger",
@@ -118,7 +110,6 @@ module.exports = {
         }
       }
 
-      // Validate that we have at least one image
       if (!Array.isArray(croppedImages) || croppedImages.length === 0) {
         return res.status(400).json({
           message: "Please upload and crop at least one image.",
@@ -126,41 +117,71 @@ module.exports = {
         });
       }
 
-      // Validate required fields
-      const requiredFields = [
-        "name",
-        "description",
-        "category",
-        "price",
-        "stock",
-        "size",
-        "color",
-      ];
+      const requiredFields = ["name", "description", "category", "price"];
       for (const field of requiredFields) {
         if (!req.body[field] || req.body[field].toString().trim() === "") {
           return res.status(400).json({
-            message: `${
-              field.charAt(0).toUpperCase() + field.slice(1)
-            } is required`,
+            message:
+              field.charAt(0).toUpperCase() + field.slice(1) + " is required",
             type: "danger",
           });
         }
       }
+
+      let variants = [];
+      if (req.body.variants) {
+        try {
+          variants = Object.values(req.body.variants).map((variant) => ({
+            size: variant.size.trim(),
+            stock: parseInt(variant.stock),
+          }));
+
+          if (variants.length === 0) {
+            return res.status(400).json({
+              message: "At least one variant is required",
+              type: "danger",
+            });
+          }
+
+          for (const variant of variants) {
+            if (!variant.size || isNaN(variant.stock) || variant.stock < 0) {
+              return res.status(400).json({
+                message: "Invalid variant data: size and stock are required",
+                type: "danger",
+              });
+            }
+          }
+        } catch (parseError) {
+          console.error("Error parsing variants: " + parseError);
+          return res.status(400).json({
+            message: "Invalid variants format",
+            type: "danger",
+          });
+        }
+      } else {
+        return res.status(400).json({
+          message: "At least one variant is required",
+          type: "danger",
+        });
+      }
+
+      const totalStock = variants.reduce(
+        (sum, variant) => sum + variant.stock,
+        0
+      );
 
       const product = new Product({
         name: req.body.name.trim(),
         description: req.body.description.trim(),
         category: req.body.category,
         price: parseFloat(req.body.price),
-        stock: parseInt(req.body.stock),
-        size: req.body.size.trim(),
-        color: req.body.color.trim(),
+        // stock: totalStock,  // REMOVE THIS LINE - field doesn't exist in schema
+        variants: variants,
         images: croppedImages,
       });
 
       await product.save();
 
-      // Update categoryofferprice for the new product
       await updateCategoryOfferPrice(req.body.category);
 
       req.session.message = {
@@ -170,7 +191,7 @@ module.exports = {
 
       res.redirect("/products");
     } catch (error) {
-      console.error("addnewproduct error:", error);
+      console.error("addnewproduct error: " + error);
       res.status(500).json({
         message: error.message || "Internal server error",
         type: "danger",
@@ -178,15 +199,13 @@ module.exports = {
     }
   },
 
-  // Edit a product
   editproduct: async (req, res) => {
     try {
       let id = req.params.id;
       const product = await Product.findById(id).exec();
 
       if (!product) {
-        res.redirect("/products");
-        return;
+        return res.status(404).json({ message: "Product not found" });
       }
 
       const category = await Category.find().exec();
@@ -198,12 +217,11 @@ module.exports = {
         existingImages: product.images,
       });
     } catch (error) {
-      console.error(error);
-      res.redirect("/products");
+      console.error("Error in editproduct: " + error);
+      res.status(500).json({ message: "Internal server error" });
     }
   },
 
-  // Upload cropped image
   uploadCroppedImage: async (req, res) => {
     try {
       if (!req.file) {
@@ -226,19 +244,17 @@ module.exports = {
 
       res.status(HttpStatusCode.OK).json({ filename: result.secure_url });
     } catch (error) {
-      console.error("Error uploading cropped image:", error);
+      console.error("Error uploading cropped image: " + error);
       res
         .status(HttpStatusCode.INTERNAL_SERVER_ERROR)
         .json({ error: "Internal server error" });
     }
   },
 
-  // Update product
   updateproduct: async (req, res) => {
     try {
       const id = req.params.id;
-      console.log("Update product request body:", req.body);
-      console.log("Update product files:", req.files);
+      console.log("Update product request body: " + JSON.stringify(req.body));
 
       const existingProduct = await Product.findById(id).exec();
       if (!existingProduct) {
@@ -250,51 +266,46 @@ module.exports = {
 
       let updatedImages = [...existingProduct.images];
 
-      // Handle deleted images
       if (req.body.deletedImages) {
         const deletedImages = req.body.deletedImages
           .split(",")
           .map((image) => image.trim())
-          .filter((image) => image !== ""); // Remove empty strings
+          .filter((image) => image !== "");
 
-        console.log("Images to delete:", deletedImages);
+        console.log("Images to delete: " + JSON.stringify(deletedImages));
 
-        // Remove deleted images from the array
         updatedImages = existingProduct.images.filter(
           (image) => !deletedImages.includes(image)
         );
 
-        // Delete images from Cloudinary
         const deletePromises = deletedImages.map(async (imageUrl) => {
           try {
-            // Extract public ID from Cloudinary URL
             const urlParts = imageUrl.split("/");
             const fileName = urlParts[urlParts.length - 1];
-            const publicId = `products/${fileName.split(".")[0]}`;
+            const publicId = "products/" + fileName.split(".")[0];
 
-            console.log("Deleting from Cloudinary:", publicId);
+            console.log("Deleting from Cloudinary: " + publicId);
             return await cloudinary.uploader.destroy(publicId);
           } catch (deleteError) {
-            console.error("Error deleting image from Cloudinary:", deleteError);
-            // Continue with other deletions even if one fails
+            console.error(
+              "Error deleting image from Cloudinary: " + deleteError
+            );
           }
         });
 
         await Promise.allSettled(deletePromises);
       }
 
-      // Handle new cropped images
       if (req.body.croppedImages) {
         try {
           const croppedImages = JSON.parse(req.body.croppedImages);
-          console.log("New cropped images:", croppedImages);
+          console.log("New cropped images: " + JSON.stringify(croppedImages));
 
           if (Array.isArray(croppedImages) && croppedImages.length > 0) {
-            // Add new cropped images to the array
             updatedImages = [...updatedImages, ...croppedImages];
           }
         } catch (parseError) {
-          console.error("Error parsing croppedImages:", parseError);
+          console.error("Error parsing croppedImages: " + parseError);
           return res.status(400).json({
             message: "Invalid cropped images format",
             type: "danger",
@@ -302,21 +313,6 @@ module.exports = {
         }
       }
 
-      // Handle traditional file uploads (if any - fallback)
-      if (req.files && req.files.length > 0) {
-        console.log("Processing traditional file uploads");
-        const uploadPromises = req.files.map((file) =>
-          cloudinary.uploader.upload(file.path, {
-            folder: "products",
-            resource_type: "image",
-          })
-        );
-        const uploadResults = await Promise.all(uploadPromises);
-        const newImageUrls = uploadResults.map((result) => result.secure_url);
-        updatedImages = [...updatedImages, ...newImageUrls];
-      }
-
-      // Validate that we have at least one image
       if (!updatedImages || updatedImages.length === 0) {
         return res.status(400).json({
           message: "Product must have at least one image",
@@ -324,41 +320,73 @@ module.exports = {
         });
       }
 
-      // Validate required fields
-      const requiredFields = [
-        "name",
-        "description",
-        "category",
-        "price",
-        "stock",
-        "size",
-        "color",
-      ];
+      const requiredFields = ["name", "description", "category", "price"];
       for (const field of requiredFields) {
         if (!req.body[field] || req.body[field].toString().trim() === "") {
           return res.status(400).json({
-            message: `${
-              field.charAt(0).toUpperCase() + field.slice(1)
-            } is required`,
+            message:
+              field.charAt(0).toUpperCase() + field.slice(1) + " is required",
             type: "danger",
           });
         }
       }
+
+      let variants = [];
+      if (req.body.variants) {
+        try {
+          variants = Object.values(req.body.variants).map((variant) => ({
+            size: variant.size.trim(),
+            stock: parseInt(variant.stock),
+          }));
+
+          if (variants.length === 0) {
+            return res.status(400).json({
+              message: "At least one variant is required",
+              type: "danger",
+            });
+          }
+
+          for (const variant of variants) {
+            if (!variant.size || isNaN(variant.stock) || variant.stock < 0) {
+              return res.status(400).json({
+                message: "Invalid variant data: size and stock are required",
+                type: "danger",
+              });
+            }
+          }
+        } catch (parseError) {
+          console.error("Error parsing variants: " + parseError);
+          return res.status(400).json({
+            message: "Invalid variants format",
+            type: "danger",
+          });
+        }
+      } else {
+        return res.status(400).json({
+          message: "At least one variant is required",
+          type: "danger",
+        });
+      }
+
+      const totalStock = variants.reduce(
+        (sum, variant) => sum + variant.stock,
+        0
+      );
 
       const updatedProduct = {
         name: req.body.name.trim(),
         description: req.body.description.trim(),
         category: req.body.category,
         price: parseFloat(req.body.price),
-        stock: parseInt(req.body.stock),
-        size: req.body.size.trim(),
-        color: req.body.color.trim(),
+        // stock: totalStock,  // REMOVE THIS LINE - field doesn't exist in schema
+        variants: variants,
         images: updatedImages,
       };
 
-      console.log("Final updated product data:", updatedProduct);
+      console.log(
+        "Final updated product data: " + JSON.stringify(updatedProduct)
+      );
 
-      // Update categoryofferprice
       let categoryOfferPrice = updatedProduct.price;
       const categoryOffer = await CategoryOffer.findOne({
         category: updatedProduct.category,
@@ -376,7 +404,6 @@ module.exports = {
 
       await Product.findByIdAndUpdate(id, updatedProduct);
 
-      // Update categoryofferprice for all products in the category if category changed
       if (updatedProduct.category !== existingProduct.category.toString()) {
         await updateCategoryOfferPrice(updatedProduct.category);
         await updateCategoryOfferPrice(existingProduct.category);
@@ -389,9 +416,9 @@ module.exports = {
         message: "Product updated successfully!",
       };
 
-      res.redirect("/products");
+      res.status(200).send("Product updated successfully");
     } catch (err) {
-      console.error("Update product error:", err);
+      console.error("Update product error: " + err);
       res.status(500).json({
         message: err.message || "Internal server error",
         type: "danger",
@@ -399,7 +426,6 @@ module.exports = {
     }
   },
 
-  // Display products category-wise on user side
   getproductsCategorywise: async (req, res) => {
     try {
       const categoryId = req.params.categoryId;
@@ -427,25 +453,97 @@ module.exports = {
         wishlist: wishlist,
       });
     } catch (error) {
-      console.error(error);
-      res.status(500).send("Internal Server Error");
+      console.error("Error in getproductsCategorywise: " + error);
+      res.status(500).json({ message: "Internal server error" });
     }
   },
 
-  // Get product details
+  // Fixed version of the getproductdetails function
   getproductdetails: async (req, res) => {
     try {
+      console.log("=== UPDATED CODE VERSION 3.0 RUNNING ===");
       const productId = req.params.id;
-      const product = await Product.findById(productId).populate({
+      console.log(`[getproductdetails] Fetching product with ID: ${productId}`);
+
+      const productDoc = await Product.findById(productId).populate({
         path: "category",
         select: "name",
       });
 
-      if (!product) {
+      if (!productDoc) {
+        console.log(
+          `[getproductdetails] Product not found for ID: ${productId}`
+        );
         return res
           .status(404)
           .render("error", { message: "Product not found" });
       }
+
+      // Convert to plain object to allow modifications
+      const product = productDoc.toObject();
+
+      console.log(
+        `[getproductdetails] Raw product data: ${JSON.stringify(
+          product,
+          null,
+          2
+        )}`
+      );
+
+      // Filter valid variants (must have size and valid stock)
+      const validVariants = product.variants.filter(
+        (variant) =>
+          variant.size &&
+          typeof variant.stock === "number" &&
+          !isNaN(variant.stock)
+      );
+      console.log(
+        `[getproductdetails] Valid variants after filtering: ${JSON.stringify(
+          validVariants,
+          null,
+          2
+        )}`
+      );
+
+      // FIXED: Process variants with correct availability calculation
+      const processedVariants = validVariants.map((variant) => {
+        const availableQuantity = Math.max(
+          0,
+          variant.stock - (product.reserved || 0)
+        );
+        const isAvailable = availableQuantity > 0;
+        console.log(
+          `[DEBUG] Processing variant ${variant.size}: stock=${
+            variant.stock
+          }, reserved=${
+            product.reserved || 0
+          }, availableQuantity=${availableQuantity}, isAvailable=${isAvailable}`
+        );
+        return {
+          size: variant.size,
+          stock: variant.stock,
+          _id: variant._id.toString(),
+          isAvailable,
+          availableQuantity,
+        };
+      });
+
+      // Replace the product variants with processed ones
+      product.variants = processedVariants;
+
+      console.log(
+        `[getproductdetails] Processed variants: ${JSON.stringify(
+          product.variants,
+          null,
+          2
+        )}`
+      );
+
+      // Check if all variants are out of stock
+      const allVariantsOutOfStock = product.variants.every(
+        (variant) => !variant.isAvailable
+      );
+      product.allVariantsOutOfStock = allVariantsOutOfStock;
 
       const user = req.session.user;
       let productInWishlist = false;
@@ -462,6 +560,9 @@ module.exports = {
           );
         }
       }
+      console.log(
+        `[getproductdetails] productInWishlist: ${productInWishlist}`
+      );
 
       const similarProducts = await Product.find({
         category: product.category,
@@ -470,12 +571,22 @@ module.exports = {
       })
         .limit(4)
         .exec();
+      console.log(
+        `[getproductdetails] Similar products count: ${similarProducts.length}`
+      );
 
       const productOffers = await ProductOffer.find({
         product: productId,
         startDate: { $lte: new Date() },
         expiryDate: { $gte: new Date() },
       });
+      console.log(
+        `[getproductdetails] Product offers: ${JSON.stringify(
+          productOffers,
+          null,
+          2
+        )}`
+      );
 
       res.render("userviews/productdetails", {
         title: "Product Details",
@@ -488,13 +599,15 @@ module.exports = {
         cart,
         similarProducts: similarProducts,
       });
+      console.log(
+        `[getproductdetails] Rendering productdetails.ejs for product ID: ${productId}`
+      );
     } catch (error) {
-      console.error("Error in getproductdetails:", error);
+      console.error(`[getproductdetails] Error: ${error.stack}`);
       res.status(500).send("Internal Server Error");
     }
   },
 
-  // Block and unblock a product
   blockProduct: async (req, res) => {
     const productId = req.body.productId;
 
@@ -502,7 +615,7 @@ module.exports = {
       const product = await Product.findById(productId);
 
       if (!product) {
-        return res.status(404).render("userviews/404page");
+        return res.status(404).json({ message: "Product not found" });
       }
 
       product.blocked = !product.blocked;
@@ -510,12 +623,11 @@ module.exports = {
 
       res.redirect("/products");
     } catch (error) {
-      console.error(error);
-      res.status(500).send("Internal Server Error");
+      console.error("Error in blockProduct: " + error);
+      res.status(500).json({ message: "Internal server error" });
     }
   },
 
-  // Get all products page with combined search, sort, and filter
   getAllProducts: async (req, res) => {
     try {
       const perPage = 12;
@@ -530,15 +642,9 @@ module.exports = {
 
       let allProducts = await Product.find(query).populate("category").exec();
 
-      if (req.query.color) {
-        allProducts = allProducts.filter(
-          (product) => product.color === req.query.color
-        );
-      }
-
       if (req.query.size) {
         allProducts = allProducts.filter((product) =>
-          product.size.includes(req.query.size)
+          product.variants.some((variant) => variant.size === req.query.size)
         );
       }
 
@@ -591,12 +697,11 @@ module.exports = {
         });
       }
     } catch (error) {
-      console.error(error);
-      res.status(500).send("Internal Server Error");
+      console.error("Error in getAllProducts: " + error);
+      res.status(500).json({ message: "Internal server error" });
     }
   },
 
-  // Filter products with combined search, sort, and filter
   filterproducts: async (req, res) => {
     try {
       let filteredProducts;
@@ -609,15 +714,9 @@ module.exports = {
 
       filteredProducts = await Product.find(query).populate("category").exec();
 
-      if (req.query.color) {
-        filteredProducts = filteredProducts.filter(
-          (product) => product.color === req.query.color
-        );
-      }
-
       if (req.query.size) {
         filteredProducts = filteredProducts.filter((product) =>
-          product.size.includes(req.query.size)
+          product.variants.some((variant) => variant.size === req.query.size)
         );
       }
 
@@ -629,8 +728,8 @@ module.exports = {
 
       res.json(filteredProducts);
     } catch (error) {
-      console.error(error);
-      res.status(500).send("Internal Server Error");
+      console.error("Error in filterproducts: " + error);
+      res.status(500).json({ message: "Internal server error" });
     }
   },
 
@@ -649,7 +748,7 @@ module.exports = {
 
       res.json(productOffers);
     } catch (error) {
-      console.error("Error fetching product offers:", error);
+      console.error("Error fetching product offers: " + error);
       res.status(500).json({ message: "Internal Server Error" });
     }
   },
@@ -669,8 +768,83 @@ module.exports = {
 
       res.json(categoryOffers);
     } catch (error) {
-      console.error("Error fetching category offers:", error);
+      console.error("Error fetching category offers: " + error);
       res.status(500).json({ message: "Internal Server Error" });
+    }
+  },
+
+  // Sample addToCart controller (assuming it doesn't exist)
+  addToCart: async (req, res) => {
+    try {
+      const { productId, quantity, size } = req.body;
+      const user = req.session.user;
+
+      if (!user) {
+        return res.redirect("/login");
+      }
+
+      if (!productId || !size || !quantity || isNaN(quantity) || quantity < 1) {
+        return res.status(400).json({
+          error: "Invalid product ID, size, or quantity",
+        });
+      }
+
+      const product = await Product.findById(productId).exec();
+      if (!product) {
+        return res.status(404).json({
+          error: "Product not found",
+        });
+      }
+
+      const variant = product.variants.find((v) => v.size === size);
+      if (!variant) {
+        return res.status(400).json({
+          error: "Selected size not available",
+        });
+      }
+
+      if (variant.stock < quantity) {
+        return res.status(400).json({
+          error: "Insufficient stock for the selected size",
+        });
+      }
+
+      let cart = await Cart.findOne({ user: user._id }).exec();
+      if (!cart) {
+        cart = new Cart({ user: user._id, items: [] });
+      }
+
+      const existingItem = cart.items.find(
+        (item) => item.product.toString() === productId && item.size === size
+      );
+
+      if (existingItem) {
+        const newQuantity = existingItem.quantity + quantity;
+        if (variant.stock < newQuantity) {
+          return res.status(400).json({
+            error: "Insufficient stock for the selected size",
+          });
+        }
+        existingItem.quantity = newQuantity;
+      } else {
+        cart.items.push({
+          product: productId,
+          quantity: quantity,
+          size: size,
+        });
+      }
+
+      await cart.save();
+
+      res.json({
+        success: true,
+        message: "Product added to cart successfully",
+      });
+    } catch (error) {
+      console.error("Error in addToCart: " + error);
+      res.status(500).json({
+        error: "Internal server error",
+      });
     }
   },
 

@@ -6,6 +6,7 @@ const cartSchema = new mongoose.Schema({
     {
       product: { type: mongoose.Schema.Types.ObjectId, ref: "Product" },
       quantity: { type: Number },
+      size: { type: String, required: true, trim: true },
       price: { type: Number },
       reservedAt: { type: Date, default: Date.now }, // Track reservation time
     },

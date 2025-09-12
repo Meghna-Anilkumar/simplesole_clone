@@ -4,17 +4,14 @@
     font-family: Arial, sans-serif;
     margin: 20px;
   }
-
   form {
     max-width: 600px;
     margin: auto;
   }
-
   label {
     display: block;
     margin-top: 10px;
   }
-
   input,
   select {
     width: 100%;
@@ -23,7 +20,6 @@
     margin-bottom: 10px;
     box-sizing: border-box;
   }
-
   button {
     background-color: #4CAF50;
     color: white;
@@ -32,18 +28,15 @@
     border-radius: 4px;
     cursor: pointer;
   }
-
   #imagePreview img {
     max-width: 100px;
     max-height: 100px;
     margin: 5px;
   }
-
   .preview-container {
     position: relative;
     display: inline-block;
   }
-
   .delete-button {
     position: absolute;
     top: 0;
@@ -58,36 +51,48 @@
     text-align: center;
     cursor: pointer;
   }
-
   .modal-content {
     padding: 20px;
   }
-
   #cropper-container {
     max-width: 100%;
     max-height: 400px;
     margin-bottom: 10px;
   }
-
   #cropper-container img {
     max-width: 100%;
     max-height: 400px;
   }
-
   .cropper-buttons {
     display: flex;
     gap: 10px;
   }
-
   #imageQueue {
     margin-top: 10px;
     font-size: 14px;
   }
-
   .error-message {
     color: red;
     font-size: 14px;
     margin-top: 5px;
+  }
+  .variant-section {
+    border: 2px dashed #ccc;
+    padding: 15px;
+    margin: 10px 0;
+    border-radius: 5px;
+  }
+  .variant-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+    align-items: center;
+  }
+  .variant-row input {
+    flex: 1;
+  }
+  .variant-row button {
+    background-color: #ff4444;
   }
 </style>
 
@@ -131,24 +136,19 @@
           <input id="price" name="price" placeholder="" class="form-control input-md" required="true" type="number" min="0" step="0.01">
           <div id="priceError" class="error-message"></div>
         </div>
-        <label class="col-md-4 control-label" for="stock">STOCK</label>
-        <div class="col-md-4">
-          <input id="stock" name="stock" placeholder="" class="form-control input-md" required="true" type="number" min="0">
-          <div id="stockError" class="error-message"></div>
-        </div>
       </div>
 
-      <div class="form-group">
-        <label class="col-md-4 control-label" for="size">SIZE</label>
-        <div class="col-md-4">
-          <input id="size" name="size" placeholder="" class="form-control input-md" required="" type="text">
-          <div id="sizeError" class="error-message"></div>
+      <div class="form-group variant-section">
+        <label class="col-md-4 control-label">VARIANTS (Size, Stock)</label>
+        <div id="variantContainer">
+          <div class="variant-row">
+            <input type="text" name="variants[0][size]" placeholder="Size" class="form-control input-md" required>
+            <input type="number" name="variants[0][stock]" placeholder="Stock" class="form-control input-md" required min="0">
+            <button type="button" class="btn remove-variant">Remove</button>
+          </div>
         </div>
-        <label class="col-md-4 control-label" for="color">COLOR</label>
-        <div class="col-md-4">
-          <input id="color" name="color" placeholder="" class="form-control input-md" required="" type="text">
-          <div id="colorError" class="error-message"></div>
-        </div>
+        <button type="button" id="addVariant" class="btn btn-primary" style="margin-top: 10px;">Add Variant</button>
+        <div id="variantError" class="error-message"></div>
       </div>
 
       <div class="form-group">
@@ -204,12 +204,64 @@
     let croppedImages = [];
     let currentFileIndex = 0;
     let modal;
+    let variantCount = 1;
+
+    // Variant handling
+    document.getElementById('addVariant').addEventListener('click', function () {
+      const variantContainer = document.getElementById('variantContainer');
+      const variantRow = document.createElement('div');
+      variantRow.className = 'variant-row';
+      variantRow.innerHTML = `
+        <input type="text" name="variants[${variantCount}][size]" placeholder="Size" class="form-control input-md" required>
+        <input type="number" name="variants[${variantCount}][stock]" placeholder="Stock" class="form-control input-md" required min="0">
+        <button type="button" class="btn remove-variant">Remove</button>
+      `;
+      variantContainer.appendChild(variantRow);
+      variantCount++;
+      updateRemoveButtons();
+      reindexVariants();
+    });
+
+    function updateRemoveButtons() {
+      const removeButtons = document.querySelectorAll('.remove-variant');
+      removeButtons.forEach(button => {
+        button.removeEventListener('click', removeVariantHandler);
+        button.addEventListener('click', removeVariantHandler);
+      });
+    }
+
+    function removeVariantHandler() {
+      const variantRows = document.querySelectorAll('.variant-row');
+      if (variantRows.length > 1) {
+        this.parentElement.remove();
+        reindexVariants();
+      } else {
+        Swal.fire({
+          icon: 'error',
+          title: 'Cannot Remove',
+          text: 'At least one variant is required.',
+        });
+      }
+    }
+
+    function reindexVariants() {
+      const variantRows = document.querySelectorAll('.variant-row');
+      variantRows.forEach((row, index) => {
+        const inputs = row.querySelectorAll('input');
+        inputs[0].name = `variants[${index}][size]`;
+        inputs[1].name = `variants[${index}][stock]`;
+      });
+      variantCount = variantRows.length;
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+      updateRemoveButtons();
+    });
 
     function openCropperModal(input) {
       console.log('Opening cropper modal, files selected:', input.files.length);
       fileQueue = Array.from(input.files);
       currentFileIndex = 0;
-      
       if (fileQueue.length > 0) {
         modal = new bootstrap.Modal(document.getElementById('cropperModal'), {
           backdrop: 'static',
@@ -227,47 +279,31 @@
 
     function processNextImage() {
       console.log('Processing image', currentFileIndex + 1, 'of', fileQueue.length);
-      
       if (currentFileIndex >= fileQueue.length) {
         console.log('All images processed, closing modal');
-        if (modal) {
-          modal.hide();
-        }
+        if (modal) modal.hide();
         clearFileInput();
         return;
       }
-
       const currentFile = fileQueue[currentFileIndex];
       const reader = new FileReader();
-      
       reader.onload = function (e) {
         const imageToCrop = document.getElementById('imageToCrop');
         imageToCrop.src = e.target.result;
         document.getElementById('queueCount').textContent = `${fileQueue.length - currentFileIndex}`;
-        
-        if (!modal._isShown) {
-          modal.show();
-        }
-
-        // Wait for modal to be fully shown before initializing cropper
+        if (!modal._isShown) modal.show();
         document.getElementById('cropperModal').addEventListener('shown.bs.modal', initializeCropper, { once: true });
-        
-        if (modal._isShown) {
-          initializeCropper();
-        }
+        if (modal._isShown) initializeCropper();
       };
-      
       reader.readAsDataURL(currentFile);
     }
 
     function initializeCropper() {
       console.log('Initializing cropper for current image');
-      
       if (cropper) {
         cropper.destroy();
         cropper = null;
       }
-      
       const imageToCrop = document.getElementById('imageToCrop');
       cropper = new Cropper(imageToCrop, {
         aspectRatio: 1,
@@ -286,47 +322,32 @@
 
     document.getElementById('cropButton').addEventListener('click', async function () {
       console.log('Crop button clicked');
-      
       if (!cropper) {
         console.error('Cropper not initialized');
         return;
       }
-
-      const canvas = cropper.getCroppedCanvas({
-        width: 300,
-        height: 300,
-      });
-
+      const canvas = cropper.getCroppedCanvas({ width: 300, height: 300 });
       canvas.toBlob(async (blob) => {
         const formData = new FormData();
         formData.append('croppedImage', blob, `cropped_${Date.now()}_${fileQueue[currentFileIndex].name}`);
-
         try {
           console.log('Uploading cropped image...');
           const response = await fetch('/upload-cropped-image', {
             method: 'POST',
             body: formData,
           });
-          
           const result = await response.json();
           console.log('Upload response:', result);
-          
           if (response.ok) {
             croppedImages.push(result.filename);
             document.getElementById('croppedImages').value = JSON.stringify(croppedImages);
             console.log('Total cropped images:', croppedImages.length);
-
-            // Add to preview
             addImagePreview(result.filename);
-
-            // Move to next image
             currentFileIndex++;
-            
             if (cropper) {
               cropper.destroy();
               cropper = null;
             }
-            
             processNextImage();
           } else {
             throw new Error(result.error || 'Upload failed');
@@ -344,40 +365,30 @@
 
     document.getElementById('skipButton').addEventListener('click', function () {
       console.log('Skip button clicked');
-      
       if (cropper) {
         cropper.destroy();
         cropper = null;
       }
-      
       currentFileIndex++;
       processNextImage();
     });
 
     document.getElementById('finishButton').addEventListener('click', function () {
       console.log('Finish button clicked');
-      
       if (cropper) {
         cropper.destroy();
         cropper = null;
       }
-      
-      if (modal) {
-        modal.hide();
-      }
-      
+      if (modal) modal.hide();
       clearFileInput();
     });
 
-    // Modal event listeners
     document.getElementById('cropperModal').addEventListener('hidden.bs.modal', function () {
       console.log('Modal hidden');
-      
       if (cropper) {
         cropper.destroy();
         cropper = null;
       }
-      
       clearFileInput();
     });
 
@@ -385,11 +396,9 @@
       const previewContainer = document.getElementById('imagePreview');
       const previewDiv = document.createElement('div');
       previewDiv.className = 'preview-container';
-      
       const img = document.createElement('img');
       img.src = imageUrl;
       img.alt = 'Product image preview';
-      
       const deleteButton = document.createElement('button');
       deleteButton.className = 'delete-button';
       deleteButton.innerHTML = 'X';
@@ -400,43 +409,29 @@
         document.getElementById('croppedImages').value = JSON.stringify(croppedImages);
         console.log('Image deleted, remaining:', croppedImages.length);
       };
-      
       previewDiv.appendChild(img);
       previewDiv.appendChild(deleteButton);
       previewContainer.appendChild(previewDiv);
     }
 
-    // Form validation and submission
     document.getElementById('singlebutton').addEventListener('click', async function (event) {
       event.preventDefault();
-      
       console.log('Form submission started');
       console.log('Cropped images count:', croppedImages.length);
-      
-      // Clear previous error messages
       clearErrorMessages();
-      
       let hasErrors = false;
-
-      // Validate form fields
       if (!validateName()) hasErrors = true;
       if (!validateDescription()) hasErrors = true;
       if (!validateCategory()) hasErrors = true;
       if (!validatePrice()) hasErrors = true;
-      if (!validateStock()) hasErrors = true;
-      if (!validateSize()) hasErrors = true;
-      if (!validateColor()) hasErrors = true;
+      if (!validateVariants()) hasErrors = true;
       if (!validateImages()) hasErrors = true;
-
       if (hasErrors) {
         console.log('Form validation failed');
         return;
       }
-
       console.log('Form validation passed, submitting...');
-      
       try {
-        // Show loading
         Swal.fire({
           title: 'Adding Product...',
           text: 'Please wait while we add your product.',
@@ -445,7 +440,6 @@
             Swal.showLoading();
           }
         });
-
         const response = await fetch('/addProduct', {
           method: 'POST',
           headers: {
@@ -453,9 +447,7 @@
           },
           body: new URLSearchParams(new FormData(document.getElementById('productForm'))).toString()
         });
-
         if (response.ok) {
-          // Check if response is JSON (error) or redirect (success)
           const contentType = response.headers.get('content-type');
           if (contentType && contentType.includes('application/json')) {
             const result = await response.json();
@@ -466,7 +458,6 @@
               text: result.message || 'Failed to add product',
             });
           } else {
-            // Successful redirect
             window.location.href = '/products';
           }
         } else {
@@ -539,32 +530,37 @@
       return true;
     }
 
-    function validateStock() {
-      const stock = document.getElementById('stock').value;
-      const numericStock = parseInt(stock, 10);
-      if (!stock || isNaN(numericStock) || numericStock < 0 || !Number.isInteger(numericStock)) {
-        showError('stockError', 'Please enter a valid stock quantity (0 or greater)');
+    function validateVariants() {
+      const variantRows = document.querySelectorAll('.variant-row');
+      console.log('Number of variant rows:', variantRows.length);
+      if (variantRows.length === 0) {
+        showError('variantError', 'At least one variant is required');
         return false;
       }
-      return true;
-    }
-
-    function validateSize() {
-      const size = document.getElementById('size').value.trim();
-      if (!size) {
-        showError('sizeError', 'Size is required');
-        return false;
-      }
-      return true;
-    }
-
-    function validateColor() {
-      const color = document.getElementById('color').value.trim();
-      if (!color) {
-        showError('colorError', 'Color is required');
-        return false;
-      }
-      return true;
+      let valid = true;
+      variantRows.forEach((row, index) => {
+        console.log(`Checking variant row ${index}:`, row);
+        const sizeInput = row.querySelector(`input[name="variants[${index}][size]"]`);
+        const stockInput = row.querySelector(`input[name="variants[${index}][stock]"]`);
+        console.log(`Size input for index ${index}:`, sizeInput);
+        console.log(`Stock input for index ${index}:`, stockInput);
+        if (!sizeInput || !stockInput) {
+          showError('variantError', `Missing input for variant ${index + 1}`);
+          valid = false;
+          return;
+        }
+        const size = sizeInput.value.trim();
+        const stock = stockInput.value;
+        if (!size) {
+          showError('variantError', `Size is required for variant ${index + 1}`);
+          valid = false;
+        }
+        if (!stock || isNaN(stock) || parseInt(stock) < 0) {
+          showError('variantError', `Valid stock quantity is required for variant ${index + 1}`);
+          valid = false;
+        }
+      });
+      return valid;
     }
 
     function validateImages() {
