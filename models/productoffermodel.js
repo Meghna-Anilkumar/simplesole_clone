@@ -22,6 +22,7 @@ const productOfferSchema = new mongoose.Schema({
         type: Number,
         required: true,
     }
+    
 });
 
 const ProductOffer = mongoose.model('ProductOffer', productOfferSchema);
