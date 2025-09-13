@@ -10,8 +10,8 @@ const productSchema = new mongoose.Schema({
         size: { type: String, required: true, trim: true },
         stock: { type: Number, required: true, min: 0, max: 255 }
     }],
-    reserved: { type: Number, default: 0, min: 0 }, // Track reserved stock
-    version: { type: Number, default: 0 }, // For optimistic locking
+    reserved: { type: Number, default: 0, min: 0 }, 
+    version: { type: Number, default: 0 },
     dateCreated: { type: Date, default: Date.now },
     blocked: { type: Boolean, default: false },
     categoryofferprice: { type: Number, default: 0, required: true },

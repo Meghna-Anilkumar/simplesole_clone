@@ -33,6 +33,7 @@ router.get('/seeallproducts', productcontroller.getAllProducts);
 router.get('/allProducts', productcontroller.getAllProducts);
 router.get('/filteredProducts', productcontroller.filterproducts); 
 router.get('/productOffers', productcontroller.getProductOffers)
+router.get('/categoryOffers', productcontroller.getCategoryOffers)
 
 
 //address

@@ -35,7 +35,7 @@ module.exports = {
           .populate("items.product")
           .exec();
       }
-      const newArrivals = await Product.find()
+      const newArrivals = await Product.find({blocked:false})
         .sort({ dateCreated: -1 })
         .limit(4);
 

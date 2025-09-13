@@ -1,143 +1,121 @@
-<%-include('./header')%>
+<%- include('./header') %>
 <style>
-#navbar{
+#navbar {
     padding-right: 50px;
     background-color: black;
-    }
+}
 
 .nav-link:not(:last-child) {
     color: white;
-    margin-right: 10px; /* Adjust the value to your desired spacing */
+    margin-right: 10px;
 }
-#signupbody{
-    padding-top:50px;
+#signupbody {
+    padding-top: 50px;
     background-image: url(/images/wallpaper.jpg);
     background-size: cover;
     background-position: center;
-    width: 100%; /* Set the width of your div */
+    width: 100%;
 }
-#loginbody{
-    padding-top:50px;
+#loginbody {
+    padding-top: 50px;
     background-image: url(/images/wallpaper.jpg);
     background-size: cover;
     background-position: center;
-    width: 100%; 
+    width: 100%;
 }
-.nav-link{
+.nav-link {
     color: white;
 }
-
-#logo{
+#logo {
     height: 80px;
 }
 .main-content {
-      margin-left: 150px;
-      padding: 20px;
-    }
-
-    /* Additional styles for order details */
-    .order-info-box, .product-info-box, .shipping-address-box {
-      border: 1px solid #dee2e6;
-      padding: 20px;
-      margin-bottom: 20px;
-    }
-
-    .product-info-box img {
-      max-width: 100px; /* Adjust the image width as needed */
-      height: auto;
-    }
-  </style>
+    margin-left: 150px;
+    padding: 20px;
+}
+.order-info-box, .product-info-box, .shipping-address-box, .price-details-box {
+    border: 1px solid #dee2e6;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+.product-info-box img {
+    max-width: 100px;
+    height: auto;
+}
+</style>
 
 <div class="main-content" style="margin-top: 100px;">
     <div class="container">
-      <h1>Order Details</h1>
+        <h1>Order Details</h1>
 
-      <!-- Order Information Box -->
-      <div class="order-info-box">
-        <h2>Order Information</h2>
-        <p>Order ID: <%= order.orderId %></p>
-        <p>Order Date: <%= order.orderdate.toLocaleDateString() %></p>
-        <p>Status: <%= order.orderStatus %></p>
-        <p>Payment Method: <%= order.paymentMethod %></p>
-        <!-- Add more order information as needed -->
-        <% if (order.orderStatus === 'DELIVERED') { %>
-          <form action="/download-invoice/<%= order._id %>" method="GET">
-              <button type="submit" class="btn btn-primary">Download Invoice</button>
-          </form>
-      <% } %>
-      </div>
-
-      <!-- Product Information Box -->
-      <div class="product-info-box">
-        <h2>Products</h2>
-        <% order.items.forEach((item) => { %>
-          <% if (item.itemstatus !== 'CANCELLED') { %>
-            <div class="row">
-              <div class="col-md-2">
-                <img src="<%= item.product.images[0] %>" class="img-fluid" alt="Product Image">
-              </div>
-              <div class="col-md-4">
-                <p>Product Name: <%= item.product.name %></p>
-                <p>Price: &#8377;<%= item.price %></p>
-                <p>Quantity: <%= item.quantity %></p>
-              </div>
-            </div>
-            <hr>
-          <% } %>
-        <% }); %>
-      </div>
-
-      <!-- Shipping Address Box -->
-      <div class="shipping-address-box">
-        <div class="d-flex justify-content-between pt-2">
-            <p class="fw-bold mb-0">Shipping Address Details</p>
-          </div>
-
-          <div class="d-flex justify-content-between pt-2">
-            <p class="text-muted mb-0">Customer name: <%= order.shippingAddress.name %></p>
-          </div>
-
-          <div class="d-flex justify-content-between">
-            <p class="text-muted mb-0">Mobile: <%= order.shippingAddress.mobile %></p>
-          </div>
-
-          <div class="d-flex justify-content-between">
-            <p class="text-muted mb-0">Building name: <%= order.shippingAddress.buildingname %></p>
-          </div>
-
-          <div class="d-flex justify-content-between">
-            <p class="text-muted mb-0">Street: <%= order.shippingAddress.street %></p>
-          </div>
-
-          <div class="d-flex justify-content-between">
-            <p class="text-muted mb-0">City: <%= order.shippingAddress.city %></p>
-          </div>
-
-          <div class="d-flex justify-content-between">
-            <p class="text-muted mb-0">Pincode: <%= order.shippingAddress.pincode %></p>
-          </div>
-
-          <div class="d-flex justify-content-between">
-            <p class="text-muted mb-0">State: <%= order.shippingAddress.state %></p>
-          </div>
-
-        </div>
-        <div class="card-footer border-0 px-4 py-4"
-        style="background-color: #a8729a; border-bottom-left-radius: 10px; border-bottom-right-radius: 10px;">
-        
-        <h5 class="text-white text-uppercase mb-0">
-           
-            <% if (order.couponApplied) { %>
-                <div>Coupon Applied: <%= order.couponApplied %></div>
-                <div>Coupon Discount: &#8377; <%= order.discountAmount %></div>
+        <!-- Order Information Box -->
+        <div class="order-info-box">
+            <h2>Order Information</h2>
+            <p><strong>Order ID:</strong> <%= order.orderId %></p>
+            <p><strong>Order Date:</strong> <%= order.orderdate.toLocaleDateString() %></p>
+            <p><strong>Status:</strong> <%= order.orderStatus %></p>
+            <p><strong>Payment Method:</strong> <%= order.paymentMethod %></p>
+            <% if (order.orderStatus === 'DELIVERED') { %>
+                <form action="/download-invoice/<%= order._id %>" method="GET" class="mt-3">
+                    <button type="submit" class="btn btn-primary">Download Invoice</button>
+                </form>
             <% } %>
-            
-            <div>Total Amount: &#8377; <%= order.totalAmount %></div>
-        </h5>
-    </div>
-    
-      </div>
+            <% if (order.orderStatus === 'CANCELLED' && order.cancellationReason) { %>
+                <p><strong>Cancellation Reason:</strong> <%= order.cancellationReason %></p>
+            <% } %>
+            <% if (order.orderStatus === 'RETURN REQUESTED' && order.returnReason) { %>
+                <p><strong>Return Reason:</strong> <%= order.returnReason %></p>
+            <% } %>
+        </div>
 
-    </div>
-  </div>
+        <!-- Product Information Box -->
+        <div class="product-info-box">
+            <h2>Products</h2>
+            <% order.items.forEach((item) => { %>
+                <% if (item.itemstatus !== 'CANCELLED') { %>
+                    <div class="row mb-3">
+                        <div class="col-md-2">
+                            <img src="<%= item.product.images[0] %>" class="img-fluid" alt="<%= item.product.name %>">
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Product Name:</strong> <%= item.product.name %></p>
+                            <p><strong>Size:</strong> <%= item.size %></p>
+                            <p><strong>Price:</strong> &#8377;<%= item.price.toFixed(2) %></p>
+                            <p><strong>Quantity:</strong> <%= item.quantity %></p>
+                            <p><strong>Total:</strong> &#8377;<%= (item.price * item.quantity).toFixed(2) %></p>
+                        </div>
+                    </div>
+                    <hr>
+                <% } %>
+            <% }); %>
+        </div>
 
+        <!-- Shipping Address Box -->
+        <div class="shipping-address-box">
+            <h2>Shipping Address</h2>
+            <p><strong>Customer Name:</strong> <%= order.shippingAddress.name %></p>
+            <p><strong>Mobile:</strong> <%= order.shippingAddress.mobile %></p>
+            <p><strong>Building Name:</strong> <%= order.shippingAddress.buildingname %></p>
+            <p><strong>Street:</strong> <%= order.shippingAddress.street %></p>
+            <p><strong>City:</strong> <%= order.shippingAddress.city %></p>
+            <p><strong>Pincode:</strong> <%= order.shippingAddress.pincode %></p>
+            <p><strong>State:</strong> <%= order.shippingAddress.state %></p>
+        </div>
+
+        <!-- Price Details Box -->
+        <div class="price-details-box">
+            <h2>Price Details</h2>
+            <% let subtotal = order.items.reduce((sum, item) => item.itemstatus !== 'CANCELLED' ? sum + (item.price * item.quantity) : sum, 0); %>
+            <p><strong>Subtotal:</strong> &#8377;<%= subtotal.toFixed(2) %></p>
+            <% if (order.couponApplied && order.discountAmount > 0) { %>
+                <p><strong>Coupon Applied:</strong> <%= order.couponApplied %></p>
+                <p><strong>Coupon Discount:</strong> -&#8377;<%= order.discountAmount.toFixed(2) %></p>
+            <% } else { %>
+                <p><strong>Coupon Applied:</strong> None</p>
+                <p><strong>Coupon Discount:</strong> &#8377;0.00</p>
+            <% } %>
+            <p><strong>Total Amount:</strong> &#8377;<%= order.totalAmount.toFixed(2) %></p>
+        </div>
+    </div>
+</div>
+<%- include('./footer') %>

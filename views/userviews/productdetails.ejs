@@ -444,7 +444,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const isAvailable = selectedOption.disabled === false;
 
     if (!isAvailable) {
-      stockErrorDiv.textContent = `Size ${selectedSize} is out of stock.`;
+      stockErrorDiv.textContent = `Size ${selectedSize} is currently out of stock. Please choose another size.`;
       stockErrorDiv.classList.add('show');
       quantityInput.setAttribute('max', 1);
       quantityInput.value = 1;
@@ -479,24 +479,28 @@ document.addEventListener('DOMContentLoaded', function () {
 
       // Validate size selection
       if (!size) {
-        stockErrorDiv.textContent = 'Please select a size.';
+        stockErrorDiv.textContent = 'Kindly select a size before adding to the cart.';
         stockErrorDiv.classList.add('show');
         Swal.fire({
-          title: 'Error',
-          text: 'Please select a size.',
-          icon: 'error',
+          title: 'Missing Size',
+          text: 'Kindly select a size before adding to the cart.',
+          icon: 'warning',
+          confirmButtonText: 'OK',
+          confirmButtonColor: '#3085d6'
         });
         return;
       }
 
       // Validate quantity
       if (isNaN(quantity) || quantity < 1) {
-        stockErrorDiv.textContent = 'Please enter a valid quantity.';
+        stockErrorDiv.textContent = 'Please enter a valid quantity (minimum 1).';
         stockErrorDiv.classList.add('show');
         Swal.fire({
-          title: 'Error',
-          text: 'Please enter a valid quantity.',
-          icon: 'error',
+          title: 'Invalid Quantity',
+          text: 'Please enter a valid quantity (minimum 1).',
+          icon: 'warning',
+          confirmButtonText: 'OK',
+          confirmButtonColor: '#3085d6'
         });
         return;
       }
@@ -505,12 +509,14 @@ document.addEventListener('DOMContentLoaded', function () {
       const selectedOption = sizeSelect.querySelector(`option[value="${size}"]`);
       const maxQuantity = parseInt(selectedOption.dataset.maxQuantity);
       if (quantity > maxQuantity) {
-        stockErrorDiv.textContent = 'Insufficient stock for the selected size.';
+        stockErrorDiv.textContent = `Only ${maxQuantity} item${maxQuantity !== 1 ? 's' : ''} available for size ${size}.`;
         stockErrorDiv.classList.add('show');
         Swal.fire({
-          title: 'Error',
-          text: 'Insufficient stock for the selected size.',
-          icon: 'error',
+          title: 'Insufficient Stock',
+          text: `Only ${maxQuantity} item${maxQuantity !== 1 ? 's' : ''} available for size ${size}.`,
+          icon: 'warning',
+          confirmButtonText: 'OK',
+          confirmButtonColor: '#3085d6'
         });
         return;
       }
@@ -553,19 +559,23 @@ document.addEventListener('DOMContentLoaded', function () {
               title: 'Error',
               text: errorMessage,
               icon: 'error',
+              confirmButtonText: 'OK',
+              confirmButtonColor: '#3085d6'
             });
           }
         }
       })
       .catch(function (error) {
         console.error('Error adding to cart: ' + error);
-        const errorMessage = 'An error occurred while adding to cart.';
+        const errorMessage = 'An error occurred while adding to the cart. Please try again.';
         stockErrorDiv.textContent = errorMessage;
         stockErrorDiv.classList.add('show');
         Swal.fire({
           title: 'Error',
           text: errorMessage,
           icon: 'error',
+          confirmButtonText: 'OK',
+          confirmButtonColor: '#3085d6'
         });
       });
     });
@@ -628,6 +638,8 @@ function addToWishlist(productId) {
         title: 'Info',
         text: data.error,
         icon: 'info',
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#3085d6'
       });
     }
   })
@@ -637,6 +649,8 @@ function addToWishlist(productId) {
       title: 'Error',
       text: 'An error occurred while updating the wishlist',
       icon: 'error',
+      confirmButtonText: 'OK',
+      confirmButtonColor: '#3085d6'
     });
   });
 }

@@ -63,6 +63,23 @@
     color: #fff;
   }
 
+  .reset-btn {
+    padding: 10px 20px;
+    font-size: 1rem;
+    font-weight: 600;
+    border-radius: 4px;
+    background-color: #fff;
+    color: #6c757d;
+    border: 1px solid #6c757d;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+
+  .reset-btn:hover {
+    background-color: #6c757d;
+    color: #fff;
+  }
+
   #colorFilter,
   #sizeFilter,
   #sortOption {
@@ -78,6 +95,13 @@
     display: flex;
     align-items: center;
     gap: 10px;
+  }
+
+  .filter-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
   }
 
   #productList {
@@ -216,6 +240,11 @@
       width: 100%;
     }
 
+    .filter-controls {
+      width: 100%;
+      justify-content: space-between;
+    }
+
     #sort-by {
       width: 100%;
       justify-content: space-between;
@@ -236,6 +265,11 @@
     .pagination {
       flex-wrap: wrap;
       justify-content: center;
+    }
+
+    .filter-controls {
+      flex-direction: column;
+      align-items: stretch;
     }
 
     .card-img {
@@ -277,26 +311,33 @@
       />
       <button type="submit" class="css-huh2rh">Search</button>
     </form>
-    <select id="colorFilter">
-      <option value="">All Colors</option>
-      <option value="black">Black</option>
-      <option value="brown">Brown</option>
-      <option value="white">White</option>
-      <option value="lilac">Lilac</option>
-    </select>
-    <select id="sizeFilter">
-      <option value="">All Sizes</option>
-      <option value="4">4</option>
-      <option value="5">5</option>
-      <option value="6">6</option>
-    </select>
-    <div id="sort-by">
-      <label for="sortOption">Sort by:</label>
-      <select id="sortOption" name="sortOption">
-        <option value="priceLowToHigh">Price: Low to High</option>
-        <option value="priceHighToLow">Price: High to Low</option>
+    
+    <div class="filter-controls">
+      <select id="colorFilter">
+        <option value="">All Colors</option>
+        <option value="black">Black</option>
+        <option value="brown">Brown</option>
+        <option value="white">White</option>
+        <option value="lilac">Lilac</option>
       </select>
-      <button id="applySort" class="css-huh2rh">Apply</button>
+      
+      <select id="sizeFilter">
+        <option value="">All Sizes</option>
+        <option value="4">4</option>
+        <option value="5">5</option>
+        <option value="6">6</option>
+      </select>
+      
+      <div id="sort-by">
+        <label for="sortOption">Sort by:</label>
+        <select id="sortOption" name="sortOption">
+          <option value="priceLowToHigh">Price: Low to High</option>
+          <option value="priceHighToLow">Price: High to Low</option>
+        </select>
+        <button id="applySort" class="css-huh2rh">Apply</button>
+      </div>
+      
+      <button id="resetFilters" class="reset-btn">Reset All</button>
     </div>
   </div>
 
@@ -306,32 +347,52 @@
       <div class="card">
         <div class="product-name"><%= product.name %></div>
         <% 
-          const productOffer = productOffers.find(offer => offer.product._id.toString() === product._id.toString() && new Date() >= new Date(offer.startDate) && new Date() <= new Date(offer.expiryDate)); 
-          const categoryOffer = categoryOffers.find(offer => offer.category._id.toString() === product.category.toString() && new Date() >= new Date(offer.startDate) && new Date() <= new Date(offer.expiryDate));
+          // Find active product offer for this product
+          const productOffer = productOffers.find(offer => 
+            offer.product._id.toString() === product._id.toString() && 
+            new Date() >= new Date(offer.startDate) && 
+            new Date() <= new Date(offer.expiryDate)
+          ); 
+          
+          // Find active category offer for this product's category
+          const categoryOffer = categoryOffers.find(offer => 
+            offer.category._id.toString() === product.category._id.toString() && 
+            new Date() >= new Date(offer.startDate) && 
+            new Date() <= new Date(offer.expiryDate)
+          );
+          
           let displayPrice = product.price;
           let offerDescription = '';
           let discountPercentage = 0;
           
+          // Priority: Product offer first, then category offer
           if (productOffer) {
             displayPrice = productOffer.newPrice;
             offerDescription = `${productOffer.discountPercentage}% OFF`;
             discountPercentage = productOffer.discountPercentage;
-          } else if (categoryOffer && product.categoryofferprice && product.categoryofferprice < product.price) {
-            displayPrice = product.categoryofferprice;
+          } else if (categoryOffer) {
+            // Calculate category offer price if not already set
+            const categoryDiscountAmount = (product.price * categoryOffer.discountPercentage) / 100;
+            displayPrice = product.price - categoryDiscountAmount;
             offerDescription = `${categoryOffer.discountPercentage}% OFF`;
             discountPercentage = categoryOffer.discountPercentage;
           }
         %>
-        <% if (productOffer || (categoryOffer && product.categoryofferprice < product.price)) { %>
+        
+        <!-- Display discount badge if there's any offer -->
+        <% if (productOffer || categoryOffer) { %>
         <div class="discount-badge">
           <%= discountPercentage %>% OFF
         </div>
         <% } %>
+        
         <a href="/products/<%= product._id %>" class="product-link">
           <div class="card-img">
             <img src="<%= product.images[0] %>" alt="<%= product.name %>" />
           </div>
         </a>
+        
+        <!-- Display price with strikethrough if there's a discount -->
         <div class="price">
           <% if (displayPrice < product.price) { %>
             <s>₹<%= product.price.toFixed(2) %></s> ₹<%= displayPrice.toFixed(2) %>
@@ -339,6 +400,8 @@
             ₹<%= product.price.toFixed(2) %>
           <% } %>
         </div>
+        
+        <!-- Display offer description if available -->
         <% if (offerDescription) { %>
           <div class="offer-details"><%= offerDescription %></div>
         <% } %>
@@ -371,6 +434,25 @@
 </div>
 
 <script>
+  // Reset all filters and search functionality
+  document.getElementById("resetFilters").addEventListener("click", function (event) {
+    event.preventDefault();
+    
+    // Clear all input fields and select dropdowns
+    document.getElementById("searchInput").value = "";
+    document.getElementById("colorFilter").value = "";
+    document.getElementById("sizeFilter").value = "";
+    document.getElementById("sortOption").value = "priceLowToHigh";
+    
+    // Update URL to remove query parameters
+    const url = new URL(window.location);
+    url.search = '';
+    window.history.replaceState({}, '', url);
+    
+    // Fetch and display all products without any filters
+    fetchAllProducts();
+  });
+
   document.getElementById("applySort").addEventListener("click", function (event) {
     event.preventDefault();
     const sortOption = document.getElementById("sortOption").value;
@@ -422,58 +504,70 @@
       let offerDescription = '';
       let discountBadge = '';
 
-      // Fetch offers for dynamic products
-      fetch(`/productOffers?productId=${product._id}&t=${new Date().getTime()}`)
-        .then(response => response.json())
-        .then(offers => {
-          const productOffer = offers.find(offer => new Date() >= new Date(offer.startDate) && new Date() <= new Date(offer.expiryDate));
-          if (productOffer) {
-            displayPrice = productOffer.newPrice;
-            offerDescription = `${productOffer.discountPercentage}% OFF`;
-            discountBadge = `<div class="discount-badge">${productOffer.discountPercentage}% OFF</div>`;
-          } else if (product.categoryofferprice && product.categoryofferprice < product.price) {
-            // Calculate category discount percentage
-            const discountPercentage = Math.round(((product.price - product.categoryofferprice) / product.price) * 100);
-            displayPrice = product.categoryofferprice;
-            offerDescription = `${discountPercentage}% OFF`;
-            discountBadge = `<div class="discount-badge">${discountPercentage}% OFF</div>`;
-          }
+      // Fetch offers for dynamic products - Updated to handle both product and category offers
+      const categoryId = typeof product.category === 'object' ? product.category._id : product.category;
+      Promise.all([
+        fetch(`/productOffers?productId=${product._id}&t=${new Date().getTime()}`).then(response => response.json()),
+        fetch(`/categoryOffers?categoryId=${categoryId}&t=${new Date().getTime()}`).then(response => response.json())
+      ])
+      .then(([productOffers, categoryOffers]) => {
+        // Find active offers
+        const productOffer = productOffers.find(offer => 
+          new Date() >= new Date(offer.startDate) && 
+          new Date() <= new Date(offer.expiryDate)
+        );
+        const categoryOffer = categoryOffers.find(offer => 
+          new Date() >= new Date(offer.startDate) && 
+          new Date() <= new Date(offer.expiryDate)
+        );
 
-          const productCard = `
-            <div class="filter-products">
-              <div class="card">
-                <div class="product-name">${product.name}</div>
-                ${discountBadge}
-                <a href="/products/${product._id}" class="product-link">
-                  <div class="card-img">
-                    <img src="${imageURL}" alt="${product.name}" style="pointer-events: none;" />
-                  </div>
-                </a>
-                <div class="price">
-                  ${displayPrice < product.price ? `<s>₹${product.price.toFixed(2)}</s> ₹${displayPrice.toFixed(2)}` : `₹${product.price.toFixed(2)}`}
+        // Apply offers with product offer having priority
+        if (productOffer) {
+          displayPrice = productOffer.newPrice;
+          offerDescription = `${productOffer.discountPercentage}% OFF`;
+          discountBadge = `<div class="discount-badge">${productOffer.discountPercentage}% OFF</div>`;
+        } else if (categoryOffer) {
+          const categoryDiscountAmount = (product.price * categoryOffer.discountPercentage) / 100;
+          displayPrice = product.price - categoryDiscountAmount;
+          offerDescription = `${categoryOffer.discountPercentage}% OFF`;
+          discountBadge = `<div class="discount-badge">${categoryOffer.discountPercentage}% OFF</div>`;
+        }
+
+        const productCard = `
+          <div class="filter-products">
+            <div class="card">
+              <div class="product-name">${product.name}</div>
+              ${discountBadge}
+              <a href="/products/${product._id}" class="product-link">
+                <div class="card-img">
+                  <img src="${imageURL}" alt="${product.name}" style="pointer-events: none;" />
                 </div>
-                ${offerDescription ? `<div class="offer-details">${offerDescription}</div>` : ''}
+              </a>
+              <div class="price">
+                ${displayPrice < product.price ? `<s>₹${product.price.toFixed(2)}</s> ₹${displayPrice.toFixed(2)}` : `₹${product.price.toFixed(2)}`}
               </div>
-            </div>`;
-          productList.insertAdjacentHTML("beforeend", productCard);
-        })
-        .catch(error => {
-          console.error("Error fetching offers:", error);
-          // Fallback without offers
-          const productCard = `
-            <div class="filter-products">
-              <div class="card">
-                <div class="product-name">${product.name}</div>
-                <a href="/products/${product._id}" class="product-link">
-                  <div class="card-img">
-                    <img src="${imageURL}" alt="${product.name}" style="pointer-events: none;" />
-                  </div>
-                </a>
-                <div class="price">₹${product.price.toFixed(2)}</div>
-              </div>
-            </div>`;
-          productList.insertAdjacentHTML("beforeend", productCard);
-        });
+              ${offerDescription ? `<div class="offer-details">${offerDescription}</div>` : ''}
+            </div>
+          </div>`;
+        productList.insertAdjacentHTML("beforeend", productCard);
+      })
+      .catch(error => {
+        console.error("Error fetching offers:", error);
+        // Fallback without offers
+        const productCard = `
+          <div class="filter-products">
+            <div class="card">
+              <div class="product-name">${product.name}</div>
+              <a href="/products/${product._id}" class="product-link">
+                <div class="card-img">
+                  <img src="${imageURL}" alt="${product.name}" style="pointer-events: none;" />
+                </div>
+              </a>
+              <div class="price">₹${product.price.toFixed(2)}</div>
+            </div>
+          </div>`;
+        productList.insertAdjacentHTML("beforeend", productCard);
+      });
     });
   }
 

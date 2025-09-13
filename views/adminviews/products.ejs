@@ -13,6 +13,9 @@
              placeholder="Search by name or category" 
              value="<%= typeof search !== 'undefined' ? search : '' %>">
       <button type="submit" class="btn btn-primary btn-sm">Search</button>
+      <% if (typeof search !== 'undefined' && search !== '') { %>
+        <a href="/products?page=1&limit=<%= limit %>" class="btn btn-secondary btn-sm ms-2">Reset</a>
+      <% } %>
     </div>
   </form>
 
@@ -34,8 +37,6 @@
           <th>Image</th>
           <th>Name</th>
           <th>Category</th>
-          <th>Color</th>
-          <th>Stock</th>
           <th>Price</th>
           <th>Action</th>
         </tr>
@@ -48,8 +49,6 @@
             <td><img src="<%= row.images.length > 0 ? row.images[0] : '' %>" width="50" class="img-thumbnail"></td>
             <td><%= row.name %></td>
             <td><%= row.category.name %></td>
-            <td><%= row.color %></td>
-            <td><%= row.stock %></td>
             <td><%= row.price %></td>
             <td>
               <a href="/editProduct/<%= row._id %>" class="text-success">

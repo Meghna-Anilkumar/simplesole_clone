@@ -8,6 +8,7 @@ const cloudinary = require("cloudinary").v2;
 const HttpStatusCode = require("../enums/statusCodes");
 const { calculateCategoryOfferPrice } = require("../utils/cartfunctions");
 
+
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
@@ -641,7 +642,9 @@ module.exports = {
       }
 
       let allProducts = await Product.find(query).populate("category").exec();
-
+      console.log('all products:',allProducts)
+      const allCategoryOffers=await CategoryOffer.find()
+      console.log('allCategoryOffers:',allCategoryOffers)
       if (req.query.size) {
         allProducts = allProducts.filter((product) =>
           product.variants.some((variant) => variant.size === req.query.size)
@@ -659,18 +662,62 @@ module.exports = {
       allProducts = allProducts.slice(skip, skip + perPage);
 
       const category = await Category.find().exec();
+
+      // Get product offers - populate the product field
       const productOffers = await ProductOffer.find({
         startDate: { $lte: new Date() },
         expiryDate: { $gte: new Date() },
       })
         .populate("product")
         .exec();
+
+      // Get category offers - populate the category field
       const categoryOffers = await CategoryOffer.find({
         startDate: { $lte: new Date() },
         expiryDate: { $gte: new Date() },
       })
         .populate("category")
         .exec();
+
+      console.log("Product offers found:", productOffers.length);
+      console.log("Category offers found:", categoryOffers.length);
+
+      // Add offer information to each product
+      const productsWithOffers = allProducts.map((product) => {
+        const productObj = product.toObject();
+
+        // Find product offer - fix the comparison
+        const productOffer = productOffers.find((offer) => {
+          // Handle both populated and non-populated cases
+          const offerProductId = offer.product._id
+            ? offer.product._id.toString()
+            : offer.product.toString();
+          return offerProductId === product._id.toString();
+        });
+
+        // Find category offer - fix the comparison
+        const categoryOffer = categoryOffers.find((offer) => {
+          // Handle both populated and non-populated cases
+          const offerCategoryId = offer.category._id
+            ? offer.category._id.toString()
+            : offer.category.toString();
+          return offerCategoryId === product.category._id.toString();
+        });
+
+        console.log(`Product ${product.name}:`);
+        console.log(`  Product ID: ${product._id.toString()}`);
+        console.log(`  Category ID: ${product.category._id.toString()}`);
+        console.log(`  Has product offer: ${!!productOffer}`);
+        console.log(`  Has category offer: ${!!categoryOffer}`);
+
+        // Add offer information
+        productObj.hasProductOffer = !!productOffer;
+        productObj.hasCategoryOffer = !!categoryOffer;
+        productObj.productOffer = productOffer;
+        productObj.categoryOffer = categoryOffer;
+
+        return productObj;
+      });
 
       const user = req.session.user;
       const cart = await Cart.findOne({ user })
@@ -681,11 +728,11 @@ module.exports = {
         req.headers["x-requested-with"] === "XMLHttpRequest" ||
         req.query.json
       ) {
-        res.json(allProducts);
+        res.json(productsWithOffers);
       } else {
         res.render("userviews/allproducts", {
           title: "All Products",
-          allProducts: allProducts,
+          allProducts: productsWithOffers,
           category: category,
           productOffers: productOffers,
           categoryOffers: categoryOffers,

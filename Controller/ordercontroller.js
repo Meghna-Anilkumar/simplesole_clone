@@ -258,7 +258,7 @@ module.exports = {
         category: categories,
         cart,
         addresses,
-        discount: 0, // Reset discount for error case
+        discount: 0,
         error: error.message || "Internal server error",
       });
     }
