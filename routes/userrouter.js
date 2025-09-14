@@ -1,18 +1,9 @@
 const express = require('express')
-const session = require('express-session')
 const router = express.Router()
-const User = require('../models/user')
-const multer = require('multer')
-const fs = require('fs')
 const usercontroller = require('../Controller/usercontroller');
 const productcontroller = require('../Controller/productcontroller');
-const bcrypt = require('bcrypt')
-const categorycontroller = require('../Controller/categorycontroller');
 const isAuth = require('../middlewares/isAuth')
-const UserDetails = require('../models/userdetails')
-const Wishlist = require('../models/wishlist');
 const cartcontroller = require('../Controller/cartcontroller')
-const checkoutcontroller = require('../Controller/checkoutcontroller')
 const ordercontroller = require('../Controller/ordercontroller')
 const wishlistcontroller = require('../Controller/wishlistcontroller')
 const couponcontroller=require('../Controller/couponcontroller')
@@ -57,7 +48,7 @@ router.get('/getCartTotal', isAuth.checkAuth, cartcontroller.getCartTotal);
 router.post('/updateSize/:productId/:newSize', cartcontroller.updateSize);
 
 //checkout page
-router.get('/proceedtocheckout', isAuth.checkAuth, checkoutcontroller.checkoutpage)
+router.get('/proceedtocheckout', isAuth.checkAuth, ordercontroller.checkoutpage)
 
 //place order
 router.post('/placeOrder', isAuth.checkAuth, ordercontroller.placeorder)

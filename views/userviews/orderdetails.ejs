@@ -107,8 +107,8 @@
             <h2>Price Details</h2>
             <% let subtotal = order.items.reduce((sum, item) => item.itemstatus !== 'CANCELLED' ? sum + (item.price * item.quantity) : sum, 0); %>
             <p><strong>Subtotal:</strong> &#8377;<%= subtotal.toFixed(2) %></p>
-            <% if (order.couponApplied && order.discountAmount > 0) { %>
-                <p><strong>Coupon Applied:</strong> <%= order.couponApplied %></p>
+            <% if (order.couponCode && order.discountAmount > 0) { %>
+                <p><strong>Coupon Applied:</strong> <%= order.couponCode %></p>
                 <p><strong>Coupon Discount:</strong> -&#8377;<%= order.discountAmount.toFixed(2) %></p>
             <% } else { %>
                 <p><strong>Coupon Applied:</strong> None</p>

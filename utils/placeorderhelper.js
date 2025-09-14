@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 const Product = require('../models/product');
 const Order = require('../models/orderSchema');
-const Cart = require('../models/cartSchema');
+const Coupon=require('../models/coupon')
 
 module.exports = async (user, selectedAddress, paymentMethod, cart, couponCode) => {
   const session = await mongoose.startSession();

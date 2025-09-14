@@ -15,7 +15,7 @@ const placeOrderHelper = require("../utils/placeorderhelper");
 const ProductOffer = require("../models/productoffermodel");
 const CategoryOffer = require("../models/categoryoffer");
 const { calculateTotalPrice } = require("../utils/cartfunctions");
-const Coupon=require('../models/coupon')
+const Coupon = require("../models/coupon");
 
 const instance = new Razorpay({
   key_id: process.env.key_id,
@@ -721,6 +721,8 @@ module.exports = {
         .populate("items.product")
         .populate("shippingAddress")
         .exec();
+      const fullOrder = await Order.findById(orderId);
+      console.log("full order:", fullOrder);
       const wishlist = await Wishlist.findOne({ user }).populate(
         "items.product"
       );
@@ -974,64 +976,205 @@ module.exports = {
     }
   },
 
-  downloadinvoice: async (req, res) => {
-    try {
-      const orderId = req.params.orderId;
-      const user = req.session.user;
+  
+downloadinvoice: async (req, res) => {
+  try {
+    const orderId = req.params.orderId;
+    const user = req.session.user;
 
-      const order = await Order.findById(orderId)
-        .populate("items.product")
-        .populate("shippingAddress");
-      if (!order) {
-        return res.status(404).send("Order not found");
+    const order = await Order.findById(orderId)
+      .populate("items.product")
+      .populate("shippingAddress");
+
+    if (!order) {
+      return res.status(404).send("Order not found");
+    }
+
+    const doc = new PDFDocument({
+      margin: 50,
+      size: "A4",
+    });
+
+    const fileName = `invoice_${order.orderId}.pdf`;
+    res.setHeader("Content-disposition", `attachment; filename=${fileName}`);
+    res.setHeader("Content-type", "application/pdf");
+
+    doc.pipe(res);
+
+    // Helper function to add horizontal line
+    const addHorizontalLine = (y, startX = 50, endX = 550) => {
+      doc.moveTo(startX, y).lineTo(endX, y).stroke();
+    };
+
+    // Header Section
+    doc
+      .fontSize(24)
+      .font("Helvetica-Bold")
+      .text("INVOICE", { align: "center" })
+      .moveDown(0.5);
+
+    // Company/Store Details
+    doc
+      .fontSize(12)
+      .font("Helvetica-Bold")
+      .text("SIMPLE SOLE", 50, 120)
+      .font("Helvetica")
+      .fontSize(10)
+      .text("Simplesole floor", 50, 140)
+      .text("Phone: +91 8907654332", 50, 170)
+      .text("Email: simplesole@gmail.com", 50, 185);
+
+    // Invoice Details
+    doc
+      .fontSize(12)
+      .font("Helvetica-Bold")
+      .text(`Invoice #: ${order.orderId}`, 350, 120)
+      .font("Helvetica")
+      .text(`Order Date: ${order.orderdate.toLocaleDateString("en-IN")}`, 350, 140)
+      .text(`Status: ${order.orderStatus}`, 350, 160)
+      .text(`Payment: ${order.paymentMethod}`, 350, 180);
+
+    addHorizontalLine(210);
+
+    // Customer Details
+    let currentY = 230;
+    doc.fontSize(14).font("Helvetica-Bold").text("Bill To:", 50, currentY);
+
+    currentY += 20;
+    doc.fontSize(11).font("Helvetica").text(`${user.name}`, 50, currentY);
+
+    if (order.shippingAddress) {
+      currentY += 15;
+      doc.text(`${order.shippingAddress.buildingname}`, 50, currentY);
+      currentY += 15;
+      doc.text(`${order.shippingAddress.street}`, 50, currentY);
+      currentY += 15;
+      doc.text(`${order.shippingAddress.city}, ${order.shippingAddress.state}`, 50, currentY);
+      currentY += 15;
+      doc.text(`PIN: ${order.shippingAddress.pincode}`, 50, currentY);
+    }
+
+    currentY += 30;
+    addHorizontalLine(currentY);
+
+    // Items Table Header
+    currentY += 20;
+    doc
+      .fontSize(11)
+      .font("Helvetica-Bold")
+      .text("Item", 50, currentY)
+      .text("Size", 250, currentY)
+      .text("Qty", 300, currentY)
+      .text("Unit Price", 350, currentY)
+      .text("Total", 450, currentY);
+
+    currentY += 15;
+    addHorizontalLine(currentY);
+
+    // Items Details
+    let subtotal = 0;
+    currentY += 15;
+
+    order.items.forEach((item) => {
+      const itemTotal = item.price * item.quantity;
+      subtotal += itemTotal;
+
+      doc
+        .fontSize(10)
+        .font("Helvetica")
+        .text(item.product.name, 50, currentY, { width: 190, ellipsis: true })
+        .text(item.size || "N/A", 250, currentY)
+        .text(item.quantity.toString(), 300, currentY)
+        .text(`₹${item.price.toFixed(2)}`, 350, currentY)
+        .text(`₹${itemTotal.toFixed(2)}`, 450, currentY);
+
+      if (item.itemstatus === "CANCELLED") {
+        currentY += 12;
+        doc
+          .fontSize(9)
+          .fillColor("red")
+          .text("(CANCELLED)", 50, currentY)
+          .fillColor("black");
       }
 
-      const doc = new PDFDocument({ margin: 25 });
-      const fileName = `invoice_${orderId}.pdf`;
-      res.setHeader("Content-disposition", `attachment; filename=${fileName}`);
-      res.setHeader("Content-type", "application/pdf");
+      currentY += 20;
 
-      doc.pipe(res);
-      doc
-        .fontSize(18)
-        .text(`Invoice for Order ID: ${order.orderId}`, { align: "center" })
-        .moveDown();
-      doc.fontSize(12).text(`Status: ${order.orderStatus}`).moveDown();
-      doc
-        .font("Helvetica-Bold")
-        .text("Product", 100, 200)
-        .text("Quantity", 250, 200)
-        .text("Price", 350, 200)
-        .text("Total", 450, 200);
+      if (currentY > 700) {
+        doc.addPage();
+        currentY = 50;
+      }
+    });
 
-      let y = 230;
-      order.items.forEach((item) => {
-        doc
-          .font("Helvetica")
-          .text(item.product.name, 100, y)
-          .text(item.quantity.toString(), 250, y)
-          .text(`₹${item.product.price}`, 350, y)
-          .text(`₹${item.product.price * item.quantity}`, 450, y);
-        y += 20;
-      });
+    // Summary Section
+    currentY += 10;
+    addHorizontalLine(currentY);
+    currentY += 15;
 
-      doc.text(`User Name: ${user.name}`).moveDown();
-      doc
-        .text(
-          `Shipped Address: ${order.shippingAddress.buildingname}, ${order.shippingAddress.street}, ${order.shippingAddress.city}, ${order.shippingAddress.state}, ${order.shippingAddress.pincode}`
-        )
-        .moveDown();
-      doc.text(`Ordered Date: ${order.orderdate.toDateString()}`).moveDown();
-      doc.text(`Subtotal: ₹${order.totalAmount}`).moveDown();
-      doc
-        .fontSize(16)
-        .text("Thank you for Shopping!", { align: "center" })
-        .moveDown();
+    const summaryX = 350;
 
-      doc.end();
-    } catch (error) {
-      console.error("Error generating PDF:", error);
-      res.status(500).send("Internal Server Error");
+    doc
+      .fontSize(11)
+      .font("Helvetica")
+      .text("Subtotal:", summaryX, currentY)
+      .text(`₹${subtotal.toFixed(2)}`, 450, currentY);
+
+    currentY += 20;
+
+    if (order.couponCode && order.discountAmount > 0) {
+      doc
+        .text("Coupon Applied:", summaryX, currentY)
+        .text(order.couponCode, 450, currentY);
+
+      currentY += 15;
+      doc
+        .text("Discount Amount:", summaryX, currentY)
+        .fillColor("green")
+        .text(`-₹${order.discountAmount.toFixed(2)}`, 450, currentY)
+        .fillColor("black");
+
+      currentY += 20;
     }
-  },
+
+    doc.text("Shipping:", summaryX, currentY).text("Free", 450, currentY);
+
+    currentY += 20;
+    addHorizontalLine(currentY - 5, summaryX, 550);
+
+    doc
+      .fontSize(14)
+      .font("Helvetica-Bold")
+      .text("Total Amount:", summaryX, currentY)
+      .text(`₹${order.totalAmount.toFixed(2)}`, 450, currentY);
+
+    currentY += 30;
+
+    if (order.paymentStatus) {
+      doc
+        .fontSize(11)
+        .font("Helvetica")
+        .text("Payment Status:", summaryX, currentY)
+        .fillColor(order.paymentStatus === "Completed" ? "green" : "orange")
+        .text(order.paymentStatus, 450, currentY)
+        .fillColor("black");
+    }
+
+    // Thank you message
+    currentY += 40;
+    doc
+      .fontSize(12)
+      .font("Helvetica-Bold")
+      .text("Thank you for your business!", { align: "center" });
+
+    doc
+      .fontSize(10)
+      .font("Helvetica")
+      .text("We appreciate your trust in our products.", { align: "center" });
+
+    doc.end();
+  } catch (error) {
+    console.error("Error generating PDF:", error);
+    res.status(500).send("Internal Server Error");
+  }
+},
+
 };

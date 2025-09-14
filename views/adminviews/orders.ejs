@@ -45,7 +45,9 @@
     color: white;
   }
 
-  .pagination a:hover:not(.active) {background-color: #ddd;}
+  .pagination a:hover:not(.active) {
+    background-color: #ddd;
+  }
 </style>
 <div id="content">
   <h1>Orders</h1>
@@ -91,7 +93,7 @@
                 <span style="color: red;">Return Rejected</span>
             <% } else { %>
                 <select name="orderStatus" id="orderStatus_<%= order._id %>"
-                    onchange="updateOrderStatus('<%= order._id %>')"
+                    onchange="showConfirmModal('<%= order._id %>', this.value)"
                     <%= order.orderStatus === 'CANCELLED' || order.orderStatus === 'DELIVERED' || order.orderStatus === 'RETURNED' || order.orderStatus === 'RETURN REJECTED' ? 'disabled' : '' %>>
                     <option value="PENDING" <%= order.orderStatus === 'PENDING' ? 'selected' : '' %>>Pending</option>
                     <option value="PROCESSING" <%= order.orderStatus === 'PROCESSING' ? 'selected' : '' %>>Processing</option>
@@ -99,17 +101,15 @@
                     <option value="DELIVERED" <%= order.orderStatus === 'DELIVERED' ? 'selected' : '' %>>Delivered</option>
                 </select>
             <% } %>
-        </td>
-        
+          </td>
           <td><a href="/ordersview/<%= order._id %>">View</a></td>
         </tr>
       <% }); %>
     </tbody>
-    
   </table>
 
   <div class="pagination">
-    <% const range = 5; // Number of index numbers to display on each side of the current page %>
+    <% const range = 5; %>
     <% const startPage = Math.max(1, currentPage - range); %>
     <% const endPage = Math.min(totalPages, currentPage + range); %>
 
@@ -129,13 +129,50 @@
       <a href="?page=<%= totalPages %>">&raquo;</a>
     <% } %>
   </div>
+
+  <!-- Bootstrap Confirmation Modal -->
+  <div class="modal fade" id="confirmStatusModal" tabindex="-1" aria-labelledby="confirmStatusModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="confirmStatusModalLabel">Confirm Order Status Change</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          Are you sure you want to change the order status to "<span id="newStatus"></span>"?
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="cancelStatusChange">Cancel</button>
+          <button type="button" class="btn btn-primary" id="confirmStatusChange">Confirm</button>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
-  function updateOrderStatus(orderId) {
-    const newOrderStatus = document.getElementById(`orderStatus_${orderId}`).value;
+  let currentOrderId = null;
+  let currentSelectElement = null;
 
-    fetch(`/updateOrderStatus/${orderId}`, {
+  function showConfirmModal(orderId, newOrderStatus) {
+    currentOrderId = orderId;
+    currentSelectElement = document.getElementById(`orderStatus_${orderId}`);
+    // Store the previous value for reversion
+    currentSelectElement.dataset.previousValue = currentSelectElement.dataset.previousValue || currentSelectElement.value;
+    
+    // Update modal content
+    document.getElementById('newStatus').textContent = newOrderStatus;
+    
+    // Show the modal
+    const modal = new bootstrap.Modal(document.getElementById('confirmStatusModal'));
+    modal.show();
+  }
+
+  // Handle confirm button click
+  document.getElementById('confirmStatusChange').addEventListener('click', () => {
+    const newOrderStatus = document.getElementById(`orderStatus_${currentOrderId}`).value;
+    
+    fetch(`/updateOrderStatus/${currentOrderId}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -150,16 +187,44 @@
       })
       .then(updatedOrder => {
         console.log('Order status updated:', updatedOrder);
+        // Update the stored previous value
+        currentSelectElement.dataset.previousValue = newOrderStatus;
+        // Close the modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('confirmStatusModal'));
+        modal.hide();
       })
-      .catch(error => console.error('Error updating order status:', error));
+      .catch(error => {
+        console.error('Error updating order status:', error);
+        // Revert dropdown on error
+        currentSelectElement.value = currentSelectElement.dataset.previousValue || 'PENDING';
+        // Close the modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('confirmStatusModal'));
+        modal.hide();
+      });
+  });
 
-    window.location.reload();
-  }
+  // Handle cancel button click or modal close
+  document.getElementById('cancelStatusChange').addEventListener('click', () => {
+    // Revert dropdown to previous value
+    currentSelectElement.value = currentSelectElement.dataset.previousValue || 'PENDING';
+  });
+
+  // Revert dropdown when modal is closed without confirming
+  document.getElementById('confirmStatusModal').addEventListener('hidden.bs.modal', () => {
+    if (currentSelectElement) {
+      currentSelectElement.value = currentSelectElement.dataset.previousValue || 'PENDING';
+    }
+  });
 </script>
 
 <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
 <script>
   $(document).ready(function () {
-    $('#ordersTable').DataTable();
+    $('#ordersTable').DataTable({
+      // Ensure DataTable doesn't interfere with select elements
+      columnDefs: [
+        { orderable: false, targets: [6, 7] } // Disable sorting on Status and View columns
+      ]
+    });
   });
 </script>
