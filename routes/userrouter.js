@@ -46,6 +46,7 @@ router.post('/updateQuantity/:productId/:change', cartcontroller.updatequantity)
 router.post('/removeItem/:productId', cartcontroller.deleteitem)
 router.get('/getCartTotal', isAuth.checkAuth, cartcontroller.getCartTotal);
 router.post('/updateSize/:productId/:newSize', cartcontroller.updateSize);
+router.post('/validateStockBeforeCheckout', cartcontroller.validateStockBeforeCheckout);
 
 //checkout page
 router.get('/proceedtocheckout', isAuth.checkAuth, ordercontroller.checkoutpage)

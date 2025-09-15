@@ -1,11 +1,11 @@
 const mongoose = require('mongoose');
 const Cart = require('../models/cartSchema');
-const Category = require('../models/category');
 const Product = require('../models/product');
 const ProductOffer = require('../models/productoffermodel');
-const { calculateTotalPrice } = require('../utils/cartfunctions');
 const CategoryOffer = require('../models/categoryoffer');
 const Wishlist = require('../models/wishlist');
+const { calculateTotalPrice } = require('../utils/cartfunctions');
+const Category = require('../models/category');
 
 module.exports = {
   getcart: async (req, res) => {
@@ -18,6 +18,82 @@ module.exports = {
         .populate('items.product')
         .exec();
 
+      let unavailableItems = [];
+      let canProceedToCheckout = true;
+
+      if (cart && cart.items && cart.items.length > 0) {
+        const session = await mongoose.startSession();
+        session.startTransaction();
+        try {
+          for (const item of cart.items) {
+            const product = await Product.findOne({ _id: item.product._id, version: { $exists: true } })
+              .session(session);
+            if (!product) {
+              unavailableItems.push({
+                productId: item.product._id,
+                name: item.product.name,
+                size: item.size,
+                reason: 'Product not found',
+              });
+              continue;
+            }
+
+            const variant = product.variants.find((v) => v.size === item.size);
+            if (!variant) {
+              unavailableItems.push({
+                productId: item.product._id,
+                name: item.product.name,
+                size: item.size,
+                reason: `Size ${item.size} not available`,
+              });
+              continue;
+            }
+
+            const availableStock = variant.stock - (variant.reserved || 0);
+            if (availableStock < item.quantity) {
+              unavailableItems.push({
+                productId: item.product._id,
+                name: item.product.name,
+                size: item.size,
+                reason: `Only ${availableStock} item${availableStock !== 1 ? 's' : ''} available for size ${item.size}`,
+              });
+            }
+
+            if (item.reservedAt < new Date(Date.now() - 10 * 60 * 1000)) {
+              unavailableItems.push({
+                productId: item.product._id,
+                name: item.product.name,
+                size: item.size,
+                reason: `Reservation expired for size ${item.size}`,
+              });
+              variant.reserved = (variant.reserved || 0) - item.quantity;
+              product.reserved = (product.reserved || 0) - item.quantity;
+              product.version += 1;
+              await product.save({ session });
+              cart.items = cart.items.filter(
+                (i) => !(i.product._id.toString() === item.product._id.toString() && i.size === item.size)
+              );
+            }
+          }
+
+          if (unavailableItems.length > 0) {
+            canProceedToCheckout = false;
+            await cart.save({ session });
+          }
+
+          await session.commitTransaction();
+          session.endSession();
+        } catch (error) {
+          await session.abortTransaction();
+          session.endSession();
+          console.error('Error validating stock in getcart:', {
+            error: error.message,
+            stack: error.stack,
+          });
+          throw error;
+        }
+      }
+
       if (!cart) {
         return res.render('userviews/cart', {
           title: 'Cart',
@@ -25,6 +101,9 @@ module.exports = {
           data: { total: 0 },
           cart,
           wishlist,
+          productOffers: [],
+          unavailableItems,
+          canProceedToCheckout: false,
         });
       }
 
@@ -52,24 +131,21 @@ module.exports = {
 
       console.log('Cart state:', { total: cart.total, newTotal: cart.newTotal });
 
-      const data = { total: totalPrice };
-      let product;
-      if (cart.items && cart.items.length > 0 && cart.items[0].product) {
-        product = cart.items[0].product;
-        console.log('Product:', product);
-      }
-
       res.render('userviews/cart', {
         title: 'Cart',
         category: categories,
         cart,
-        data,
+        data: { total: totalPrice },
         productOffers,
-        product,
         wishlist,
+        unavailableItems,
+        canProceedToCheckout,
       });
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error fetching cart:', {
+        error: error.message,
+        stack: error.stack,
+      });
       res.status(500).json({ error: 'Internal Server Error' });
     }
   },
@@ -80,22 +156,23 @@ module.exports = {
     session.startTransaction();
 
     try {
-      if (!productId || !size || !quantity || isNaN(quantity) || quantity < 1) {
+      if (!mongoose.Types.ObjectId.isValid(productId) || !size || !quantity || isNaN(quantity) || quantity < 1) {
         await session.abortTransaction();
         session.endSession();
         return res.status(400).json({
           success: false,
-          error: "Invalid product ID, size, or quantity",
+          error: 'Invalid product ID, size, or quantity',
         });
       }
 
-      const product = await Product.findById(productId).session(session);
+      const product = await Product.findOne({ _id: productId, version: { $exists: true } })
+        .session(session);
       if (!product) {
         await session.abortTransaction();
         session.endSession();
-        return res.status(404).json({
+        return res.status(400).json({
           success: false,
-          error: "Product not found",
+          error: 'Product not found',
         });
       }
 
@@ -105,11 +182,11 @@ module.exports = {
         session.endSession();
         return res.status(400).json({
           success: false,
-          error: "Selected size not available",
+          error: `Size ${size} not available`,
         });
       }
 
-      const availableStock = variant.stock - (product.reserved || 0);
+      const availableStock = variant.stock - (variant.reserved || 0);
       const requestedQuantity = parseInt(quantity);
 
       if (availableStock < 1) {
@@ -126,7 +203,7 @@ module.exports = {
         session.endSession();
         return res.status(400).json({
           success: false,
-          error: `Only ${availableStock} item${availableStock > 1 ? "s" : ""} available for size ${size}`,
+          error: `Only ${availableStock} item${availableStock > 1 ? 's' : ''} available for size ${size}`,
         });
       }
 
@@ -134,13 +211,19 @@ module.exports = {
       if (!user) {
         await session.abortTransaction();
         session.endSession();
-        return res.redirect("/login");
+        return res.redirect('/login');
       }
 
       let cart = await Cart.findOne({ user }).session(session);
       if (!cart) {
         cart = new Cart({ user, items: [] });
       }
+
+      const productOffers = await ProductOffer.find({
+        product: productId,
+        startDate: { $lte: new Date() },
+        expiryDate: { $gte: new Date() },
+      }).session(session);
 
       const existingItem = cart.items.find(
         (item) => item.product.equals(productId) && item.size === size
@@ -150,20 +233,22 @@ module.exports = {
         if (totalQuantityAfterAdd > availableStock) {
           await session.abortTransaction();
           session.endSession();
-          const maxAdditional = availableStock - existingItem.quantity;
           return res.status(400).json({
             success: false,
-            error: `You already have ${existingItem.quantity} in cart for size ${size}. You can add maximum ${maxAdditional} more item${maxAdditional !== 1 ? "s" : ""}`,
+            error: `You already have ${existingItem.quantity} in cart for size ${size}. You can add maximum ${availableStock - existingItem.quantity} more item${availableStock - existingItem.quantity !== 1 ? 's' : ''}`,
           });
         }
         existingItem.quantity = totalQuantityAfterAdd;
+        existingItem.reservedAt = new Date();
+        let price = product.price;
+        if (productOffers.length > 0) {
+          price = productOffers[0].newPrice;
+        } else if (product.categoryofferprice && product.categoryofferprice < product.price) {
+          price = product.categoryofferprice;
+        }
+        existingItem.price = price;
       } else {
         let price = product.price;
-        const productOffers = await ProductOffer.find({
-          product: productId,
-          startDate: { $lte: new Date() },
-          expiryDate: { $gte: new Date() },
-        }).session(session);
         if (productOffers.length > 0) {
           price = productOffers[0].newPrice;
         } else if (product.categoryofferprice && product.categoryofferprice < product.price) {
@@ -173,22 +258,20 @@ module.exports = {
         cart.items.push({
           product: productId,
           quantity: requestedQuantity,
-          size: size,
+          size,
           price,
           reservedAt: new Date(),
         });
       }
 
+      variant.reserved = (variant.reserved || 0) + requestedQuantity;
       product.reserved = (product.reserved || 0) + requestedQuantity;
       product.version += 1;
       await product.save({ session });
 
       const totalPrice = await calculateTotalPrice(
         cart.items,
-        await ProductOffer.find({
-          startDate: { $lte: new Date() },
-          expiryDate: { $gte: new Date() },
-        }).session(session),
+        productOffers,
         await CategoryOffer.find({
           startDate: { $lte: new Date() },
           expiryDate: { $gte: new Date() },
@@ -215,10 +298,16 @@ module.exports = {
     } catch (error) {
       await session.abortTransaction();
       session.endSession();
-      console.error('Error adding to cart:', error);
+      console.error('Error adding to cart:', {
+        error: error.message,
+        stack: error.stack,
+        productId,
+        quantity,
+        size,
+      });
       res.status(500).json({
         success: false,
-        error: 'Internal Server Error',
+        error: error.message || 'Internal Server Error',
       });
     }
   },
@@ -229,23 +318,43 @@ module.exports = {
     session.startTransaction();
 
     try {
-      const product = await Product.findById(productId).session(session);
+      if (!mongoose.Types.ObjectId.isValid(productId) || isNaN(parseInt(change))) {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(400).json({ error: 'Invalid product ID or change value' });
+      }
+
+      const product = await Product.findOne({ _id: productId, version: { $exists: true } })
+        .session(session);
       if (!product) {
         await session.abortTransaction();
         session.endSession();
         return res.status(404).json({ error: 'Product not found' });
       }
 
-      const cartItem = await Cart.findOne({ 'items.product': productId })
+      const cart = await Cart.findOne({ 'items.product': productId })
         .populate('items.product')
         .session(session);
-      if (!cartItem) {
+      if (!cart) {
         await session.abortTransaction();
         session.endSession();
         return res.status(404).json({ error: 'Item not found in the cart' });
       }
 
-      const item = cartItem.items.find((item) => item.product._id.toString() === productId);
+      const item = cart.items.find((item) => item.product._id.toString() === productId);
+      if (!item) {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(404).json({ error: 'Item not found in the cart' });
+      }
+
+      const variant = product.variants.find((v) => v.size === item.size);
+      if (!variant) {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(400).json({ error: `Size ${item.size} not available` });
+      }
+
       const currentQuantity = item.quantity;
       const changeAmount = parseInt(change, 10);
       const newQuantity = currentQuantity + changeAmount;
@@ -256,14 +365,7 @@ module.exports = {
         return res.status(400).json({ error: 'Quantity cannot be less than 1' });
       }
 
-      const variant = product.variants.find((v) => v.size === item.size);
-      if (!variant) {
-        await session.abortTransaction();
-        session.endSession();
-        return res.status(400).json({ error: 'Selected size not available' });
-      }
-
-      const availableStock = variant.stock - (product.reserved - currentQuantity);
+      const availableStock = variant.stock - (variant.reserved - currentQuantity);
       if (newQuantity > availableStock) {
         await session.abortTransaction();
         session.endSession();
@@ -284,6 +386,7 @@ module.exports = {
         itemPrice = product.categoryofferprice;
       }
 
+      variant.reserved += changeAmount;
       product.reserved += changeAmount;
       product.version += 1;
       await product.save({ session });
@@ -300,9 +403,11 @@ module.exports = {
         { new: true }
       ).populate('items.product').session(session);
 
-      const updatedItem = updatedCart.items.find(
-        (item) => item.product._id.toString() === productId && item.size === item.size
-      );
+      if (!updatedCart) {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(500).json({ error: 'Failed to update cart' });
+      }
 
       const cartTotal = await calculateTotalPrice(
         updatedCart.items,
@@ -334,8 +439,13 @@ module.exports = {
     } catch (error) {
       await session.abortTransaction();
       session.endSession();
-      console.error('Error updating quantity:', error);
-      res.status(500).json({ error: 'Internal Server Error' });
+      console.error('Error updating quantity:', {
+        error: error.message,
+        stack: error.stack,
+        productId,
+        change,
+      });
+      res.status(500).json({ error: error.message || 'Internal Server Error' });
     }
   },
 
@@ -345,6 +455,12 @@ module.exports = {
     session.startTransaction();
 
     try {
+      if (!mongoose.Types.ObjectId.isValid(productId)) {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(400).json({ error: 'Invalid product ID' });
+      }
+
       const cart = await Cart.findOne({ 'items.product': productId }).session(session);
       if (!cart) {
         await session.abortTransaction();
@@ -359,16 +475,21 @@ module.exports = {
         return res.status(404).json({ error: 'Item not found in the cart' });
       }
 
-      const product = await Product.findById(productId).session(session);
+      const product = await Product.findOne({ _id: productId, version: { $exists: true } })
+        .session(session);
       if (product) {
-        product.reserved -= item.quantity;
-        product.version += 1;
-        await product.save({ session });
+        const variant = product.variants.find((v) => v.size === item.size);
+        if (variant) {
+          variant.reserved = (variant.reserved || 0) - item.quantity;
+          product.reserved = (product.reserved || 0) - item.quantity;
+          product.version += 1;
+          await product.save({ session });
+        }
       }
 
       const updatedCart = await Cart.findOneAndUpdate(
-        { 'items.product': productId },
-        { $pull: { items: { product: productId } } },
+        { 'items.product': productId, 'items.size': item.size },
+        { $pull: { items: { product: productId, size: item.size } } },
         { new: true }
       ).session(session);
 
@@ -401,7 +522,11 @@ module.exports = {
     } catch (error) {
       await session.abortTransaction();
       session.endSession();
-      console.error('Error removing item:', error);
+      console.error('Error removing item:', {
+        error: error.message,
+        stack: error.stack,
+        productId,
+      });
       res.status(500).json({ error: 'Internal Server Error' });
     }
   },
@@ -442,7 +567,10 @@ module.exports = {
         newTotal: cart.newTotal,
       });
     } catch (error) {
-      console.error('Error fetching cart total:', error);
+      console.error('Error fetching cart total:', {
+        error: error.message,
+        stack: error.stack,
+      });
       res.status(500).json({ success: false, error: 'Internal Server Error' });
     }
   },
@@ -453,7 +581,14 @@ module.exports = {
     session.startTransaction();
 
     try {
-      const product = await Product.findById(productId).session(session);
+      if (!mongoose.Types.ObjectId.isValid(productId) || !newSize) {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(400).json({ error: 'Invalid product ID or size' });
+      }
+
+      const product = await Product.findOne({ _id: productId, version: { $exists: true } })
+        .session(session);
       if (!product) {
         await session.abortTransaction();
         session.endSession();
@@ -476,6 +611,7 @@ module.exports = {
         return res.status(404).json({ error: 'Item not found in the cart' });
       }
 
+      const oldVariant = product.variants.find((v) => v.size === item.size);
       const newVariant = product.variants.find((v) => v.size === newSize);
       if (!newVariant) {
         await session.abortTransaction();
@@ -483,7 +619,7 @@ module.exports = {
         return res.status(400).json({ error: `Size ${newSize} not available` });
       }
 
-      const availableStock = newVariant.stock - (product.reserved - item.quantity);
+      const availableStock = newVariant.stock - (newVariant.reserved || 0);
       if (availableStock < item.quantity) {
         await session.abortTransaction();
         session.endSession();
@@ -503,6 +639,15 @@ module.exports = {
       } else if (product.categoryofferprice && product.categoryofferprice < product.price) {
         itemPrice = product.categoryofferprice;
       }
+
+      if (oldVariant) {
+        oldVariant.reserved = (oldVariant.reserved || 0) - item.quantity;
+        product.reserved = (product.reserved || 0) - item.quantity;
+      }
+      newVariant.reserved = (newVariant.reserved || 0) + item.quantity;
+      product.reserved = (product.reserved || 0) + item.quantity;
+      product.version += 1;
+      await product.save({ session });
 
       const updatedCart = await Cart.findOneAndUpdate(
         { 'items.product': productId, 'items.size': item.size },
@@ -546,8 +691,113 @@ module.exports = {
     } catch (error) {
       await session.abortTransaction();
       session.endSession();
-      console.error('Error updating size:', error);
-      res.status(500).json({ error: 'Internal Server Error' });
+      console.error('Error updating size:', {
+        error: error.message,
+        stack: error.stack,
+        productId,
+        newSize,
+      });
+      res.status(500).json({ error: error.message || 'Internal Server Error' });
+    }
+  },
+
+  validateStockBeforeCheckout: async (req, res) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+      const user = req.session.user;
+      const cart = await Cart.findOne({ user })
+        .populate('items.product')
+        .session(session);
+
+      if (!cart || !cart.items.length) {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(400).json({ success: false, error: 'Cart is empty' });
+      }
+
+      const unavailableItems = [];
+
+      for (const item of cart.items) {
+        const product = await Product.findOne({ _id: item.product._id, version: { $exists: true } })
+          .session(session);
+        if (!product) {
+          unavailableItems.push({
+            productId: item.product._id,
+            name: item.product.name,
+            size: item.size,
+            reason: 'Product not found',
+          });
+          continue;
+        }
+
+        const variant = product.variants.find((v) => v.size === item.size);
+        if (!variant) {
+          unavailableItems.push({
+            productId: item.product._id,
+            name: item.product.name,
+            size: item.size,
+            reason: `Size ${item.size} not available`,
+          });
+          continue;
+        }
+
+        const availableStock = variant.stock - (variant.reserved || 0);
+        if (availableStock < item.quantity) {
+          unavailableItems.push({
+            productId: item.product._id,
+            name: item.product.name,
+            size: item.size,
+            reason: `Only ${availableStock} item${availableStock !== 1 ? 's' : ''} available for size ${item.size}`,
+          });
+        }
+
+        if (item.reservedAt < new Date(Date.now() - 10 * 60 * 1000)) {
+          unavailableItems.push({
+            productId: item.product._id,
+            name: item.product.name,
+            size: item.size,
+            reason: `Reservation expired for size ${item.size}`,
+          });
+          variant.reserved = (variant.reserved || 0) - item.quantity;
+          product.reserved = (product.reserved || 0) - item.quantity;
+          product.version += 1;
+          await product.save({ session });
+          cart.items = cart.items.filter(
+            (i) => !(i.product._id.toString() === item.product._id.toString() && i.size === item.size)
+          );
+        }
+      }
+
+      if (unavailableItems.length > 0) {
+        await cart.save({ session });
+        await session.commitTransaction();
+        session.endSession();
+        return res.status(400).json({
+          success: false,
+          error: 'Some items are unavailable',
+          unavailableItems,
+        });
+      }
+
+      cart.items.forEach((item) => {
+        item.reservedAt = new Date();
+      });
+      await cart.save({ session });
+
+      await session.commitTransaction();
+      session.endSession();
+
+      res.json({ success: true, message: 'Stock validated successfully' });
+    } catch (error) {
+      await session.abortTransaction();
+      session.endSession();
+      console.error('Error validating stock:', {
+        error: error.message,
+        stack: error.stack,
+      });
+      res.status(500).json({ success: false, error: 'Internal Server Error' });
     }
   },
 };

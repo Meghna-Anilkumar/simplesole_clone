@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 const Product = require('../models/product');
 const Order = require('../models/orderSchema');
-const Coupon=require('../models/coupon')
+const Coupon = require('../models/coupon');
 
 module.exports = async (user, selectedAddress, paymentMethod, cart, couponCode) => {
   const session = await mongoose.startSession();
@@ -14,7 +14,8 @@ module.exports = async (user, selectedAddress, paymentMethod, cart, couponCode) 
         throw new Error(`Size is missing for product: ${item.product.name}`);
       }
 
-      const product = await Product.findById(item.product._id).session(session);
+      const product = await Product.findOne({ _id: item.product._id, version: { $exists: true } })
+        .session(session);
       if (!product) {
         throw new Error(`Product not found: ${item.product._id}`);
       }
@@ -24,40 +25,38 @@ module.exports = async (user, selectedAddress, paymentMethod, cart, couponCode) 
         throw new Error(`Size ${item.size} not available for product: ${product.name}`);
       }
 
-      const availableStock = variant.stock - (product.reserved || 0);
+      const availableStock = variant.stock - (variant.reserved || 0);
       if (availableStock < item.quantity) {
         throw new Error(`Insufficient stock for product: ${product.name}, size: ${item.size}. Only ${availableStock} available.`);
       }
 
       if (item.reservedAt && item.reservedAt < new Date(Date.now() - 10 * 60 * 1000)) {
-        await Product.findByIdAndUpdate(
-          item.product._id,
-          { $inc: { reserved: -item.quantity, version: 1 } },
-          { session }
-        );
-        cart.items = cart.items.filter((i) => 
-          !(i.product._id.toString() === item.product._id.toString() && i.size === item.size)
+        variant.reserved = (variant.reserved || 0) - item.quantity;
+        product.reserved = (product.reserved || 0) - item.quantity;
+        product.version += 1;
+        await product.save({ session });
+        cart.items = cart.items.filter(
+          (i) => !(i.product._id.toString() === item.product._id.toString() && i.size === item.size)
         );
         await cart.save({ session });
         throw new Error(`Reservation expired for product: ${product.name}, size: ${item.size}`);
       }
     }
 
-    // Update stock and reserved quantities for each variant
+    // Update stock and reserved quantities
     for (const item of cart.items) {
-      const product = await Product.findById(item.product._id).session(session);
+      const product = await Product.findOne({ _id: item.product._id, version: { $exists: true } })
+        .session(session);
       const variant = product.variants.find((v) => v.size === item.size);
       
       variant.stock -= item.quantity;
-      if (product.reserved && product.reserved >= item.quantity) {
-        product.reserved -= item.quantity;
-      }
-      
+      variant.reserved = (variant.reserved || 0) - item.quantity;
+      product.reserved = (product.reserved || 0) - item.quantity;
       product.version += 1;
       await product.save({ session });
     }
 
-    // Create order items with proper size field
+    // Create order items
     const orderItems = cart.items.map(item => ({
       product: item.product._id,
       quantity: item.quantity,
@@ -82,7 +81,7 @@ module.exports = async (user, selectedAddress, paymentMethod, cart, couponCode) 
       totalAmount: cart.newTotal || cart.total,
       paymentMethod,
       couponCode: couponCode || null,
-      discountAmount: discountAmount,
+      discountAmount,
       transactiontype: paymentMethod === 'WALLET' || paymentMethod === 'RAZORPAY' ? 'DEBIT' : undefined,
     });
 

@@ -61,10 +61,14 @@
     transition: background 0.3s ease;
     min-width: 40px;
   }
-  .quantity-button:hover {
+  .quantity-button:hover:not(:disabled) {
     background: rgb(255, 63, 108);
     color: white;
     border-color: rgb(255, 63, 108);
+  }
+  .quantity-button:disabled {
+    background: #ccc;
+    cursor: not-allowed;
   }
   .quantity {
     padding: 0 1rem;
@@ -110,7 +114,7 @@
     border-radius: 6px;
     transition: background 0.3s ease, transform 0.2s ease;
   }
-  .btn:hover {
+  .btn:hover:not(:disabled) {
     background: rgb(255, 63, 108);
     color: white;
     transform: translateY(-2px);
@@ -169,21 +173,17 @@
     margin-bottom: 0.5rem;
     display: block;
   }
-  
-  /* Enhanced alignment styles */
   .product-info-col {
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
   }
-  
   .product-name {
     font-size: 1rem;
     font-weight: 600;
     margin-bottom: 0.5rem;
     color: #333;
   }
-  
   .controls-section {
     display: flex;
     flex-direction: column;
@@ -191,19 +191,16 @@
     justify-content: center;
     min-height: 120px;
   }
-  
   .control-group {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
   }
-  
   .control-row {
     display: flex;
     align-items: center;
     gap: 0.5rem;
   }
-  
   .price-section {
     display: flex;
     flex-direction: column;
@@ -212,26 +209,37 @@
     min-height: 120px;
     text-align: right;
   }
-  
   .current-price {
     font-size: 1.1rem;
     font-weight: 700;
     color: #333;
     margin-bottom: 0.25rem;
   }
-  
   .original-price {
     font-size: 0.9rem;
     color: #999;
     text-decoration: line-through;
     margin-bottom: 0.5rem;
   }
-  
   .remove-section {
     display: flex;
     justify-content: flex-end;
   }
-
+  .unavailable-items {
+    background: #f8d7da;
+    border: 1px solid #f5c6cb;
+    padding: 1rem;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+    color: #721c24;
+  }
+  .unavailable-items ul {
+    margin: 0;
+    padding-left: 1.5rem;
+  }
+  .unavailable-items li {
+    margin-bottom: 0.5rem;
+  }
   @media (max-width: 767px) {
     .card {
       margin: 1rem;
@@ -268,7 +276,6 @@
       text-align: left;
     }
   }
-  
   @media (max-width: 576px) {
     .container {
       padding-top: 90px;
@@ -305,6 +312,16 @@
             </div>
           </div>
         </div>
+        <% if (unavailableItems && unavailableItems.length > 0) { %>
+          <div class="unavailable-items">
+            <strong>Some items are unavailable:</strong>
+            <ul>
+              <% unavailableItems.forEach(item => { %>
+                <li><%= item.name %> (Size: <%= item.size %>) - <%= item.reason %></li>
+              <% }) %>
+            </ul>
+          </div>
+        <% } %>
         <% if (cart && cart.items && cart.items.length > 0) { %>
           <% cart.items.forEach(item => { %>
             <div class="row main cart-item">
@@ -343,8 +360,8 @@
                   <div class="control-row">
                     <select class="size-select" id="size_<%= item.product._id %>" onchange="updateSize('<%= item.product._id %>', this.value)">
                       <% item.product.variants.forEach(variant => { %>
-                        <option value="<%= variant.size %>" <%= variant.size === item.size ? 'selected' : '' %> data-max-quantity="<%= variant.stock %>">
-                          <%= variant.size %> <%= variant.stock === 0 ? '(Out of Stock)' : '' %>
+                        <option value="<%= variant.size %>" <%= variant.size === item.size ? 'selected' : '' %> data-max-quantity="<%= variant.stock - (variant.reserved || 0) %>">
+                          <%= variant.size %> <%= (variant.stock - (variant.reserved || 0)) === 0 ? '(Out of Stock)' : '' %>
                         </option>
                       <% }) %>
                     </select>
@@ -355,11 +372,11 @@
                 <div class="control-group">
                   <label class="label">Quantity:</label>
                   <div class="control-row">
-                    <button type="button" class="quantity-button" onclick="updateQuantity('<%= item.product._id %>', -1)">-</button>
-                    <span id="quantity_<%= item.product._id %>" class="quantity" max="<%= item.product.variants.find(v => v.size === item.size)?.stock || 0 %>">
+                    <button type="button" class="quantity-button" onclick="updateQuantity('<%= item.product._id %>', -1)" <%= item.quantity <= 1 ? 'disabled' : '' %>>-</button>
+                    <span id="quantity_<%= item.product._id %>" class="quantity" data-current-size="<%= item.size %>" max="<%= item.product.variants.find(v => v.size === item.size)?.stock - (item.product.variants.find(v => v.size === item.size)?.reserved || 0) || 0 %>">
                       <%= item.quantity %>
                     </span>
-                    <button type="button" class="quantity-button" onclick="updateQuantity('<%= item.product._id %>', 1)">+</button>
+                    <button type="button" class="quantity-button" onclick="updateQuantity('<%= item.product._id %>', 1)" <%= item.quantity >= (item.product.variants.find(v => v.size === item.size)?.stock - (item.product.variants.find(v => v.size === item.size)?.reserved || 0) || 0) ? 'disabled' : '' %>>+</button>
                   </div>
                   <div id="stock-message_<%= item.product._id %>" class="stock-message">
                     (Max stock reached)
@@ -402,9 +419,7 @@
             <div class="col">TOTAL PRICE</div>
             <div class="col text-right">₹<%= data.total.toFixed(2) %></div>
           </div>
-          <a id="proceedToCheckoutButton" href='<%= cart && cart.items && cart.items.length > 0 ? "/proceedtocheckout" : "#" %>'>
-            <button class="btn" <%= cart && cart.items && cart.items.length === 0 ? 'disabled' : '' %>>PROCEED TO CHECKOUT</button>
-          </a>
+          <button id="proceedToCheckoutButton" class="btn" <%= !canProceedToCheckout ? 'disabled' : '' %> onclick="proceedToCheckout()">PROCEED TO CHECKOUT</button>
         </div>
       <% } %>
     </div>
@@ -413,13 +428,75 @@
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@10"></script>
 <script>
+let isFetching = false;
+
+function proceedToCheckout() {
+  if (isFetching) return;
+  isFetching = true;
+
+  fetch('/validateStockBeforeCheckout', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  })
+    .then(response => {
+      if (!response.ok) {
+        return response.json().then(err => { throw new Error(err.error); });
+      }
+      return response.json();
+    })
+    .then(data => {
+      if (data.success) {
+        window.location.href = '/proceedtocheckout';
+      } else {
+        Swal.fire({
+          icon: 'error',
+          title: 'Cannot Proceed to Checkout',
+          html: 'Some items are unavailable:<ul>' + 
+                data.unavailableItems.map(item => `<li>${item.name} (Size: ${item.size}) - ${item.reason}</li>`).join('') + 
+                '</ul>',
+        });
+        window.location.reload();
+      }
+    })
+    .catch(error => {
+      Swal.fire({
+        icon: 'error',
+        title: 'Oops...',
+        text: error.message || 'Failed to validate stock. Please try again.',
+      });
+    })
+    .finally(() => {
+      isFetching = false;
+    });
+}
+
 function updateQuantity(productId, change) {
+  if (isFetching) return;
+  isFetching = true;
+
   const quantityElement = document.getElementById(`quantity_${productId}`);
   const stockMessageElement = document.getElementById(`stock-message_${productId}`);
   const totalPriceElement = document.getElementById('totalPrice');
+  const plusButton = document.querySelector(`button[onclick="updateQuantity('${productId}', 1)"]`);
+  const minusButton = document.querySelector(`button[onclick="updateQuantity('${productId}', -1)"]`);
+  const checkoutButton = document.getElementById('proceedToCheckoutButton');
 
   const currentQuantity = parseInt(quantityElement.innerText);
   const maxStock = parseInt(quantityElement.getAttribute('max'));
+
+  if (change === 1 && currentQuantity >= maxStock) {
+    stockMessageElement.classList.add('show');
+    Swal.fire({
+      icon: 'warning',
+      text: `Only ${maxStock} items available for this size`,
+      timer: 1500,
+      showConfirmButton: false,
+    });
+    isFetching = false;
+    return;
+  }
 
   if (change === -1 && currentQuantity === 1) {
     Swal.fire({
@@ -433,70 +510,97 @@ function updateQuantity(productId, change) {
       if (result.isConfirmed) {
         removeItem(productId);
       }
+      isFetching = false;
     });
   } else {
-    fetch(`/updateQuantity/${productId}/${change}`, { 
+    fetch(`/updateQuantity/${productId}/${change}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-      }
+      },
     })
-    .then(response => {
-      if (!response.ok) {
-        return response.json().then(err => { throw new Error(err.error); });
-      }
-      return response.json();
-    })
-    .then(data => {
-      if (data.message === 'Item removed') {
-        Swal.fire({
-          icon: 'success',
-          text: 'Item removed successfully',
-          timer: 1500,
-          showConfirmButton: false,
-        });
-        window.location.reload();
-      } else {
-        // Update quantity
-        quantityElement.innerText = data.quantity;
+      .then(response => {
+        if (!response.ok) {
+          return response.json().then(err => { throw new Error(err.error); });
+        }
+        return response.json();
+      })
+      .then(data => {
+        if (data.message === 'Item removed') {
+          Swal.fire({
+            icon: 'success',
+            text: 'Item removed successfully',
+            timer: 1500,
+            showConfirmButton: false,
+          });
+          window.location.reload();
+        } else {
+          quantityElement.innerText = data.quantity;
+          totalPriceElement.innerText = `₹${data.total.toFixed(2)}`;
+          const totalSummaryRow = document.querySelectorAll('.summary .row');
+          totalSummaryRow.forEach(row => {
+            if (row.innerText.includes('TOTAL PRICE')) {
+              row.querySelector('.col.text-right').innerText = `₹${data.total.toFixed(2)}`;
+            }
+          });
 
-        // Update only cart summary prices
-        totalPriceElement.innerText = `₹${data.total.toFixed(2)}`;
-        
-        // Update the second total price (TOTAL PRICE)
-        const totalSummaryRow = document.querySelectorAll('.summary .row');
-        totalSummaryRow.forEach(row => {
-          if (row.innerText.includes('TOTAL PRICE')) {
-            row.querySelector('.col.text-right').innerText = `₹${data.total.toFixed(2)}`;
-          }
-        });
+          const priceElement = document.getElementById(`price_${productId}`);
+          priceElement.innerHTML = `<div class="current-price">₹${data.itemPrice.toFixed(2)}</div>`;
 
-        // Show or hide stock message
-        stockMessageElement.classList.toggle('show', data.quantity >= maxStock);
+          stockMessageElement.classList.toggle('show', data.quantity >= maxStock);
+          plusButton.disabled = data.quantity >= maxStock;
+          minusButton.disabled = data.quantity <= 1;
 
-        // Update individual item price
-        const priceElement = document.getElementById(`price_${productId}`);
-        priceElement.innerHTML = `<div class="current-price">₹${data.itemPrice.toFixed(2)}</div>`;
-      }
-    })
-    .catch(error => {
-      if (error.message.includes('available in stock')) {
-        stockMessageElement.classList.add('show');
+          // Re-validate stock after quantity update
+          fetch('/validateStockBeforeCheckout', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          })
+            .then(response => response.json())
+            .then(validationData => {
+              checkoutButton.disabled = !validationData.success;
+              if (!validationData.success) {
+                Swal.fire({
+                  icon: 'error',
+                  title: 'Stock Issue',
+                  html: 'Some items are unavailable:<ul>' + 
+                        validationData.unavailableItems.map(item => `<li>${item.name} (Size: ${item.size}) - ${item.reason}</li>`).join('') + 
+                        '</ul>',
+                  timer: 3000,
+                  showConfirmButton: false,
+                });
+              }
+            });
+
+          Swal.fire({
+            icon: 'success',
+            text: `Quantity updated to ${data.quantity}`,
+            timer: 1500,
+            showConfirmButton: false,
+          });
+        }
+      })
+      .catch(error => {
+        stockMessageElement.classList.toggle('show', currentQuantity >= maxStock);
+        plusButton.disabled = currentQuantity >= maxStock;
+        minusButton.disabled = currentQuantity <= 1;
         Swal.fire({
           icon: 'error',
-          text: error.message,
+          text: error.message || 'An error occurred while updating quantity. Please try again.',
         });
-      } else {
-        Swal.fire({
-          icon: 'error',
-          text: 'An error occurred while updating quantity. Please try again.',
-        });
-      }
-    });
+      })
+      .finally(() => {
+        isFetching = false;
+      });
   }
 }
 
 function confirmRemoveItem(productId) {
+  if (isFetching) return;
+  isFetching = true;
+
   Swal.fire({
     title: 'Remove Item?',
     text: 'Are you sure you want to remove this item from your cart?',
@@ -505,20 +609,22 @@ function confirmRemoveItem(productId) {
     confirmButtonColor: '#dc3545',
     cancelButtonColor: '#6c757d',
     confirmButtonText: 'Yes, remove it!',
-    cancelButtonText: 'Cancel'
+    cancelButtonText: 'Cancel',
   }).then((result) => {
     if (result.isConfirmed) {
       removeItem(productId);
+    } else {
+      isFetching = false;
     }
   });
 }
 
 function removeItem(productId) {
-  fetch(`/removeItem/${productId}`, { 
+  fetch(`/removeItem/${productId}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-    }
+    },
   })
     .then(response => {
       if (!response.ok) {
@@ -541,62 +647,96 @@ function removeItem(productId) {
         title: 'Oops...',
         text: 'Failed to remove item. Please try again.',
       });
+    })
+    .finally(() => {
+      isFetching = false;
     });
 }
 
 function updateSize(productId, newSize) {
+  if (isFetching) return;
+  isFetching = true;
+
   const quantityElement = document.getElementById(`quantity_${productId}`);
   const stockMessageElement = document.getElementById(`stock-message_${productId}`);
   const totalPriceElement = document.getElementById('totalPrice');
   const sizeSelect = document.getElementById(`size_${productId}`);
   const maxStock = parseInt(sizeSelect.querySelector(`option[value="${newSize}"]`).dataset.maxQuantity);
+  const plusButton = document.querySelector(`button[onclick="updateQuantity('${productId}', 1)"]`);
+  const minusButton = document.querySelector(`button[onclick="updateQuantity('${productId}', -1)"]`);
+  const checkoutButton = document.getElementById('proceedToCheckoutButton');
 
   fetch(`/updateSize/${productId}/${newSize}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-    }
+    },
   })
-  .then(response => {
-    if (!response.ok) {
-      return response.json().then(err => { throw new Error(err.error); });
-    }
-    return response.json();
-  })
-  .then(data => {
-    // Update quantity display and max attribute
-    quantityElement.innerText = data.quantity;
-    quantityElement.setAttribute('max', maxStock);
-    stockMessageElement.classList.toggle('show', data.quantity >= maxStock);
-
-    // Update total price
-    totalPriceElement.innerText = `₹${data.total.toFixed(2)}`;
-    const totalSummaryRow = document.querySelectorAll('.summary .row');
-    totalSummaryRow.forEach(row => {
-      if (row.innerText.includes('TOTAL PRICE')) {
-        row.querySelector('.col.text-right').innerText = `₹${data.total.toFixed(2)}`;
+    .then(response => {
+      if (!response.ok) {
+        return response.json().then(err => { throw new Error(err.error); });
       }
-    });
+      return response.json();
+    })
+    .then(data => {
+      quantityElement.innerText = data.quantity;
+      quantityElement.setAttribute('max', maxStock);
+      quantityElement.setAttribute('data-current-size', newSize);
+      stockMessageElement.classList.toggle('show', data.quantity >= maxStock);
+      plusButton.disabled = data.quantity >= maxStock;
+      minusButton.disabled = data.quantity <= 1;
 
-    // Update individual item price
-    const priceElement = document.getElementById(`price_${productId}`);
-    priceElement.innerHTML = `<div class="current-price">₹${data.itemPrice.toFixed(2)}</div>`;
+      totalPriceElement.innerText = `₹${data.total.toFixed(2)}`;
+      const totalSummaryRow = document.querySelectorAll('.summary .row');
+      totalSummaryRow.forEach(row => {
+        if (row.innerText.includes('TOTAL PRICE')) {
+          row.querySelector('.col.text-right').innerText = `₹${data.total.toFixed(2)}`;
+        }
+      });
 
-    Swal.fire({
-      icon: 'success',
-      text: `Size updated to ${newSize}`,
-      timer: 1500,
-      showConfirmButton: false,
+      const priceElement = document.getElementById(`price_${productId}`);
+      priceElement.innerHTML = `<div class="current-price">₹${data.itemPrice.toFixed(2)}</div>`;
+
+      // Re-validate stock after size update
+      fetch('/validateStockBeforeCheckout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+        .then(response => response.json())
+        .then(validationData => {
+          checkoutButton.disabled = !validationData.success;
+          if (!validationData.success) {
+            Swal.fire({
+              icon: 'error',
+              title: 'Stock Issue',
+              html: 'Some items are unavailable:<ul>' + 
+                    validationData.unavailableItems.map(item => `<li>${item.name} (Size: ${item.size}) - ${item.reason}</li>`).join('') + 
+                    '</ul>',
+              timer: 3000,
+              showConfirmButton: false,
+            });
+          }
+        });
+
+      Swal.fire({
+        icon: 'success',
+        text: `Size updated to ${newSize}`,
+        timer: 1500,
+        showConfirmButton: false,
+      });
+    })
+    .catch(error => {
+      sizeSelect.value = quantityElement.getAttribute('data-current-size') || sizeSelect.value;
+      Swal.fire({
+        icon: 'error',
+        text: error.message || 'Failed to update size. Please try again.',
+      });
+    })
+    .finally(() => {
+      isFetching = false;
     });
-  })
-  .catch(error => {
-    // Revert size selection on error
-    sizeSelect.value = quantityElement.dataset.currentSize || sizeSelect.value;
-    Swal.fire({
-      icon: 'error',
-      text: error.message || 'Failed to update size. Please try again.',
-    });
-  });
 }
 </script>
 
