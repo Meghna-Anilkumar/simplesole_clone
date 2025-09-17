@@ -360,12 +360,27 @@
           <div id="stock-error" class="alert alert-danger"></div>
 
           <!-- Action Buttons -->
-          <div class="action" id="action-buttons" <%= product.allVariantsOutOfStock ? 'style="pointer-events: none; opacity: 0.5;"' : '' %>>
-            <button class="add-to-cart btn btn-primary" type="button" <%= product.allVariantsOutOfStock ? 'disabled' : '' %>>Add to Cart</button>
-            <button class="like btn btn-danger <%= productInWishlist ? 'wishlisted' : '' %>" type="button" onclick="addToWishlist('<%= product._id %>')" <%= product.allVariantsOutOfStock ? 'disabled' : '' %>>
-              <span class="fa fa-heart"></span>
-              <%= productInWishlist ? 'Wishlisted' : 'Add to Wishlist' %>
-            </button>
+          <!-- Action Buttons -->
+<div class="action" id="action-buttons">
+  <% if (product.allVariantsOutOfStock) { %>
+    <button class="btn btn-secondary" type="button" disabled>
+      Out of Stock
+    </button>
+    <button class="like btn btn-danger <%= productInWishlist ? 'wishlisted' : '' %>" type="button" onclick="addToWishlist('<%= product._id %>')" disabled>
+      <span class="fa fa-heart"></span>
+      <%= productInWishlist ? 'Wishlisted' : 'Add to Wishlist' %>
+    </button>
+  <% } else { %>
+    <button class="add-to-cart btn btn-primary" type="button">
+      Add to Cart
+    </button>
+    <button class="like btn btn-danger <%= productInWishlist ? 'wishlisted' : '' %>" type="button" onclick="addToWishlist('<%= product._id %>')">
+      <span class="fa fa-heart"></span>
+      <%= productInWishlist ? 'Wishlisted' : 'Add to Wishlist' %>
+    </button>
+  <% } %>
+</div>
+
           </div>
         </div>
       </div>

@@ -14,6 +14,8 @@ require("dotenv").config();
 const Wallet = require("../models/wallet");
 const HttpStatusCode = require("../enums/statusCodes");
 const Messages = require("../constants/messages");
+const ProductOffer = require("../models/productoffermodel");
+const CategoryOffer = require("../models/categoryoffer");
 
 const razorpay = new Razorpay({
   key_id: process.env.key_id,
@@ -35,9 +37,19 @@ module.exports = {
           .populate("items.product")
           .exec();
       }
-      const newArrivals = await Product.find({blocked:false})
+      const newArrivals = await Product.find({ blocked: false })
         .sort({ dateCreated: -1 })
         .limit(4);
+      const productOffers = await ProductOffer.find({
+        startDate: { $lte: new Date() },
+        expiryDate: { $gte: new Date() },
+      })
+        .populate("product")
+        .exec();
+      const categoryOffers = await CategoryOffer.find({
+        startDate: { $lte: new Date() },
+        expiryDate: { $gte: new Date() },
+      });
 
       res.render("userviews/home", {
         title: "Home",
@@ -45,6 +57,8 @@ module.exports = {
         newArrivals: newArrivals,
         wishlist: wishlist,
         cart: cart,
+        productOffers: productOffers,
+        categoryOffers: categoryOffers,
       });
     } catch (error) {
       console.error(error);
@@ -171,11 +185,9 @@ module.exports = {
       }
     } catch (error) {
       console.error("Error updating profile details:", error);
-      res
-        .status(HttpStatusCode.INTERNAL_SERVER_ERROR)
-        .json({
-          message: { type: "error", message: Messages.INTERNAL_SERVER_ERROR },
-        });
+      res.status(HttpStatusCode.INTERNAL_SERVER_ERROR).json({
+        message: { type: "error", message: Messages.INTERNAL_SERVER_ERROR },
+      });
     }
   },
 
@@ -242,11 +254,9 @@ module.exports = {
       }
     } catch (error) {
       console.error("Error getting address book:", error);
-      res
-        .status(HttpStatusCode.INTERNAL_SERVER_ERROR)
-        .json({
-          message: { type: "error", message: Messages.INTERNAL_SERVER_ERROR },
-        });
+      res.status(HttpStatusCode.INTERNAL_SERVER_ERROR).json({
+        message: { type: "error", message: Messages.INTERNAL_SERVER_ERROR },
+      });
     }
   },
 
@@ -283,12 +293,10 @@ module.exports = {
       res.json({ message: "Address saved successfully", address: newAddress });
     } catch (error) {
       console.error("Error saving address:", error);
-      res
-        .status(500)
-        .json({
-          message: Messages.INTERNAL_SERVER_ERROR,
-          details: error.message,
-        });
+      res.status(500).json({
+        message: Messages.INTERNAL_SERVER_ERROR,
+        details: error.message,
+      });
     }
   },
 
@@ -327,12 +335,10 @@ module.exports = {
       res.json(address);
     } catch (error) {
       console.error("Error fetching address by ID:", error);
-      res
-        .status(HttpStatusCode.INTERNAL_SERVER_ERROR)
-        .json({
-          error: Messages.INTERNAL_SERVER_ERROR,
-          details: error.message,
-        });
+      res.status(HttpStatusCode.INTERNAL_SERVER_ERROR).json({
+        error: Messages.INTERNAL_SERVER_ERROR,
+        details: error.message,
+      });
     }
   },
 

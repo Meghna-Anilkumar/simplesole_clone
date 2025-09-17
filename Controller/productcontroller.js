@@ -462,7 +462,6 @@ module.exports = {
   // Fixed version of the getproductdetails function
   getproductdetails: async (req, res) => {
     try {
-      console.log("=== UPDATED CODE VERSION 3.0 RUNNING ===");
       const productId = req.params.id;
       console.log(`[getproductdetails] Fetching product with ID: ${productId}`);
 

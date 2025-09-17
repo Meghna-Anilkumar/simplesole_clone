@@ -1,61 +1,278 @@
-<%-include('./header')%>
-  <div class="banner-container">
-    <img src="/images/party.webp" alt="Banner Image" class="img-fluid" style="width: 100%;">
-  </div>
+<%- include('./header') %>
+<style>
+  @import url("https://fonts.googleapis.com/css2?family=Poppins&display=swap");
 
-  <div class="container mt-5">
-    <div class="row">
-      <div class="col-md-12 text-center mb-4">
-        <h2>NEW ARRIVALS</h2>
-    </div>
-        <% newArrivals.slice(0,4).forEach(product => { %>
-            <div class="col-md-3">
-                <div class="card">
-                    <div class="image-container">
-                      <a href="/products/<%= product._id %>">
-                        <img src="<%= product.images[0] %>" class="img-fluid rounded thumbnail-image">
-                        </a>
-                    </div>
+  * {
+    padding: 0;
+    margin: 0;
+    box-sizing: border-box;
+    font-family: "Poppins", sans-serif;
+  }
 
-                    <div class="product-detail-container p-2">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <h5 class="dress-name"><%= product.name %></h5>
-                            <div class="d-flex flex-column mb-2">
-                                <span class="new-price">₹<%= product.price.toFixed(2) %></span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        <% }) %>
-    </div>
+  body {
+    background-color: #f4f4f4;
+    padding-top: 80px;
+  }
+
+  .banner-container {
+    width: 100%;
+    overflow: hidden;
+  }
+
+  .banner-container img {
+    width: 100%;
+    height: auto;
+    object-fit: cover;
+  }
+
+  .container {
+    max-width: 1200px;
+    margin: 20px auto;
+    padding: 0 15px;
+  }
+
+  .card {
+    background-color: #fff;
+    border-radius: 8px;
+    overflow: hidden;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    height: 380px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 15px;
+    border: 1px solid #ddd;
+    position: relative;
+  }
+
+  .card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(253, 154, 108, 0.3);
+  }
+
+  .image-container {
+    width: 100%;
+    height: 180px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .image-container img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    transition: transform 0.3s ease;
+  }
+
+  .image-container:hover img {
+    transform: scale(1.2);
+  }
+
+  .product-detail-container {
+    width: 100%;
+    text-align: center;
+  }
+
+  .dress-name {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin: 10px 0;
+  }
+
+  .new-price {
+    font-size: 1rem;
+    color: #333;
+  }
+
+  .new-price s {
+    color: red;
+    margin-right: 5px;
+  }
+
+  .offer-details {
+    font-size: 0.9rem;
+    color: rgb(255, 63, 108);
+    margin-top: 5px;
+  }
+
+  .discount-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background-color: #ff935d;
+    color: #fff;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    font-weight: bold;
+    z-index: 2;
+  }
+
+  footer.bg-dark {
+    background-color: #343a40;
+  }
+
+  footer .container {
+    max-width: 1200px;
+  }
+
+  footer h5 {
+    font-size: 1.2rem;
+    margin-bottom: 15px;
+  }
+
+  footer p,
+  footer a {
+    font-size: 0.9rem;
+  }
+
+  footer a.text-light:hover {
+    color: rgb(255, 63, 108) !important;
+  }
+
+  @media (max-width: 767px) {
+    body {
+      padding-top: 60px;
+    }
+
+    .card {
+      height: 360px;
+    }
+
+    .image-container {
+      height: 160px;
+    }
+  }
+
+  @media (max-width: 575px) {
+    .container {
+      padding: 0 10px;
+    }
+
+    .row {
+      margin: 0 -5px;
+    }
+
+    .col-md-3 {
+      padding: 0 5px;
+    }
+
+    .card {
+      height: 340px;
+    }
+
+    .image-container {
+      height: 150px;
+    }
+
+    .dress-name {
+      font-size: 1rem;
+    }
+
+    .new-price {
+      font-size: 0.9rem;
+    }
+  }
+</style>
+
+<div class="banner-container">
+  <img src="/images/party.webp" alt="Banner Image" class="img-fluid" style="width: 100%;">
 </div>
-<br>
 
-  <footer class="bg-dark text-light py-4">
-    <div class="container">
-      <div class="row">
-        <div class="col-md-4">
-          <h5>Contact Us</h5>
-          <p>Email: simplesole@gmail.com</p>
-          <p>Phone: +1 (123) 456-7890</p>
-        </div>
-        <div class="col-md-4">
-          <h5>Quick Links</h5>
-          <ul class="list-unstyled">
-            <li><a href="/home" class="text-light">Home</a></li>
-            <li><a href="#" class="text-light">About</a></li>
-            <li><a href="#" class="text-light">Terms and Conditions</a></li>
-            <li><a href="#" class="text-light">Return and Refund policy</a></li>
-          </ul>
-        </div>
-        <div class="col-md-4">
-          <h5>Follow Us</h5>
-          <a href="#" class="text-light me-3"><i class="fab fa-facebook-f"></i></a>
-          <a href="#" class="text-light me-3"><i class="fab fa-twitter"></i></a>
-          <a href="#" class="text-light me-3"><i class="fab fa-instagram"></i></a>
+<div class="container mt-5">
+  <div class="row">
+    <div class="col-md-12 text-center mb-4">
+      <h2>NEW ARRIVALS</h2>
+    </div>
+    <% newArrivals.slice(0, 4).forEach(product => { %>
+      <div class="col-md-3">
+        <div class="card">
+          <% 
+            // Find active product offer
+            const productOffer = productOffers.find(offer => 
+              offer.product._id.toString() === product._id.toString() && 
+              new Date() >= new Date(offer.startDate) && 
+              new Date() <= new Date(offer.expiryDate)
+            );
+            // Find active category offer
+            const categoryOffer = categoryOffers.find(offer => 
+              offer.category._id.toString() === product.category._id.toString() && 
+              new Date() >= new Date(offer.startDate) && 
+              new Date() <= new Date(offer.expiryDate)
+            );
+            let displayPrice = product.price;
+            let offerDescription = '';
+            let discountPercentage = 0;
+            if (productOffer) {
+              displayPrice = productOffer.newPrice;
+              offerDescription = `${productOffer.discountPercentage}% OFF`;
+              discountPercentage = productOffer.discountPercentage;
+            } else if (categoryOffer) {
+              const categoryDiscountAmount = (product.price * categoryOffer.discountPercentage) / 100;
+              displayPrice = product.price - categoryDiscountAmount;
+              offerDescription = `${categoryOffer.discountPercentage}% OFF`;
+              discountPercentage = categoryOffer.discountPercentage;
+            }
+          %>
+          <% if (productOffer || categoryOffer) { %>
+            <div class="discount-badge">
+              <%= discountPercentage %>% OFF
+            </div>
+          <% } %>
+          <div class="image-container">
+            <a href="/products/<%= product._id %>">
+              <img src="<%= product.images[0] %>" class="img-fluid rounded thumbnail-image" alt="<%= product.name %>">
+            </a>
+          </div>
+          <div class="product-detail-container p-2">
+            <div class="d-flex justify-content-between align-items-center">
+              <h5 class="dress-name"><%= product.name %></h5>
+            </div>
+            <div class="new-price">
+              <% if (displayPrice < product.price) { %>
+                <s>₹<%= product.price.toFixed(2) %></s> ₹<%= displayPrice.toFixed(2) %>
+              <% } else { %>
+                ₹<%= product.price.toFixed(2) %>
+              <% } %>
+            </div>
+            <% if (offerDescription) { %>
+              <div class="offer-details"><%= offerDescription %></div>
+            <% } %>
+          </div>
         </div>
       </div>
+    <% }) %>
+  </div>
+</div>
+
+<footer class="bg-dark text-light py-4">
+  <div class="container">
+    <div class="row">
+      <div class="col-md-4">
+        <h5>Contact Us</h5>
+        <p>Email: simplesole@gmail.com</p>
+        <p>Phone: +1 (123) 456-7890</p>
+      </div>
+      <div class="col-md-4">
+        <h5>Quick Links</h5>
+        <ul class="list-unstyled">
+          <li><a href="/home" class="text-light">Home</a></li>
+          <li><a href="#" class="text-light">About</a></li>
+          <li><a href="#" class="text-light">Terms and Conditions</a></li>
+          <li><a href="#" class="text-light">Return and Refund policy</a></li>
+        </ul>
+      </div>
+      <div class="col-md-4">
+        <h5>Follow Us</h5>
+        <a href="#" class="text-light me-3"><i class="fab fa-facebook-f"></i></a>
+        <a href="#" class="text-light me-3"><i class="fab fa-twitter"></i></a>
+        <a href="#" class="text-light me-3"><i class="fab fa-instagram"></i></a>
+      </div>
     </div>
-  </footer>
-  <%-include('./footer')%>
+  </div>
+</footer>
+
+<%- include('./footer') %>
