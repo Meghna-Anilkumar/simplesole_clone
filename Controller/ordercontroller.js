@@ -674,32 +674,65 @@ placeorder: async (req, res) => {
         productOffers,
         categoryOffers
       );
-      let finalTotal = cartTotal;
-      let couponDiscount = 0;
+      let finalTotal = cart.newTotal || cartTotal;
+      let couponDiscount = cart.couponApplied ? cart.total - cart.newTotal : 0;
 
-      console.log("Cart total calculated:", cartTotal);
-
-      // Apply coupon if provided
-      if (appliedCouponCode) {
+      // Validate coupon if applied
+      if (appliedCouponCode && cart.couponApplied === appliedCouponCode) {
         const coupon = await Coupon.findOne({
           couponCode: appliedCouponCode,
-          startDate: { $lte: new Date() },
           expiryDate: { $gte: new Date() },
         }).session(mainSession);
 
-        if (coupon && cartTotal >= coupon.minimumPurchaseAmount) {
-          couponDiscount = Math.min(
-            (cartTotal * coupon.discountRate) / 100,
-            coupon.maxDiscountAmount || Infinity
-          );
-          finalTotal = cartTotal - couponDiscount;
-          console.log("Coupon applied:", {
-            couponCode: appliedCouponCode,
-            discount: couponDiscount,
-          });
+        if (coupon) {
+          const userDoc = await User.findById(user._id).session(mainSession);
+          if (userDoc.usedCoupons && userDoc.usedCoupons.includes(coupon._id)) {
+            await mainSession.abortTransaction();
+            mainSession.endSession();
+            console.log("Coupon already used:", appliedCouponCode);
+            return res.status(400).json({
+              success: false,
+              error: "Coupon already used",
+            });
+          }
+
+          if (cartTotal >= coupon.minimumPurchaseAmount) {
+            couponDiscount = Math.min(
+              (cartTotal * coupon.discountRate) / 100,
+              coupon.maxDiscountAmount || Infinity
+            );
+            finalTotal = cartTotal - couponDiscount;
+            console.log("Coupon applied:", {
+              couponCode: appliedCouponCode,
+              discount: couponDiscount,
+              finalTotal,
+            });
+          } else {
+            console.log("Coupon minimum purchase not met:", appliedCouponCode);
+            couponDiscount = 0;
+            finalTotal = cartTotal;
+            cart.couponApplied = null;
+            cart.newTotal = cartTotal;
+            await cart.save({ session: mainSession });
+          }
         } else {
-          console.log("Coupon not applicable:", appliedCouponCode);
+          console.log("Coupon not found or expired:", appliedCouponCode);
+          couponDiscount = 0;
+          finalTotal = cartTotal;
+          cart.couponApplied = null;
+          cart.newTotal = cartTotal;
+          await cart.save({ session: mainSession });
         }
+      } else if (appliedCouponCode) {
+        console.log("Mismatch between appliedCouponCode and cart.couponApplied:", {
+          appliedCouponCode,
+          cartCouponApplied: cart.couponApplied,
+        });
+        couponDiscount = 0;
+        finalTotal = cartTotal;
+        cart.couponApplied = null;
+        cart.newTotal = cartTotal;
+        await cart.save({ session: mainSession });
       }
 
       // Check wallet balance for wallet payments
@@ -729,6 +762,7 @@ placeorder: async (req, res) => {
           error: "Cash on Delivery is not available for orders above ₹1000",
         });
       }
+
       const newOrder = new Order({
         user: user._id,
         items: cart.items.map((item) => ({
@@ -736,21 +770,41 @@ placeorder: async (req, res) => {
           quantity: item.quantity,
           price: item.price,
           size: item.size,
-          itemstatus: "PENDING", // Using correct field name from schema
+          itemstatus: "PENDING",
         })),
-        shippingAddress: selectedAddress, // Pass ObjectId directly, not the object
-        totalAmount: finalTotal, // Using correct field name from schema
-        discountAmount: couponDiscount, // Using correct field name from schema
-        couponCode: appliedCouponCode || null, // Using correct field name from schema
+        shippingAddress: selectedAddress,
+        totalAmount: finalTotal,
+        discountAmount: couponDiscount,
+        couponCode: cart.couponApplied || null,
         paymentMethod,
-        orderStatus: "PENDING", // Using uppercase enum value from schema
-        orderdate: new Date(), // Using correct field name from schema
+        orderStatus: "PENDING",
+        orderdate: new Date(),
         transactiontype:
           paymentMethod === "CASH_ON_DELIVERY" ? "COD" : paymentMethod,
       });
 
       await newOrder.save({ session: mainSession });
-      console.log("Order created:", newOrder._id);
+      console.log("Order created:", {
+        orderId: newOrder._id,
+        totalAmount: newOrder.totalAmount,
+        discountAmount: newOrder.discountAmount,
+        couponCode: newOrder.couponCode,
+      });
+
+      // Add coupon to usedCoupons if applied
+      if (cart.couponApplied) {
+        const coupon = await Coupon.findOne({
+          couponCode: cart.couponApplied,
+        }).session(mainSession);
+        if (coupon) {
+          const userDoc = await User.findById(user._id).session(mainSession);
+          if (!userDoc.usedCoupons) {
+            userDoc.usedCoupons = [];
+          }
+          userDoc.usedCoupons.push(coupon._id);
+          await userDoc.save({ session: mainSession });
+        }
+      }
 
       // Process payment based on method
       if (paymentMethod === "WALLET") {
@@ -771,20 +825,16 @@ placeorder: async (req, res) => {
           { session: mainSession }
         );
 
-        // Update order status for successful wallet payment
         newOrder.orderStatus = "PROCESSING";
         await newOrder.save({ session: mainSession });
-
         console.log("Wallet payment processed:", finalTotal);
       } else if (paymentMethod === "CASH_ON_DELIVERY") {
-        // Update order status for COD
         newOrder.orderStatus = "PROCESSING";
         await newOrder.save({ session: mainSession });
-
         console.log("COD order confirmed");
       }
 
-      // Update product stock (reduce actual stock and remove reservations)
+      // Update product stock
       for (const item of cart.items) {
         const product = await Product.findById(item.product._id).session(
           mainSession
@@ -792,9 +842,7 @@ placeorder: async (req, res) => {
         if (product) {
           const variant = product.variants.find((v) => v.size === item.size);
           if (variant) {
-            // Reduce actual stock
             variant.stock = Math.max(0, variant.stock - item.quantity);
-            // Remove reservation
             variant.reserved = Math.max(
               0,
               (variant.reserved || 0) - item.quantity
@@ -805,17 +853,15 @@ placeorder: async (req, res) => {
             );
             product.version += 1;
             await product.save({ session: mainSession });
-
-            console.log(
-              `Stock updated for ${product.name} size ${item.size}:`,
-              {
-                newStock: variant.stock,
-                reserved: variant.reserved,
-              }
-            );
+            console.log(`Stock updated for ${product.name} size ${item.size}:`, {
+              newStock: variant.stock,
+              reserved: variant.reserved,
+            });
           }
         }
       }
+
+      // Clear cart
       await Cart.findOneAndUpdate(
         { user: user._id },
         {
@@ -829,9 +875,13 @@ placeorder: async (req, res) => {
         { session: mainSession }
       );
 
+      // Clear session coupon data
       if (req.session.couponCode) {
         delete req.session.couponCode;
       }
+      req.session.discount = 0;
+      req.session.totalpay = 0;
+
       await mainSession.commitTransaction();
       mainSession.endSession();
 
@@ -839,8 +889,7 @@ placeorder: async (req, res) => {
 
       req.session.lastOrderId = newOrder._id;
 
-      if (req.xhr || req.headers.accept.indexOf('json') > -1) {
-
+      if (req.xhr || req.headers.accept.indexOf("json") > -1) {
         return res.json({
           success: true,
           message: "Order placed successfully",
@@ -868,16 +917,18 @@ placeorder: async (req, res) => {
       selectedAddress: req.body?.selectedAddress,
     });
 
-    if (req.xhr || req.headers.accept.indexOf('json') > -1) {
-      return res.status(500).json({
+    if (req.xhr || req.headers.accept.indexOf("json") > -1) {
+      return res.status(400).json({
         success: false,
         error:
           error.message ||
           "An error occurred while placing your order. Please try again.",
       });
     } else {
-      return res.status(500).render("userviews/error", { 
-        error: error.message || "An error occurred while placing your order. Please try again." 
+      return res.status(500).render("userviews/error", {
+        error:
+          error.message ||
+          "An error occurred while placing your order. Please try again.",
       });
     }
   }
