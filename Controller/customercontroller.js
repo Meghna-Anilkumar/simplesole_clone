@@ -3,8 +3,9 @@ const OTP = require("../models/otpSchema");
 const nodemailer = require("nodemailer");
 const otpGenerator = require("otp-generator");
 const Category = require("../models/category");
-const bcrypt = require("bcrypt"); 
-const {generateReferralCode}=require('../utils/generatereferral')
+const bcrypt = require("bcrypt");
+const { generateReferralCode } = require("../utils/generatereferral");
+const Wallet = require("../models/wallet");
 
 module.exports = {
   register: async (req, res) => {
@@ -230,93 +231,126 @@ module.exports = {
 
   verifyotp: async (req, res) => {
     try {
-      const { email, otp } = req.body;
+        const { email, otp } = req.body;
 
-      const otpRecord = await OTP.findOne({
-        email,
-        expiresAt: { $gt: Date.now() },
-      });
-
-      if (!otpRecord) {
-        const categories = await Category.find();
-        return res.render("userviews/otp", {
-          email,
-          category: categories,
-          error: "Invalid or expired OTP",
-          wishlist: [],
-          cart: [],
-          title: "OTP Verification",
+        const otpRecord = await OTP.findOne({
+            email,
+            expiresAt: { $gt: Date.now() },
         });
-      }
 
-      if (otp !== otpRecord.otp) {
-        const categories = await Category.find();
-        return res.render("userviews/otp", {
-          email,
-          category: categories,
-          error: "Invalid OTP",
-          wishlist: [],
-          cart: [],
-          title: "OTP Verification",
-        });
-      }
-
-      await OTP.deleteOne({ email });
-
-      const categories = await Category.find();
-      if (req.session.isSignup) {
-        // Signup flow: Create user
-        const { name, password, referralCode } = req.session;
-        const hashedPassword = await bcrypt.hash(password, 10);
-        const newUser = new User({
-          name,
-          email,
-          password: hashedPassword,
-          referral: referralCode || generateReferralCode(), // Use provided or generate new
-        });
-        await newUser.save();
-
-        // Handle referral logic if needed
-        if (referralCode) {
-          // Add referral rewards (e.g., update wallet)
+        if (!otpRecord) {
+            const categories = await Category.find();
+            if (req.headers["content-type"] === "application/json") {
+                return res.status(400).json({ error: "Invalid or expired OTP" });
+            }
+            return res.render("userviews/otp", {
+                email,
+                category: categories,
+                error: "Invalid or expired OTP",
+                wishlist: [],
+                cart: [],
+                title: "OTP Verification",
+            });
         }
 
-        req.session.email = null;
-        req.session.name = null;
-        req.session.password = null;
-        req.session.referralCode = null;
-        req.session.isSignup = null;
+        if (otp !== otpRecord.otp) {
+            const categories = await Category.find();
+            if (req.headers["content-type"] === "application/json") {
+                return res.status(400).json({ error: "Invalid OTP" });
+            }
+            return res.render("userviews/otp", {
+                email,
+                category: categories,
+                error: "Invalid OTP",
+                wishlist: [],
+                cart: [],
+                title: "OTP Verification",
+            });
+        }
 
-        res.render("userviews/login", {
-          message: "Account created successfully! Please log in.",
-          title: "Login",
-          category: categories,
-          wishlist: [],
-          cart: [],
-        });
-      } else {
-        // Forgot password flow: Redirect to reset password
-        res.render("userviews/resetpassword", {
-          email,
-          category: categories,
-          wishlist: [],
-          cart: [],
-          title: "Reset Password",
-        });
-      }
+        await OTP.deleteOne({ email });
+
+        const categories = await Category.find();
+        if (req.session.isSignup) {
+            const { name, password, referralCode } = req.session;
+            const newUser = new User({
+                name,
+                email,
+                password,
+                referral: generateReferralCode(),
+            });
+            await newUser.save();
+
+            if (referralCode) {
+                const referredBy = await User.findOne({ referral: referralCode });
+                console.log("referred by:", referredBy.name);
+                let referrerWallet = await Wallet.findOne({ user: referredBy._id });
+                if (!referrerWallet) {
+                    referrerWallet = new Wallet({
+                        user: referredBy._id,
+                        balance: 100,
+                        transactiontype: "Referral Bonus",
+                    });
+                } else {
+                    referrerWallet.balance += 100;
+                    referrerWallet.transactiontype = "Referral Bonus";
+                }
+
+                await referrerWallet.save();
+                console.log("Referral bonus credited to:", referredBy.email);
+            } else {
+                console.log("Invalid referral code");
+            }
+
+            req.session.email = null;
+            req.session.name = null;
+            req.session.password = null;
+            req.session.referralCode = null;
+            req.session.isSignup = null;
+
+            if (req.headers["content-type"] === "application/json") {
+                return res.status(200).json({
+                    message: "Account created successfully! Please log in.",
+                    redirect: "/login"
+                });
+            }
+            return res.render("userviews/login", {
+                message: "Account created successfully! Please log in.",
+                title: "Login",
+                category: categories,
+                wishlist: [],
+                cart: [],
+            });
+        } else {
+            if (req.headers["content-type"] === "application/json") {
+                return res.status(200).json({
+                    redirect: "/resetpassword"
+                });
+            }
+            return res.render("userviews/resetpassword", {
+                email,
+                category: categories,
+                wishlist: [],
+                cart: [],
+                title: "Reset Password",
+            });
+        }
     } catch (error) {
-      console.error("Error in verifyotp:", error);
-      const categories = await Category.find();
-      res.render("userviews/otp", {
-        email: req.body.email || "",
-        category: categories,
-        error: "Internal Server Error",
-        wishlist: [],
-        cart: [],
-        title: "OTP Verification",
-      });
+        console.error("Error in verifyotp:", error);
+        const categories = await Category.find();
+        if (req.headers["content-type"] === "application/json") {
+            return res.status(500).json({ error: "Internal Server Error" });
+        }
+        return res.render("userviews/otp", {
+            email: req.body.email || "",
+            category: categories,
+            error: "Internal Server Error",
+            wishlist: [],
+            cart: [],
+            title: "OTP Verification",
+        });
     }
-  },
+},
 
   resetPassword: async (req, res) => {
     try {
@@ -482,46 +516,46 @@ module.exports = {
     }
   },
 
- customers: async (req, res) => {
-  try {
-    // Get pagination parameters
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const skip = (page - 1) * limit;
-    
-    // Get search query
-    const search = req.query.search || '';
-    
-    // Build search query
-    const searchQuery = {
-      $or: [
-        { name: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } }
-      ]
-    };
+  customers: async (req, res) => {
+    try {
+      // Get pagination parameters
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 10;
+      const skip = (page - 1) * limit;
 
-    // Get total count of matching documents
-    const totalUsers = await User.countDocuments(search ? searchQuery : {});
-    const totalPages = Math.ceil(totalUsers / limit);
+      // Get search query
+      const search = req.query.search || "";
 
-    // Fetch users with pagination and search
-    const users = await User.find(search ? searchQuery : {})
-      .skip(skip)
-      .limit(limit)
-      .exec();
+      // Build search query
+      const searchQuery = {
+        $or: [
+          { name: { $regex: search, $options: "i" } },
+          { email: { $regex: search, $options: "i" } },
+        ],
+      };
 
-    res.render("adminviews/customers", {
-      title: "Customers",
-      users: users,
-      page: page,
-      limit: limit,
-      totalPages: totalPages,
-      search: search
-    });
-  } catch (err) {
-    res.json({ message: err.message });
-  }
-},
+      // Get total count of matching documents
+      const totalUsers = await User.countDocuments(search ? searchQuery : {});
+      const totalPages = Math.ceil(totalUsers / limit);
+
+      // Fetch users with pagination and search
+      const users = await User.find(search ? searchQuery : {})
+        .skip(skip)
+        .limit(limit)
+        .exec();
+
+      res.render("adminviews/customers", {
+        title: "Customers",
+        users: users,
+        page: page,
+        limit: limit,
+        totalPages: totalPages,
+        search: search,
+      });
+    } catch (err) {
+      res.json({ message: err.message });
+    }
+  },
 
   blockUser: async (req, res) => {
     try {
