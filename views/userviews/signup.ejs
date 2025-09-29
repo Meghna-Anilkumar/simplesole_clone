@@ -4,58 +4,79 @@
     .container-fluid {
       margin-top: 150px;
     }
+    .error-message {
+      color: #dc3545;
+      font-size: 0.875rem;
+      margin-top: 0.25rem;
+      display: none;
+    }
+    .is-invalid {
+      border-color: #dc3545;
+    }
+    .input-group {
+      display: flex;
+      align-items: center;
+    }
+    .input-group .form-control {
+      flex: 1;
+    }
   </style>
 
   <div class="container-fluid">
-    <div class="row  justify-content-center align-items-center d-flex-row text-center h-100">
-      <div class="col-12 col-md-4 col-lg-3   h-50 ">
+    <div class="row justify-content-center align-items-center d-flex-row text-center h-100">
+      <div class="col-12 col-md-4 col-lg-3 h-50">
         <div class="card shadow">
           <div class="card-body mx-auto">
             <h4 class="card-title mt-3 text-center">Create Account</h4>
-            <form action="/signup" method="post">
-              <% if (typeof error !=='undefined' ) { %>
+            <form action="/signup" method="post" id="signupForm" novalidate>
+              <% if (typeof error !== 'undefined') { %>
                 <div class="alert alert-danger alert-dismissible fade show" role="alert">
                   <%= error %>
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                  <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
-                <% } %>
+              <% } %>
               <div class="form-group input-group">
                 <div class="input-group-prepend">
                   <span class="input-group-text"> <i class="fa fa-user"></i> </span>
                 </div>
-                <input name="name" class="form-control" placeholder="Enter your name" type="text" required="true">
+                <input name="name" id="name" class="form-control" placeholder="Enter your name" type="text" required>
+                <div id="nameError" class="error-message">Please enter a valid name (letters and spaces only).</div>
               </div>
               <br>
               <div class="form-group input-group">
                 <div class="input-group-prepend">
                   <span class="input-group-text"> <i class="fa fa-envelope"></i> </span>
                 </div>
-                <input name="email" class="form-control" placeholder="Email address" type="email" required="true">
+                <input name="email" id="email" class="form-control" placeholder="Email address" type="email" required>
+                <div id="emailError" class="error-message">Please enter a valid email address.</div>
               </div>
               <br>
               <div class="form-group input-group">
                 <div class="input-group-prepend">
                   <span class="input-group-text"> <i class="fa fa-lock"></i> </span>
                 </div>
-                <input class="form-control" id="password" name="password" placeholder="Enter password" type="password" required="true">
+                <input class="form-control" id="password" name="password" placeholder="Enter password" type="password" required>
+                <div id="passwordError" class="error-message">Password must be at least 8 characters, with an uppercase, lowercase, number, and special character.</div>
               </div>
               <br>
               <div class="form-group input-group">
                 <div class="input-group-prepend">
                   <span class="input-group-text"> <i class="fa fa-lock"></i> </span>
                 </div>
-                <input class="form-control" name="confirmPassword" placeholder="Confirm password" type="password" required="true">
+                <input class="form-control" id="confirmPassword" name="confirmPassword" placeholder="Confirm password" type="password" required>
+                <div id="confirmPasswordError" class="error-message">Passwords do not match.</div>
               </div>
               <br>
               <div class="form-group input-group">
                 <div class="input-group-prepend">
                   <span class="input-group-text"> <i class="fa fa-id-badge"></i> </span>
                 </div>
-                <input class="form-control" name="referralCode" placeholder="Enter referral code (if any)" type="text">
+                <input class="form-control" id="referralCode" name="referralCode" placeholder="Enter referral code (if any)" type="text">
+                <div id="referralCodeError" class="error-message">Referral code must be alphanumeric.</div>
               </div>
               <br>
               <div class="form-group">
-                <button type="submit" class="btn btn-primary btn-block"> Create Account </button>
+                <button type="submit" class="btn btn-primary btn-block" id="submitButton" disabled>Create Account</button>
               </div>
               <p class="text-center">Have an account?
                 <a href="/Login">Log In</a>
@@ -66,5 +87,85 @@
       </div>
     </div>
   </div>
+
+  <script>
+    const form = document.getElementById('signupForm');
+    const submitButton = document.getElementById('submitButton');
+    const fields = ['name', 'email', 'password', 'confirmPassword', 'referralCode'];
+    const touched = {
+      name: false,
+      email: false,
+      password: false,
+      confirmPassword: false,
+      referralCode: false
+    };
+
+    // Validation rules
+    const validators = {
+      name: (value) => /^[A-Za-z\s]+$/.test(value.trim()),
+      email: (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim()),
+      password: (value) => /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/.test(value),
+      confirmPassword: (value) => value === document.getElementById('password').value,
+      referralCode: (value) => !value || /^[A-Za-z0-9]*$/.test(value.trim())
+    };
+
+    // Function to validate a single field
+    function validateField(fieldId) {
+      const field = document.getElementById(fieldId);
+      const value = field.value;
+      const errorElement = document.getElementById(`${fieldId}Error`);
+      let isValid = true;
+
+      if (touched[fieldId] && (fieldId !== 'referralCode' ? value : true)) {
+        isValid = validators[fieldId](value);
+        if (!isValid) {
+          field.classList.add('is-invalid');
+          errorElement.style.display = 'block';
+        } else {
+          field.classList.remove('is-invalid');
+          errorElement.style.display = 'none';
+        }
+      } else {
+        field.classList.remove('is-invalid');
+        errorElement.style.display = 'none';
+      }
+
+      return isValid;
+    }
+
+    // Function to check if all fields are valid
+    function updateSubmitButton() {
+      const allValid = fields.every(fieldId => {
+        if (fieldId === 'referralCode') return validateField(fieldId);
+        return touched[fieldId] && validateField(fieldId);
+      });
+      submitButton.disabled = !allValid;
+    }
+
+    // Add input event listeners for live validation
+    fields.forEach(fieldId => {
+      const field = document.getElementById(fieldId);
+      field.addEventListener('input', () => {
+        touched[fieldId] = true;
+        validateField(fieldId);
+        updateSubmitButton();
+      });
+      // Mark field as touched on blur
+      field.addEventListener('blur', () => {
+        touched[fieldId] = true;
+        validateField(fieldId);
+        updateSubmitButton();
+      });
+    });
+
+    // Prevent form submission if any validation fails
+    form.addEventListener('submit', (event) => {
+      fields.forEach(fieldId => { touched[fieldId] = true; });
+      const isValid = fields.every(fieldId => validateField(fieldId));
+      if (!isValid) {
+        event.preventDefault();
+      }
+    });
+  </script>
 </section>
 <%-include('./footer')%>

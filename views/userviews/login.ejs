@@ -1,149 +1,239 @@
 <%-include('./header')%>
-  <style>
+<style>
+  body {
+    margin: 0;
+    padding: 0;
+    background: url(/images/wallpaper.jpg) no-repeat;
+    height: 100vh;
+    font-family: sans-serif;
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-position: center;
+    overflow: hidden;
+  }
+
+  @media screen and (max-width: 600px) {
     body {
-      margin: 0;
-      padding: 0;
-      background: url(/images/wallpaper.jpg) no-repeat;
-      height: 100vh;
-      font-family: sans-serif;
       background-size: cover;
-      background-repeat: no-repeat;
-      background-position: center;
-      overflow: hidden;
+      overflow: fixed;
     }
+  }
 
-    @media screen and (max-width: 600px) {
-      body {
-        background-size: cover;
-        overflow: fixed;
-      }
-    }
+  #particles-js {
+    height: 100%;
+  }
 
-    #particles-js {
-      height: 100%;
-    }
+  .loginBox {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 350px;
+    min-height: 200px;
+    background: #efe8e8;
+    border-radius: 10px;
+    padding: 40px;
+    box-sizing: border-box;
+    margin-top: 50px;
+  }
 
-    .loginBox {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 350px;
-      min-height: 200px;
-      background: #efe8e8;
-      border-radius: 10px;
-      padding: 40px;
-      box-sizing: border-box;
-      margin-top: 50px;
-    }
+  .user {
+    margin: 0 auto;
+    display: block;
+    margin-bottom: 20px;
+  }
 
-    .user {
-      margin: 0 auto;
-      display: block;
-      margin-bottom: 20px;
-    }
+  h3 {
+    margin: 0;
+    padding: 0 0 20px;
+    color: #035126;
+    text-align: center;
+  }
 
-    h3 {
-      margin: 0;
-      padding: 0 0 20px;
-      color: #035126;
-      text-align: center;
-    }
+  .loginBox input {
+    width: 100%;
+    margin-bottom: 20px;
+  }
 
-    .loginBox input {
-      width: 100%;
-      margin-bottom: 20px;
-    }
+  .loginBox input[type="text"],
+  .loginBox input[type="email"],
+  .loginBox input[type="password"] {
+    border: none;
+    border-bottom: 2px solid #262626;
+    outline: none;
+    height: 40px;
+    color: #fff;
+    background: transparent;
+    font-size: 16px;
+    padding-left: 20px;
+    box-sizing: border-box;
+  }
 
-    .loginBox input[type="text"],
-    .loginBox input[type="password"] {
-      border: none;
-      border-bottom: 2px solid #262626;
-      outline: none;
-      height: 40px;
-      color: #fff;
-      background: transparent;
-      font-size: 16px;
-      padding-left: 20px;
-      box-sizing: border-box;
-    }
+  .loginBox input[type="text"]:hover,
+  .loginBox input[type="email"]:hover,
+  .loginBox input[type="password"]:hover {
+    color: #42F3FA;
+    border: 1px solid #42F3FA;
+    box-shadow: 0 0 5px rgba(0, 255, 0, .3), 0 0 10px rgba(0, 255, 0, .2), 0 0 15px rgba(0, 255, 0, .1), 0 2px 0 black;
+  }
 
-    .loginBox input[type="text"]:hover,
-    .loginBox input[type="password"]:hover {
-      color: #42F3FA;
-      border: 1px solid #42F3FA;
-      box-shadow: 0 0 5px rgba(0, 255, 0, .3), 0 0 10px rgba(0, 255, 0, .2), 0 0 15px rgba(0, 255, 0, .1), 0 2px 0 black;
-    }
+  .loginBox input[type="text"]:focus,
+  .loginBox input[type="email"]:focus,
+  .loginBox input[type="password"]:focus {
+    border-bottom: 2px solid #42F3FA;
+  }
 
-    .loginBox input[type="text"]:focus,
-    .loginBox input[type="password"]:focus {
-      border-bottom: 2px solid #42F3FA;
-    }
+  .inputBox {
+    position: relative;
+  }
 
-    .inputBox {
-      position: relative;
-    }
+  .inputBox span {
+    position: absolute;
+    top: 10px;
+    color: #262626;
+  }
 
-    .inputBox span {
-      position: absolute;
-      top: 10px;
-      color: #262626;
-    }
+  .loginBox input[type="submit"] {
+    border: none;
+    outline: none;
+    height: 40px;
+    font-size: 16px;
+    background: black;
+    color: #fff;
+    border-radius: 20px;
+    cursor: pointer;
+  }
 
-    .loginBox input[type="submit"] {
-      border: none;
-      outline: none;
-      height: 40px;
-      font-size: 16px;
-      background: black;
-      color: #fff;
-      border-radius: 20px;
-      cursor: pointer;
-    }
+  .loginBox input[type="submit"]:disabled {
+    background: #666;
+    cursor: not-allowed;
+  }
 
-    .loginBox a {
-      color: #262626;
-      font-size: 14px;
-      font-weight: bold;
-      text-decoration: none;
-      text-align: center;
-      display: block;
+  .loginBox a {
+    color: #262626;
+    font-size: 14px;
+    font-weight: bold;
+    text-decoration: none;
+    text-align: center;
+    display: block;
+  }
 
-    }
+  a:hover {
+    color: black;
+  }
 
-    a:hover {
-      color: black;
-    }
+  p {
+    color: #0000ff;
+  }
 
-    p {
-      color: #0000ff;
-    }
-  </style>
+  .error-message {
+    color: #dc3545;
+    font-size: 0.875rem;
+    margin-top: -15px;
+    margin-bottom: 20px;
+    display: none;
+  }
 
-  <div class="loginBox">
-    <img class="user" src="https://i.ibb.co/yVGxFPR/2.png" height="100px" width="100px">
-    <h3>Log in Now</h3>
-    <% if (typeof error !=='undefined' ) { %>
-      <div class="alert alert-danger alert-dismissible fade show" role="alert">
-        <%= error %>
-          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-      </div>
-      <% } %>
-        <form action="/login" method="post">
-          <div class="inputBox">
-            <input id="email" type="email" name="email" placeholder="Enter email id">
-            <input id="pass" type="password" name="password" placeholder="Enter Password">
-          </div>
-          <input type="submit" name="" value="Login">
-        </form>
-        <div style="display: flex; justify-content: center; margin-bottom: 10px;">
-          <a href="/forgotpassword" style="color: #4e1378; margin-right: 10px;">Forgot password?</a>
-        </div>
-        <div style="display: flex; justify-content: center;">
-          <h6 style="margin-right: 5px;">Not an existing user?</h6>
-          <a href="/signup" style="color: #4e1378;">Sign Up</a>
-        </div>
+  .is-invalid {
+    border-bottom: 2px solid #dc3545 !important;
+  }
+</style>
+
+<div class="loginBox">
+  <img class="user" src="https://i.ibb.co/yVGxFPR/2.png" height="100px" width="100px">
+  <h3>Log in Now</h3>
+  <% if (typeof error !== 'undefined') { %>
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+      <%= error %>
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+  <% } %>
+  <form action="/login" method="post" id="loginForm" novalidate>
+    <div class="inputBox">
+      <input id="email" type="email" name="email" placeholder="Enter email id" required>
+      <div id="emailError" class="error-message">Please enter a valid email address.</div>
+      <input id="password" type="password" name="password" placeholder="Enter Password" required>
+      <div id="passwordError" class="error-message">Please enter a password.</div>
+    </div>
+    <input type="submit" value="Login" id="submitBtn" disabled>
+  </form>
+  <div style="display: flex; justify-content: center; margin-bottom: 10px;">
+    <a href="/forgotpassword" style="color: #4e1378; margin-right: 10px;">Forgot password?</a>
   </div>
+  <div style="display: flex; justify-content: center;">
+    <h6 style="margin-right: 5px;">Not an existing user?</h6>
+    <a href="/signup" style="color: #4e1378;">Sign Up</a>
+  </div>
+</div>
 
+<script>
+  const form = document.getElementById('loginForm');
+  const submitBtn = document.getElementById('submitBtn');
+  const fields = ['email', 'password'];
+  const touched = {
+    email: false,
+    password: false
+  };
 
-  <%-include('./footer')%>
+  // Validation rules
+  const validators = {
+    email: (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim()),
+    password: (value) => value.trim().length > 0
+  };
+
+  // Validate a single field
+  function validateField(fieldId) {
+    const field = document.getElementById(fieldId);
+    const value = field.value;
+    const errorElement = document.getElementById(`${fieldId}Error`);
+    let isValid = true;
+
+    if (touched[fieldId]) {
+      isValid = validators[fieldId](value);
+      if (!isValid) {
+        field.classList.add('is-invalid');
+        errorElement.style.display = 'block';
+      } else {
+        field.classList.remove('is-invalid');
+        errorElement.style.display = 'none';
+      }
+    } else {
+      field.classList.remove('is-invalid');
+      errorElement.style.display = 'none';
+    }
+
+    return isValid;
+  }
+
+  // Update submit button state
+  function updateSubmitButton() {
+    const allValid = fields.every(fieldId => touched[fieldId] && validateField(fieldId));
+    submitBtn.disabled = !allValid;
+  }
+
+  // Add input and blur event listeners
+  fields.forEach(fieldId => {
+    const field = document.getElementById(fieldId);
+    field.addEventListener('input', () => {
+      touched[fieldId] = true;
+      validateField(fieldId);
+      updateSubmitButton();
+    });
+    field.addEventListener('blur', () => {
+      touched[fieldId] = true;
+      validateField(fieldId);
+      updateSubmitButton();
+    });
+  });
+
+  // Prevent invalid form submission
+  form.addEventListener('submit', (event) => {
+    fields.forEach(fieldId => { touched[fieldId] = true; });
+    const isValid = fields.every(fieldId => validateField(fieldId));
+    if (!isValid) {
+      event.preventDefault();
+    }
+  });
+</script>
+
+<%-include('./footer')%>
