@@ -80,7 +80,6 @@
     color: #fff;
   }
 
-  #colorFilter,
   #sizeFilter,
   #sortOption {
     padding: 10px;
@@ -250,7 +249,6 @@
       justify-content: space-between;
     }
 
-    #colorFilter,
     #sizeFilter,
     #sortOption {
       width: 100%;
@@ -313,30 +311,27 @@
     </form>
     
     <div class="filter-controls">
-      <select id="colorFilter">
-        <option value="">All Colors</option>
-        <option value="black">Black</option>
-        <option value="brown">Brown</option>
-        <option value="white">White</option>
-        <option value="lilac">Lilac</option>
-      </select>
-      
       <select id="sizeFilter">
         <option value="">All Sizes</option>
         <option value="4">4</option>
         <option value="5">5</option>
         <option value="6">6</option>
+        <option value="7">7</option>
+        <option value="8">8</option>
+        <option value="9">9</option>
+        <option value="10">10</option>
       </select>
       
       <div id="sort-by">
         <label for="sortOption">Sort by:</label>
         <select id="sortOption" name="sortOption">
+          <option value="">Default</option>
           <option value="priceLowToHigh">Price: Low to High</option>
           <option value="priceHighToLow">Price: High to Low</option>
         </select>
-        <button id="applySort" class="css-huh2rh">Apply</button>
       </div>
       
+      <button id="applyFilters" class="css-huh2rh">Apply</button>
       <button id="resetFilters" class="reset-btn">Reset All</button>
     </div>
   </div>
@@ -347,14 +342,12 @@
       <div class="card">
         <div class="product-name"><%= product.name %></div>
         <% 
-          // Find active product offer for this product
           const productOffer = productOffers.find(offer => 
             offer.product._id.toString() === product._id.toString() && 
             new Date() >= new Date(offer.startDate) && 
             new Date() <= new Date(offer.expiryDate)
           ); 
           
-          // Find active category offer for this product's category
           const categoryOffer = categoryOffers.find(offer => 
             offer.category._id.toString() === product.category._id.toString() && 
             new Date() >= new Date(offer.startDate) && 
@@ -365,13 +358,11 @@
           let offerDescription = '';
           let discountPercentage = 0;
           
-          // Priority: Product offer first, then category offer
           if (productOffer) {
             displayPrice = productOffer.newPrice;
             offerDescription = `${productOffer.discountPercentage}% OFF`;
             discountPercentage = productOffer.discountPercentage;
           } else if (categoryOffer) {
-            // Calculate category offer price if not already set
             const categoryDiscountAmount = (product.price * categoryOffer.discountPercentage) / 100;
             displayPrice = product.price - categoryDiscountAmount;
             offerDescription = `${categoryOffer.discountPercentage}% OFF`;
@@ -379,7 +370,6 @@
           }
         %>
         
-        <!-- Display discount badge if there's any offer -->
         <% if (productOffer || categoryOffer) { %>
         <div class="discount-badge">
           <%= discountPercentage %>% OFF
@@ -392,7 +382,6 @@
           </div>
         </a>
         
-        <!-- Display price with strikethrough if there's a discount -->
         <div class="price">
           <% if (displayPrice < product.price) { %>
             <s>₹<%= product.price.toFixed(2) %></s> ₹<%= displayPrice.toFixed(2) %>
@@ -401,7 +390,6 @@
           <% } %>
         </div>
         
-        <!-- Display offer description if available -->
         <% if (offerDescription) { %>
           <div class="offer-details"><%= offerDescription %></div>
         <% } %>
@@ -434,33 +422,41 @@
 </div>
 
 <script>
-  // Reset all filters and search functionality
+  // ONLY Apply button triggers filtering
+  document.getElementById("applyFilters").addEventListener("click", function (event) {
+    event.preventDefault();
+    applyFiltersAndSort();
+  });
+
+  // Reset all filters
   document.getElementById("resetFilters").addEventListener("click", function (event) {
     event.preventDefault();
-    
-    // Clear all input fields and select dropdowns
     document.getElementById("searchInput").value = "";
-    document.getElementById("colorFilter").value = "";
     document.getElementById("sizeFilter").value = "";
-    document.getElementById("sortOption").value = "priceLowToHigh";
+    document.getElementById("sortOption").value = "";
     
-    // Update URL to remove query parameters
     const url = new URL(window.location);
     url.search = '';
     window.history.replaceState({}, '', url);
     
-    // Fetch and display all products without any filters
     fetchAllProducts();
   });
 
-  document.getElementById("applySort").addEventListener("click", function (event) {
+  // Search form submission also applies filters
+  document.getElementById("searchForm").addEventListener("submit", function(event) {
     event.preventDefault();
-    const sortOption = document.getElementById("sortOption").value;
-    const colorFilter = document.getElementById("colorFilter").value;
+    applyFiltersAndSort();
+  });
+
+  // REMOVED: Auto-trigger on size change
+  // REMOVED: Auto-trigger on sort change
+
+  function applyFiltersAndSort() {
     const sizeFilter = document.getElementById("sizeFilter").value;
     const searchQuery = document.getElementById("searchInput").value;
-    fetchFilteredProducts(colorFilter, sizeFilter, searchQuery, sortOption);
-  });
+    const sortOption = document.getElementById("sortOption").value;
+    fetchFilteredProducts(sizeFilter, searchQuery, sortOption);
+  }
 
   function fetchAllProducts() {
     fetch(`/allProducts?json=true&t=${new Date().getTime()}`)
@@ -471,10 +467,12 @@
       .catch((error) => console.error("Error fetching all products:", error));
   }
 
-  function fetchFilteredProducts(colorFilter, sizeFilter, searchQuery, sortOption) {
-    let url = `/filteredProducts?color=${encodeURIComponent(colorFilter)}&size=${encodeURIComponent(sizeFilter)}&t=${new Date().getTime()}`;
+  function fetchFilteredProducts(sizeFilter, searchQuery, sortOption) {
+    let url = `/filteredProducts?t=${new Date().getTime()}`;
+    if (sizeFilter) url += `&size=${encodeURIComponent(sizeFilter)}`;
     if (searchQuery) url += `&query=${encodeURIComponent(searchQuery)}`;
     if (sortOption) url += `&sortOption=${encodeURIComponent(sortOption)}`;
+    
     fetch(url)
       .then((response) => response.json())
       .then((data) => {
@@ -483,35 +481,26 @@
       .catch((error) => console.error("Error fetching filtered products:", error));
   }
 
-  function handleSearchFormSubmit(event) {
-    event.preventDefault();
-    const searchQuery = document.getElementById("searchInput").value;
-    const colorFilter = document.getElementById("colorFilter").value;
-    const sizeFilter = document.getElementById("sizeFilter").value;
-    const sortOption = document.getElementById("sortOption").value;
-    fetchFilteredProducts(colorFilter, sizeFilter, searchQuery, sortOption);
-  }
-
-  document.getElementById("searchForm").addEventListener("submit", handleSearchFormSubmit);
-
-  function updateProductList(products) {
+  async function updateProductList(products) {
     const productList = document.getElementById("productList");
     productList.innerHTML = "";
 
-    products.forEach((product) => {
-      const imageURL = `${product.images[0]}`;
-      let displayPrice = product.price;
-      let offerDescription = '';
-      let discountBadge = '';
+    if (products.length === 0) {
+      productList.innerHTML = '<p style="text-align: center; grid-column: 1/-1; padding: 40px;">No products found matching your criteria.</p>';
+      return;
+    }
 
-      // Fetch offers for dynamic products - Updated to handle both product and category offers
+    // Process products sequentially to maintain order
+    for (const product of products) {
+      const imageURL = `${product.images[0]}`;
       const categoryId = typeof product.category === 'object' ? product.category._id : product.category;
-      Promise.all([
-        fetch(`/productOffers?productId=${product._id}&t=${new Date().getTime()}`).then(response => response.json()),
-        fetch(`/categoryOffers?categoryId=${categoryId}&t=${new Date().getTime()}`).then(response => response.json())
-      ])
-      .then(([productOffers, categoryOffers]) => {
-        // Find active offers
+      
+      try {
+        const [productOffers, categoryOffers] = await Promise.all([
+          fetch(`/productOffers?productId=${product._id}&t=${new Date().getTime()}`).then(response => response.json()),
+          fetch(`/categoryOffers?categoryId=${categoryId}&t=${new Date().getTime()}`).then(response => response.json())
+        ]);
+
         const productOffer = productOffers.find(offer => 
           new Date() >= new Date(offer.startDate) && 
           new Date() <= new Date(offer.expiryDate)
@@ -521,7 +510,10 @@
           new Date() <= new Date(offer.expiryDate)
         );
 
-        // Apply offers with product offer having priority
+        let displayPrice = product.price;
+        let offerDescription = '';
+        let discountBadge = '';
+
         if (productOffer) {
           displayPrice = productOffer.newPrice;
           offerDescription = `${productOffer.discountPercentage}% OFF`;
@@ -550,10 +542,8 @@
             </div>
           </div>`;
         productList.insertAdjacentHTML("beforeend", productCard);
-      })
-      .catch(error => {
+      } catch (error) {
         console.error("Error fetching offers:", error);
-        // Fallback without offers
         const productCard = `
           <div class="filter-products">
             <div class="card">
@@ -567,26 +557,11 @@
             </div>
           </div>`;
         productList.insertAdjacentHTML("beforeend", productCard);
-      });
-    });
+      }
+    }
   }
 
-  document.getElementById("colorFilter").addEventListener("change", function () {
-    const colorFilter = this.value;
-    const sizeFilter = document.getElementById("sizeFilter").value;
-    const searchQuery = document.getElementById("searchInput").value;
-    const sortOption = document.getElementById("sortOption").value;
-    fetchFilteredProducts(colorFilter, sizeFilter, searchQuery, sortOption);
-  });
-
-  document.getElementById("sizeFilter").addEventListener("change", function () {
-    const sizeFilter = this.value;
-    const colorFilter = document.getElementById("colorFilter").value;
-    const searchQuery = document.getElementById("searchInput").value;
-    const sortOption = document.getElementById("sortOption").value;
-    fetchFilteredProducts(colorFilter, sizeFilter, searchQuery, sortOption);
-  });
-
+  // Initial load - show all products
   fetchAllProducts();
 </script>
 
