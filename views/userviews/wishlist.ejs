@@ -6,7 +6,7 @@
     font-family: 'Open Sans', sans-serif;
   }
   .wishlist-container {
-    padding: 100px 20px 60px; /* Avoid header overlap */
+    padding: 100px 20px 60px;
     max-width: 1200px;
     margin: 0 auto;
   }
@@ -30,7 +30,7 @@
   }
   .wishlist-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr); /* 4 products per row */
+    grid-template-columns: repeat(4, 1fr);
     gap: 20px;
   }
   .wishlist-card {
@@ -82,6 +82,66 @@
     gap: 10px;
     flex-wrap: wrap;
   }
+  
+  /* Size Selector Styles */
+  .size-selector {
+    display: none;
+    margin-top: 15px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    animation: slideDown 0.3s ease-in-out;
+  }
+  .size-selector.active {
+    display: block;
+  }
+  .size-selector-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 10px;
+  }
+  .size-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .size-btn {
+    padding: 8px 16px;
+    border: 2px solid #ddd;
+    background: #fff;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: #333;
+  }
+  .size-btn:hover:not(.disabled) {
+    border-color: rgb(255, 63, 108);
+    color: rgb(255, 63, 108);
+  }
+  .size-btn.selected {
+    background: rgb(255, 63, 108);
+    border-color: rgb(255, 63, 108);
+    color: #fff;
+  }
+  .size-btn.disabled {
+    background: #f0f0f0;
+    border-color: #e0e0e0;
+    color: #999;
+    cursor: not-allowed;
+    text-decoration: line-through;
+  }
+  .size-actions {
+    display: flex;
+    gap: 8px;
+  }
+  .size-actions button {
+    flex: 1;
+  }
+  
   .btn {
     padding: 8px 16px;
     border-radius: 25px;
@@ -102,6 +162,24 @@
   .btn-add-to-cart:disabled {
     background: #ccc;
     cursor: not-allowed;
+  }
+  .btn-confirm {
+    background: #28a745;
+    color: #fff;
+    padding: 6px 14px;
+    font-size: 0.85rem;
+  }
+  .btn-confirm:hover {
+    background: #218838;
+  }
+  .btn-cancel {
+    background: #6c757d;
+    color: #fff;
+    padding: 6px 14px;
+    font-size: 0.85rem;
+  }
+  .btn-cancel:hover {
+    background: #5a6268;
   }
   .btn-go-to-cart {
     background: #28a745;
@@ -176,63 +254,17 @@
     border: 1px solid #ccc;
     cursor: not-allowed;
   }
-  /* Modal Styles */
-  .modal-content {
-    border-radius: 12px;
-    padding: 20px;
-  }
-  .modal-header {
-    border-bottom: none;
-    padding-bottom: 0;
-  }
-  .modal-title {
-    font-size: 1.5rem;
-    color: #333;
-  }
-  .modal-body {
-    padding: 20px;
-  }
-  .size-option {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 10px;
-    margin-bottom: 10px;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: background 0.3s ease;
-  }
-  .size-option:hover:not(.disabled) {
-    background: #f8f9fa;
-  }
-  .size-option.disabled {
-    color: #ccc;
-    cursor: not-allowed;
-  }
-  .size-option input {
-    margin-right: 10px;
-  }
-  .modal-footer {
-    border-top: none;
-    padding-top: 0;
-  }
-  .btn-confirm-size {
-    background: rgb(255, 63, 108);
-    color: #fff;
-    border-radius: 25px;
-    padding: 10px 20px;
-  }
-  .btn-confirm-size:hover {
-    background: #e0396a;
-  }
   @keyframes fadeIn {
     from { opacity: 0; transform: translateY(20px); }
     to { opacity: 1; transform: translateY(0); }
   }
+  @keyframes slideDown {
+    from { opacity: 0; max-height: 0; }
+    to { opacity: 1; max-height: 200px; }
+  }
   @keyframes fadeOut {
-    from { opacity: 1; transform: translateY(0); }
-    to { opacity: 0; transform: translateY(20px); }
+    from { opacity: 1; transform: scale(1); }
+    to { opacity: 0; transform: scale(0.95); }
   }
   @media (max-width: 1200px) {
     .wishlist-grid {
@@ -267,6 +299,13 @@
     .btn-remove {
       font-size: 1rem;
     }
+    .size-options {
+      gap: 6px;
+    }
+    .size-btn {
+      padding: 6px 12px;
+      font-size: 0.8rem;
+    }
   }
 </style>
 
@@ -296,45 +335,40 @@
                 ₹<%= item.product.price.toFixed(2) %>
               <% } %>
             </div>
+            
             <div class="wishlist-card-actions">
               <% if (item.inCart) { %>
                 <a href="/cart" class="btn btn-go-to-cart">Go to Cart</a>
               <% } else if (item.isOutOfStock) { %>
                 <button class="btn btn-add-to-cart" disabled>Out of Stock</button>
               <% } else { %>
-                <button class="btn btn-add-to-cart" data-product-id="<%= item.product._id %>" data-bs-toggle="modal" data-bs-target="#sizeModal_<%= item.product._id %>">Add to Cart</button>
+                <button class="btn btn-add-to-cart" onclick="toggleSizeSelector('<%= item.product._id %>')">Add to Cart</button>
                 <button class="btn btn-remove" onclick="removeFromWishlist('<%= item.product._id %>')"><i class="fas fa-trash-alt"></i></button>
               <% } %>
             </div>
-          </div>
-          <!-- Size Selection Modal -->
-          <% if (!item.inCart && !item.isOutOfStock) { %>
-            <div class="modal fade" id="sizeModal_<%= item.product._id %>" tabindex="-1" aria-labelledby="sizeModalLabel_<%= item.product._id %>" aria-hidden="true">
-              <div class="modal-dialog modal-dialog-centered">
-                <div class="modal-content">
-                  <div class="modal-header">
-                    <h5 class="modal-title" id="sizeModalLabel_<%= item.product._id %>">Select Size for <%= item.product.name %></h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                  </div>
-                  <div class="modal-body">
-                    <% item.product.variants.forEach(variant => { %>
-                      <div class="size-option <%= (variant.stock - (variant.reserved || 0)) <= 0 ? 'disabled' : '' %>">
-                        <span><%= variant.size %></span>
-                        <% if ((variant.stock - (variant.reserved || 0)) <= 0) { %>
-                          <span>(Out of Stock)</span>
-                        <% } else { %>
-                          <input type="radio" name="size_<%= item.product._id %>" value="<%= variant.size %>" required>
-                        <% } %>
-                      </div>
-                    <% }) %>
-                  </div>
-                  <div class="modal-footer">
-                    <button type="button" class="btn btn-confirm-size" onclick="confirmSizeSelection('<%= item.product._id %>')">Confirm</button>
-                  </div>
+            
+            <!-- Inline Size Selector -->
+            <% if (!item.inCart && !item.isOutOfStock) { %>
+              <div class="size-selector" id="sizeSelector_<%= item.product._id %>">
+                <div class="size-selector-title">Select Size:</div>
+                <div class="size-options">
+                  <% item.product.variants.forEach(variant => { %>
+                    <button 
+                      class="size-btn <%= (variant.stock - (variant.reserved || 0)) <= 0 ? 'disabled' : '' %>"
+                      data-size="<%= variant.size %>"
+                      <%= (variant.stock - (variant.reserved || 0)) <= 0 ? 'disabled' : '' %>
+                      onclick="selectSize('<%= item.product._id %>', '<%= variant.size %>', this)">
+                      <%= variant.size %>
+                    </button>
+                  <% }) %>
+                </div>
+                <div class="size-actions">
+                  <button class="btn btn-confirm" onclick="confirmAddToCart('<%= item.product._id %>')">Confirm</button>
+                  <button class="btn btn-cancel" onclick="cancelSizeSelection('<%= item.product._id %>')">Cancel</button>
                 </div>
               </div>
-            </div>
-          <% } %>
+            <% } %>
+          </div>
         </div>
       <% }) %>
     </div>
@@ -366,23 +400,53 @@
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@10"></script>
 <script>
-  document.addEventListener('DOMContentLoaded', function () {
-    const wishlistGrid = document.querySelector('.wishlist-grid');
-    if (!wishlistGrid) return;
+  let selectedSizes = {};
 
-    wishlistGrid.addEventListener('click', function (event) {
-      const target = event.target.closest('.btn-add-to-cart');
-      if (target && !target.disabled) {
-        // Modal is triggered via data-bs-toggle, no additional click handler needed
+  function toggleSizeSelector(productId) {
+    // Close all other size selectors
+    document.querySelectorAll('.size-selector').forEach(selector => {
+      if (selector.id !== `sizeSelector_${productId}`) {
+        selector.classList.remove('active');
       }
     });
-  });
 
-  function confirmSizeSelection(productId) {
-    const modal = document.getElementById(`sizeModal_${productId}`);
-    const sizeInputs = modal.querySelectorAll(`input[name="size_${productId}"]:checked`);
-    const size = sizeInputs.length > 0 ? sizeInputs[0].value : null;
+    // Toggle current size selector
+    const sizeSelector = document.getElementById(`sizeSelector_${productId}`);
+    sizeSelector.classList.toggle('active');
+    
+    // Reset selection when opening
+    if (sizeSelector.classList.contains('active')) {
+      selectedSizes[productId] = null;
+      sizeSelector.querySelectorAll('.size-btn').forEach(btn => {
+        btn.classList.remove('selected');
+      });
+    }
+  }
 
+  function selectSize(productId, size, button) {
+    if (button.disabled) return;
+    
+    const sizeSelector = document.getElementById(`sizeSelector_${productId}`);
+    
+    // Remove selected class from all buttons
+    sizeSelector.querySelectorAll('.size-btn').forEach(btn => {
+      btn.classList.remove('selected');
+    });
+    
+    // Add selected class to clicked button
+    button.classList.add('selected');
+    selectedSizes[productId] = size;
+  }
+
+  function cancelSizeSelection(productId) {
+    const sizeSelector = document.getElementById(`sizeSelector_${productId}`);
+    sizeSelector.classList.remove('active');
+    selectedSizes[productId] = null;
+  }
+
+  function confirmAddToCart(productId) {
+    const size = selectedSizes[productId];
+    
     if (!size) {
       Swal.fire({
         icon: 'warning',
@@ -392,10 +456,6 @@
       });
       return;
     }
-
-    // Close the modal
-    const modalInstance = bootstrap.Modal.getInstance(modal);
-    modalInstance.hide();
 
     fetch('/cart/add', {
       method: 'POST',
@@ -424,7 +484,7 @@
             timer: 1500,
             showConfirmButton: false,
           });
-        } else {
+        } else if (data) {
           Swal.fire({
             icon: 'error',
             text: data.error || 'Failed to add product to cart',
@@ -463,9 +523,11 @@
       })
       .then(data => {
         if (data.message === 'Product removed from wishlist successfully') {
-          wishlistCard.style.animation = 'fadeOut 0.5s ease-in-out';
-          wishlistCard.addEventListener('animationend', () => {
+          wishlistCard.style.animation = 'fadeOut 0.3s ease-in-out';
+          
+          setTimeout(() => {
             wishlistCard.remove();
+            
             if (!document.querySelector('.wishlist-card')) {
               const container = document.querySelector('.wishlist-container');
               container.innerHTML = `
@@ -476,7 +538,8 @@
                 </div>
               `;
             }
-          });
+          }, 300);
+
           if (!isFromCartAdd) {
             Swal.fire({
               icon: 'success',
