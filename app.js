@@ -5,9 +5,10 @@ const session = require('express-session')
 const cookieParser = require('cookie-parser')
 const MongoDBSession = require('connect-mongodb-session')(session)
 const bodyParser = require('body-parser')
-const nocache = require('nocache')
 const morgan = require('morgan')
 require('./utils/reservationCleanup');
+const cartCount=require('./middlewares/cartCount')
+const wishlistCount=require('./middlewares/wishlistCount')
 
 const app = express()
 const PORT = process.env.PORT || 4000
@@ -38,7 +39,8 @@ app.use(session({
         secure: false,
     }
 }))
-// app.use(nocache)
+app.use(cartCount.cartCount)
+app.use(wishlistCount.wishlistCount)
 
 
 //route for logout

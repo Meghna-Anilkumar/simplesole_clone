@@ -8,7 +8,7 @@ const cartSchema = new mongoose.Schema({
       quantity: { type: Number },
       size: { type: String, required: true, trim: true },
       price: { type: Number },
-      reservedAt: { type: Date, default: Date.now }, // Track reservation time
+      reservedAt: { type: Date, default: Date.now }, 
     },
   ],
   total: { type: Number, default: 0 },

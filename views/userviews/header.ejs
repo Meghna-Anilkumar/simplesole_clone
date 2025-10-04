@@ -37,18 +37,20 @@
     </div>
     <a class="nav-link" href="#">Reach Us</a>
   </div>
-  <div class="d-flex align-items-center ms-auto">
+<div class="d-flex align-items-center ms-auto">
     <a class="nav-link" href="/usericon"><i class="fas fa-user"></i></a>
+    
     <a class="nav-link" href="/wishlist">
         <i class="fas fa-heart"></i>
-        <% if (wishlist && wishlist.items && wishlist.items.length > 0) { %>
-            (<%= wishlist.items.length %>)
+        <% if (wishlistCount > 0) { %>
+            (<%= wishlistCount %>)
         <% } %>
     </a>
+    
     <a class="nav-link" href="/cart">
         <i class="fas fa-shopping-cart"></i>
-        <% if (cart && cart.items && cart.items.length > 0) { %>
-            (<%= cart.items.length %>)
+        <% if (cartCount > 0) { %>
+            (<%= cartCount %>)
         <% } %>
     </a>
 </div>
