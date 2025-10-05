@@ -116,12 +116,11 @@ module.exports = {
       wishlist.items.push({ product: productId });
       await wishlist.save();
 
-      res.status(200).json({ message: 'Product added to wishlist successfully', inWishlist: true });
+      res.status(200).json({ message: 'Product added to wishlist successfully', inWishlist: true ,wishlistCount: wishlist.items.length});
     } catch (error) {
       console.error('Error adding product to wishlist:', {
         error: error.message,
         stack: error.stack,
-        productId,
       });
       res.status(500).json({ message: 'Internal Server Error' });
     }
@@ -154,7 +153,7 @@ module.exports = {
 
       await wishlist.save();
 
-      res.status(200).json({ message: 'Product removed from wishlist successfully', inWishlist: false, productId });
+      res.status(200).json({ message: 'Product removed from wishlist successfully', inWishlist: false, productId,wishlistCount: wishlist.items.length });
     } catch (error) {
       console.error('Error removing product from wishlist:', {
         error: error.message,

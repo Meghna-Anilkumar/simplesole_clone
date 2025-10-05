@@ -40,19 +40,16 @@
 <div class="d-flex align-items-center ms-auto">
     <a class="nav-link" href="/usericon"><i class="fas fa-user"></i></a>
     
-    <a class="nav-link" href="/wishlist">
-        <i class="fas fa-heart"></i>
-        <% if (wishlistCount > 0) { %>
-            (<%= wishlistCount %>)
-        <% } %>
-    </a>
-    
-    <a class="nav-link" href="/cart">
-        <i class="fas fa-shopping-cart"></i>
-        <% if (cartCount > 0) { %>
-            (<%= cartCount %>)
-        <% } %>
-    </a>
+   <a class="nav-link" href="/wishlist">
+  <i class="fas fa-heart"></i>
+  (<span id="wishlist-count"><%= wishlistCount || 0 %></span>)
+</a>
+
+<a class="nav-link" href="/cart">
+  <i class="fas fa-shopping-cart"></i>
+  (<span id="cart-count"><%= cartCount || 0 %></span>)
+</a>
+
 </div>
 
 

@@ -617,9 +617,51 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 
+
 <!-- Wishlist Script -->
 <script>
+function updateWishlistCountInNavbar(count) {
+  const wishlistLink = document.querySelector('a[href="/wishlist"]');
+  if (wishlistLink) {
+    const icon = wishlistLink.querySelector('i');
+    wishlistLink.innerHTML = '';
+    wishlistLink.appendChild(icon);
+    
+    if (count > 0) {
+      const countText = document.createTextNode(' (' + count + ')');
+      wishlistLink.appendChild(countText);
+    }
+  }
+}
+
 function addToWishlist(productId) {
+  const likeButton = document.querySelector('.like');
+  const isWishlisted = likeButton.classList.contains('wishlisted');
+  
+  // If already in wishlist, ask for confirmation before removing
+  if (isWishlisted) {
+    Swal.fire({
+      title: 'Remove from Wishlist?',
+      text: 'Are you sure you want to remove this product from your wishlist?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Yes, remove it!',
+      cancelButtonText: 'Cancel'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        // User confirmed, proceed with removal
+        removeFromWishlist(productId);
+      }
+    });
+  } else {
+    // Not in wishlist, add it directly
+    addToWishlistAPI(productId);
+  }
+}
+
+function addToWishlistAPI(productId) {
   fetch('/addtowishlist', {
     method: 'POST',
     headers: {
@@ -633,25 +675,34 @@ function addToWishlist(productId) {
   })
   .then(function (data) {
     if (data.message === 'Product added to wishlist successfully') {
-      const productInWishlist = data.inWishlist;
       const likeButton = document.querySelector('.like');
       
       if (likeButton) {
-        likeButton.innerHTML = '<span class="fa fa-heart"></span> ' + (productInWishlist ? 'Wishlisted' : 'Add to Wishlist');
-        likeButton.classList.toggle('wishlisted', productInWishlist);
+        likeButton.innerHTML = '<span class="fa fa-heart"></span> Wishlisted';
+        likeButton.classList.add('wishlisted');
+      }
+
+      // Update wishlist count in navbar
+      if (data.wishlistCount !== undefined) {
+        updateWishlistCountInNavbar(data.wishlistCount);
       }
 
       Swal.fire({
-        title: 'Success',
-        text: productInWishlist ? 'Product added to wishlist!' : 'Product removed from wishlist!',
+        title: 'Success!',
+        text: 'Product added to wishlist!',
         icon: 'success',
         timer: 1500,
         showConfirmButton: false,
       });
-    } else if (data.error) {
+    } else if (data.message === 'Product already in wishlist') {
+      // Update count even if already in wishlist
+      if (data.wishlistCount !== undefined) {
+        updateWishlistCountInNavbar(data.wishlistCount);
+      }
+      
       Swal.fire({
-        title: 'Info',
-        text: data.error,
+        title: 'Already in Wishlist',
+        text: 'This product is already in your wishlist.',
         icon: 'info',
         confirmButtonText: 'OK',
         confirmButtonColor: '#3085d6'
@@ -662,7 +713,62 @@ function addToWishlist(productId) {
     console.error('Error adding product to wishlist: ' + error);
     Swal.fire({
       title: 'Error',
-      text: 'An error occurred while updating the wishlist',
+      text: 'An error occurred while adding to the wishlist',
+      icon: 'error',
+      confirmButtonText: 'OK',
+      confirmButtonColor: '#3085d6'
+    });
+  });
+}
+
+function removeFromWishlist(productId) {
+  fetch('/removefromwishlist', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    },
+    body: JSON.stringify({ productId: productId }),
+  })
+  .then(function (response) {
+    return response.json();
+  })
+  .then(function (data) {
+    if (data.message === 'Product removed from wishlist successfully') {
+      const likeButton = document.querySelector('.like');
+      
+      if (likeButton) {
+        likeButton.innerHTML = '<span class="fa fa-heart"></span> Add to Wishlist';
+        likeButton.classList.remove('wishlisted');
+      }
+
+      // Update wishlist count in navbar
+      if (data.wishlistCount !== undefined) {
+        updateWishlistCountInNavbar(data.wishlistCount);
+      }
+
+      Swal.fire({
+        title: 'Removed!',
+        text: 'Product removed from wishlist!',
+        icon: 'success',
+        timer: 1500,
+        showConfirmButton: false,
+      });
+    } else {
+      Swal.fire({
+        title: 'Error',
+        text: data.message || 'Failed to remove product from wishlist',
+        icon: 'error',
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#3085d6'
+      });
+    }
+  })
+  .catch(function (error) {
+    console.error('Error removing product from wishlist: ' + error);
+    Swal.fire({
+      title: 'Error',
+      text: 'An error occurred while removing from the wishlist',
       icon: 'error',
       confirmButtonText: 'OK',
       confirmButtonColor: '#3085d6'
@@ -670,5 +776,4 @@ function addToWishlist(productId) {
   });
 }
 </script>
-
 <%- include('./footer') %>
