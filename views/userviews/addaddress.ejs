@@ -11,31 +11,38 @@
                 <form id="addressForm">
                     <div class="form-group">
                         <label for="addressName">Name</label>
-                        <input type="text" class="form-control" id="addressName" name="addressName" placeholder="" required="true">
+                        <input type="text" class="form-control" id="addressName" name="addressName" placeholder="Enter full name">
+                        <small class="error-text" id="nameError"></small>
                     </div>
                     <div class="form-group">
                         <label for="mobileNumber">Mobile Number</label>
-                        <input type="text" class="form-control" id="mobileNumber" name="mobileNumber" placeholder="" required="true">
+                        <input type="text" class="form-control" id="mobileNumber" name="mobileNumber" placeholder="Enter 10-digit mobile number">
+                        <small class="error-text" id="mobileError"></small>
                     </div>
                     <div class="form-group">
                         <label for="buildingname">Building name</label>
-                        <input type="text" class="form-control" id="buildingname" name="buildingname" placeholder="" required="true">
+                        <input type="text" class="form-control" id="buildingname" name="buildingname" placeholder="Enter building name">
+                        <small class="error-text" id="buildingError"></small>
                     </div>
                     <div class="form-group">
                         <label for="street">Street</label>
-                        <input type="text" class="form-control" id="street" name="street" placeholder="" required="true">
+                        <input type="text" class="form-control" id="street" name="street" placeholder="Enter street name">
+                        <small class="error-text" id="streetError"></small>
                     </div>
                     <div class="form-group">
                         <label for="city">City</label>
-                        <input type="text" class="form-control" id="city" name="city" placeholder="" required="true">
+                        <input type="text" class="form-control" id="city" name="city" placeholder="Enter city">
+                        <small class="error-text" id="cityError"></small>
                     </div>
                     <div class="form-group">
                         <label for="state">State</label>
-                        <input type="text" class="form-control" id="state" name="state" placeholder="" required="true">
+                        <input type="text" class="form-control" id="state" name="state" placeholder="Enter state">
+                        <small class="error-text" id="stateError"></small>
                     </div>
                     <div class="form-group">
                         <label for="PIN Code">PIN Code</label>
-                        <input type="text" class="form-control" id="PIN Code" name="PIN Code" placeholder="" required="true">
+                        <input type="text" class="form-control" id="PIN Code" name="PIN Code" placeholder="Enter 6-digit PIN code">
+                        <small class="error-text" id="pinError"></small>
                     </div>
 
                     <div class="form-group">
@@ -48,34 +55,234 @@
                             <input class="form-check-input" type="radio" name="addressType" id="workAddress" value="work">
                             <label class="form-check-label" for="workAddress">Work</label>
                         </div>
+                        <br>
+                        <small class="error-text" id="addressTypeError"></small>
                     </div>
 
-                    <button type="submit" class="btn btn-primary">Save Address</button>
-
+                    <button type="submit" class="btn btn-primary" id="saveAddressBtn" disabled>Save Address</button>
                 </form>
             </div>
         </div>
     </div>
 </div>
 
+<style>
+    .error-text {
+        color: #dc3545;
+        font-size: 12px;
+        display: block;
+        margin-top: 4px;
+        min-height: 16px;
+    }
+    
+    .form-control.invalid {
+        border-color: #dc3545;
+    }
+    
+    .form-control.valid {
+        border-color: #28a745;
+    }
+    
+    #saveAddressBtn:disabled {
+        background-color: #6c757d;
+        border-color: #6c757d;
+        cursor: not-allowed;
+        opacity: 0.6;
+    }
+</style>
+
 <script>
     document.getElementById('openAddressModal').addEventListener('click', function () {
         $('#addressModal').modal('show');
     });
 
+    // Validation rules
+    const validationRules = {
+        addressName: {
+            validate: (value) => {
+                if (!value.trim()) return 'Name is required';
+                if (value.trim().length < 3) return 'Name must be at least 3 characters';
+                if (!/^[a-zA-Z\s]+$/.test(value)) return 'Name should contain only letters';
+                return '';
+            },
+            errorElement: 'nameError'
+        },
+        mobileNumber: {
+            validate: (value) => {
+                if (!value.trim()) return 'Mobile number is required';
+                if (!/^\d{10}$/.test(value)) return 'Mobile number must be exactly 10 digits';
+                if (!/^[6-9]\d{9}$/.test(value)) return 'Invalid mobile number format';
+                return '';
+            },
+            errorElement: 'mobileError'
+        },
+        buildingname: {
+            validate: (value) => {
+                if (!value.trim()) return 'Building name is required';
+                if (value.trim().length < 3) return 'Building name must be at least 3 characters';
+                return '';
+            },
+            errorElement: 'buildingError'
+        },
+        street: {
+            validate: (value) => {
+                if (!value.trim()) return 'Street is required';
+                if (value.trim().length < 3) return 'Street must be at least 3 characters';
+                return '';
+            },
+            errorElement: 'streetError'
+        },
+        city: {
+            validate: (value) => {
+                if (!value.trim()) return 'City is required';
+                if (value.trim().length < 2) return 'City must be at least 2 characters';
+                if (!/^[a-zA-Z\s]+$/.test(value)) return 'City should contain only letters';
+                return '';
+            },
+            errorElement: 'cityError'
+        },
+        state: {
+            validate: (value) => {
+                if (!value.trim()) return 'State is required';
+                if (value.trim().length < 2) return 'State must be at least 2 characters';
+                if (!/^[a-zA-Z\s]+$/.test(value)) return 'State should contain only letters';
+                return '';
+            },
+            errorElement: 'stateError'
+        },
+        'PIN Code': {
+            validate: (value) => {
+                if (!value.trim()) return 'PIN Code is required';
+                if (!/^\d{6}$/.test(value)) return 'PIN Code must be exactly 6 digits';
+                return '';
+            },
+            errorElement: 'pinError'
+        }
+    };
+
+    // Validate individual field
+    function validateField(fieldName, value) {
+        const rule = validationRules[fieldName];
+        if (!rule) return true;
+        
+        const errorMsg = rule.validate(value);
+        const errorElement = document.getElementById(rule.errorElement);
+        const inputElement = document.getElementById(fieldName);
+        
+        if (errorMsg) {
+            errorElement.textContent = errorMsg;
+            inputElement.classList.add('invalid');
+            inputElement.classList.remove('valid');
+            return false;
+        } else {
+            errorElement.textContent = '';
+            inputElement.classList.remove('invalid');
+            inputElement.classList.add('valid');
+            return true;
+        }
+    }
+
+    // Validate address type
+    function validateAddressType() {
+        const checked = document.querySelector('input[name="addressType"]:checked');
+        const errorElement = document.getElementById('addressTypeError');
+        
+        if (!checked) {
+            errorElement.textContent = 'Please select an address type';
+            return false;
+        } else {
+            errorElement.textContent = '';
+            return true;
+        }
+    }
+
+    // Check if all fields are valid
+    function checkFormValidity() {
+        let allValid = true;
+        
+        // Validate all text fields
+        for (const fieldName in validationRules) {
+            const input = document.getElementById(fieldName);
+            if (input && !validateField(fieldName, input.value)) {
+                allValid = false;
+            }
+        }
+        
+        // Validate address type
+        if (!validateAddressType()) {
+            allValid = false;
+        }
+        
+        // Enable/disable submit button
+        document.getElementById('saveAddressBtn').disabled = !allValid;
+    }
+
+    // Add event listeners to all input fields
+    for (const fieldName in validationRules) {
+        const input = document.getElementById(fieldName);
+        if (input) {
+            input.addEventListener('input', function() {
+                validateField(fieldName, this.value);
+                checkFormValidity();
+            });
+            
+            input.addEventListener('blur', function() {
+                validateField(fieldName, this.value);
+                checkFormValidity();
+            });
+        }
+    }
+
+    // Add event listeners to radio buttons
+    document.querySelectorAll('input[name="addressType"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            validateAddressType();
+            checkFormValidity();
+        });
+    });
+
+    // Reset form when modal is closed
+    $('#addressModal').on('hidden.bs.modal', function () {
+        document.getElementById('addressForm').reset();
+        document.querySelectorAll('.error-text').forEach(el => el.textContent = '');
+        document.querySelectorAll('.form-control').forEach(el => {
+            el.classList.remove('invalid', 'valid');
+        });
+        document.getElementById('saveAddressBtn').disabled = true;
+    });
+
+    // Form submission
     document.getElementById('addressForm').addEventListener('submit', function (event) {
         event.preventDefault();
+        
+        // Final validation check
+        checkFormValidity();
+        
+        if (!document.getElementById('saveAddressBtn').disabled) {
+            const addressData = {
+                name: document.getElementById('addressName').value.trim(),
+                mobile: document.getElementById('mobileNumber').value.trim(),
+                buildingname: document.getElementById('buildingname').value.trim(),
+                street: document.getElementById('street').value.trim(),
+                city: document.getElementById('city').value.trim(),
+                state: document.getElementById('state').value.trim(),
+                pincode: document.getElementById('PIN Code').value.trim(),
+                addresstype: document.querySelector('input[name="addressType"]:checked').value
+            };
 
-        const addressData = {
-           name: document.getElementById('addressName').value,
-            mobile: document.getElementById('mobileNumber').value,
-            buildingname: document.getElementById('buildingname').value,
-            street: document.getElementById('street').value,
-            city: document.getElementById('city').value,
-            state: document.getElementById('state').value,
-            pincode: document.getElementById('PIN Code').value,
-            addresstype: document.querySelector('input[name="addressType"]:checked').value
-        };
-
+            fetch("/saveAddress", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(addressData),
+            })
+            .then((response) => response.json())
+            .then((data) => {
+                console.log("Address saved:", data);
+                document.getElementById("addressForm").reset();
+                $("#addressModal").modal("hide");
+                window.location.reload();
+            })
+            .catch((error) => console.error("Error saving address:", error));
+        }
     });
 </script>

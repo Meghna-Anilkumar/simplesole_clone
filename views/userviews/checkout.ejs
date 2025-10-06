@@ -557,31 +557,31 @@
   });
 
   document.getElementById("addressForm").addEventListener("submit", function (event) {
-    event.preventDefault();
-    const addressData = {
-      name: document.getElementById("addressName").value,
-      mobile: document.getElementById("mobileNumber").value,
-      buildingname: document.getElementById("buildingname").value,
-      street: document.getElementById("street").value,
-      city: document.getElementById("city").value,
-      state: document.getElementById("state").value,
-      pincode: document.getElementById("PIN Code").value,
-      addresstype: document.querySelector('input[name="addressType"]:checked').value,
-    };
-    fetch("/saveAddress", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(addressData),
+  event.preventDefault();
+  const addressData = {
+    addressName: document.getElementById("addressName").value,
+    mobileNumber: document.getElementById("mobileNumber").value,
+    buildingname: document.getElementById("buildingname").value,
+    street: document.getElementById("street").value,
+    city: document.getElementById("city").value,
+    state: document.getElementById("state").value,
+    PINCode: document.getElementById("PIN Code").value,
+    addressType: document.querySelector('input[name="addressType"]:checked').value,
+  };
+  fetch("/saveAddress", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(addressData),
+  })
+    .then((response) => response.json())
+    .then((data) => {
+      console.log("Address saved:", data);
+      document.getElementById("addressForm").reset();
+      $("#addressModal").modal("hide");
+      window.location.reload();
     })
-      .then((response) => response.json())
-      .then((data) => {
-        console.log("Address saved:", data);
-        document.getElementById("addressForm").reset();
-        $("#addressModal").modal("hide");
-        window.location.reload();
-      })
-      .catch((error) => console.error("Error saving address:", error));
-  });
+    .catch((error) => console.error("Error saving address:", error));
+});
 
   document.getElementById("checkoutForm").addEventListener("submit", async function (event) {
     event.preventDefault();

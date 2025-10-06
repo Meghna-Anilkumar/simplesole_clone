@@ -42,6 +42,26 @@
   .form-check-inline {
     margin-right: 20px;
   }
+
+  .error-message {
+    color: #dc3545;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+    display: none;
+  }
+
+  .form-control.is-invalid {
+    border-color: #dc3545;
+  }
+
+  .form-control.is-valid {
+    border-color: #28a745;
+  }
+
+  .submit-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
 </style>
 
 <div class="col-md-5 border-right" style="margin-top: 80px;">
@@ -70,35 +90,42 @@
       <div class="modal-body">
         <form id="addressForm">
           <div class="form-group">
-            <label for="addressName">Name</label>
+            <label for="addressName">Name <span style="color: red;">*</span></label>
             <input type="text" class="form-control" id="addressName" name="addressName" required>
+            <div class="error-message" id="nameError">Name must be at least 3 characters and contain only letters</div>
           </div>
           <div class="form-group">
-            <label for="mobileNumber">Mobile Number</label>
-            <input type="text" class="form-control" id="mobileNumber" name="mobileNumber" pattern="[0-9]{10}" title="Mobile number must be 10 digits" required>
+            <label for="mobileNumber">Mobile Number <span style="color: red;">*</span></label>
+            <input type="text" class="form-control" id="mobileNumber" name="mobileNumber" required>
+            <div class="error-message" id="mobileError">Mobile number must be exactly 10 digits</div>
           </div>
           <div class="form-group">
-            <label for="buildingname">Building Name</label>
+            <label for="buildingname">Building Name <span style="color: red;">*</span></label>
             <input type="text" class="form-control" id="buildingname" name="buildingname" required>
+            <div class="error-message" id="buildingError">Building name must be at least 3 characters</div>
           </div>
           <div class="form-group">
-            <label for="street">Street</label>
+            <label for="street">Street <span style="color: red;">*</span></label>
             <input type="text" class="form-control" id="street" name="street" required>
+            <div class="error-message" id="streetError">Street must be at least 3 characters</div>
           </div>
           <div class="form-group">
-            <label for="city">City</label>
+            <label for="city">City <span style="color: red;">*</span></label>
             <input type="text" class="form-control" id="city" name="city" required>
+            <div class="error-message" id="cityError">City must be at least 2 characters and contain only letters</div>
           </div>
           <div class="form-group">
-            <label for="state">State</label>
+            <label for="state">State <span style="color: red;">*</span></label>
             <input type="text" class="form-control" id="state" name="state" required>
+            <div class="error-message" id="stateError">State must be at least 2 characters and contain only letters</div>
           </div>
           <div class="form-group">
-            <label for="PINCode">PIN Code</label>
-            <input type="text" class="form-control" id="PINCode" name="PINCode" pattern="[0-9]{6}" title="PIN code must be 6 digits" required>
+            <label for="PINCode">PIN Code <span style="color: red;">*</span></label>
+            <input type="text" class="form-control" id="PINCode" name="PINCode" required>
+            <div class="error-message" id="pinError">PIN code must be exactly 6 digits</div>
           </div>
           <div class="form-group">
-            <label>Address Type</label><br>
+            <label>Address Type <span style="color: red;">*</span></label><br>
             <div class="form-check form-check-inline">
               <input class="form-check-input" type="radio" name="addressType" id="homeAddress" value="home" required>
               <label class="form-check-label" for="homeAddress">Home</label>
@@ -107,8 +134,9 @@
               <input class="form-check-input" type="radio" name="addressType" id="workAddress" value="work">
               <label class="form-check-label" for="workAddress">Work</label>
             </div>
+            <div class="error-message" id="typeError">Please select an address type</div>
           </div>
-          <button type="submit" class="btn btn-primary">Save Address</button>
+          <button type="submit" class="btn btn-primary submit-btn" id="addAddressBtn" disabled>Save Address</button>
         </form>
       </div>
     </div>
@@ -128,35 +156,42 @@
       <div class="modal-body">
         <form id="editAddressForm">
           <div class="form-group">
-            <label for="editaddressName">Name</label>
+            <label for="editaddressName">Name <span style="color: red;">*</span></label>
             <input type="text" class="form-control" id="editaddressName" name="addressName" required>
+            <div class="error-message" id="editNameError">Name must be at least 3 characters and contain only letters</div>
           </div>
           <div class="form-group">
-            <label for="editmobileNumber">Mobile Number</label>
-            <input type="text" class="form-control" id="editmobileNumber" name="mobileNumber" pattern="[0-9]{10}" title="Mobile number must be 10 digits" required>
+            <label for="editmobileNumber">Mobile Number <span style="color: red;">*</span></label>
+            <input type="text" class="form-control" id="editmobileNumber" name="mobileNumber" required>
+            <div class="error-message" id="editMobileError">Mobile number must be exactly 10 digits</div>
           </div>
           <div class="form-group">
-            <label for="editbuildingname">Building Name</label>
+            <label for="editbuildingname">Building Name <span style="color: red;">*</span></label>
             <input type="text" class="form-control" id="editbuildingname" name="buildingname" required>
+            <div class="error-message" id="editBuildingError">Building name must be at least 3 characters</div>
           </div>
           <div class="form-group">
-            <label for="editstreet">Street</label>
+            <label for="editstreet">Street <span style="color: red;">*</span></label>
             <input type="text" class="form-control" id="editstreet" name="street" required>
+            <div class="error-message" id="editStreetError">Street must be at least 3 characters</div>
           </div>
           <div class="form-group">
-            <label for="editcity">City</label>
+            <label for="editcity">City <span style="color: red;">*</span></label>
             <input type="text" class="form-control" id="editcity" name="city" required>
+            <div class="error-message" id="editCityError">City must be at least 2 characters and contain only letters</div>
           </div>
           <div class="form-group">
-            <label for="editstate">State</label>
+            <label for="editstate">State <span style="color: red;">*</span></label>
             <input type="text" class="form-control" id="editstate" name="state" required>
+            <div class="error-message" id="editStateError">State must be at least 2 characters and contain only letters</div>
           </div>
           <div class="form-group">
-            <label for="editPINCode">PIN Code</label>
-            <input type="text" class="form-control" id="editPINCode" name="PINCode" pattern="[0-9]{6}" title="PIN code must be 6 digits" required>
+            <label for="editPINCode">PIN Code <span style="color: red;">*</span></label>
+            <input type="text" class="form-control" id="editPINCode" name="PINCode" required>
+            <div class="error-message" id="editPinError">PIN code must be exactly 6 digits</div>
           </div>
           <div class="form-group">
-            <label>Address Type</label><br>
+            <label>Address Type <span style="color: red;">*</span></label><br>
             <div class="form-check form-check-inline">
               <input class="form-check-input" type="radio" name="addressType" id="edithomeAddress" value="home" required>
               <label class="form-check-label" for="edithomeAddress">Home</label>
@@ -165,8 +200,9 @@
               <input class="form-check-input" type="radio" name="addressType" id="editworkAddress" value="work">
               <label class="form-check-label" for="editworkAddress">Work</label>
             </div>
+            <div class="error-message" id="editTypeError">Please select an address type</div>
           </div>
-          <button type="submit" class="btn btn-primary">Update Address</button>
+          <button type="submit" class="btn btn-primary submit-btn" id="updateAddressBtn" disabled>Update Address</button>
         </form>
       </div>
     </div>
@@ -178,14 +214,169 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
+  // Validation Rules
+  const validationRules = {
+    name: {
+      test: (value) => /^[a-zA-Z\s]{3,}$/.test(value.trim()),
+      message: 'Name must be at least 3 characters and contain only letters'
+    },
+    mobile: {
+      test: (value) => /^[0-9]{10}$/.test(value.trim()),
+      message: 'Mobile number must be exactly 10 digits'
+    },
+    building: {
+      test: (value) => value.trim().length >= 3,
+      message: 'Building name must be at least 3 characters'
+    },
+    street: {
+      test: (value) => value.trim().length >= 3,
+      message: 'Street must be at least 3 characters'
+    },
+    city: {
+      test: (value) => /^[a-zA-Z\s]{2,}$/.test(value.trim()),
+      message: 'City must be at least 2 characters and contain only letters'
+    },
+    state: {
+      test: (value) => /^[a-zA-Z\s]{2,}$/.test(value.trim()),
+      message: 'State must be at least 2 characters and contain only letters'
+    },
+    pincode: {
+      test: (value) => /^[0-9]{6}$/.test(value.trim()),
+      message: 'PIN code must be exactly 6 digits'
+    }
+  };
+
+  // Validate Individual Field
+  function validateField(input, rule, errorElement) {
+    const value = input.value;
+    const isValid = rule.test(value);
+    
+    if (value && !isValid) {
+      input.classList.add('is-invalid');
+      input.classList.remove('is-valid');
+      errorElement.style.display = 'block';
+      errorElement.textContent = rule.message;
+      return false;
+    } else if (value && isValid) {
+      input.classList.remove('is-invalid');
+      input.classList.add('is-valid');
+      errorElement.style.display = 'none';
+      return true;
+    } else {
+      input.classList.remove('is-invalid', 'is-valid');
+      errorElement.style.display = 'none';
+      return false;
+    }
+  }
+
+  // Validate Entire Form
+  function validateForm(formId, submitBtnId) {
+    const form = document.getElementById(formId);
+    const submitBtn = document.getElementById(submitBtnId);
+    const isEditForm = formId === 'editAddressForm';
+    const prefix = isEditForm ? 'edit' : '';
+    
+    const nameInput = document.getElementById(`${prefix}addressName`);
+    const mobileInput = document.getElementById(`${prefix}mobileNumber`);
+    const buildingInput = document.getElementById(`${prefix}buildingname`);
+    const streetInput = document.getElementById(`${prefix}street`);
+    const cityInput = document.getElementById(`${prefix}city`);
+    const stateInput = document.getElementById(`${prefix}state`);
+    const pincodeInput = document.getElementById(`${prefix}PINCode`);
+    const addressTypeInputs = form.querySelectorAll('input[name="addressType"]');
+    
+    const nameError = document.getElementById(`${prefix}nameError`);
+    const mobileError = document.getElementById(`${prefix}mobileError`);
+    const buildingError = document.getElementById(`${prefix}buildingError`);
+    const streetError = document.getElementById(`${prefix}streetError`);
+    const cityError = document.getElementById(`${prefix}cityError`);
+    const stateError = document.getElementById(`${prefix}stateError`);
+    const pinError = document.getElementById(`${prefix}pinError`);
+    const typeError = document.getElementById(`${prefix}typeError`);
+    
+    const isAddressTypeSelected = Array.from(addressTypeInputs).some(input => input.checked);
+    
+    const nameValid = validateField(nameInput, validationRules.name, nameError);
+    const mobileValid = validateField(mobileInput, validationRules.mobile, mobileError);
+    const buildingValid = validateField(buildingInput, validationRules.building, buildingError);
+    const streetValid = validateField(streetInput, validationRules.street, streetError);
+    const cityValid = validateField(cityInput, validationRules.city, cityError);
+    const stateValid = validateField(stateInput, validationRules.state, stateError);
+    const pincodeValid = validateField(pincodeInput, validationRules.pincode, pinError);
+    
+    if (isAddressTypeSelected) {
+      typeError.style.display = 'none';
+    }
+    
+    const allValid = nameValid && mobileValid && buildingValid && streetValid && 
+                     cityValid && stateValid && pincodeValid && isAddressTypeSelected;
+    
+    submitBtn.disabled = !allValid;
+    return allValid;
+  }
+
+  // Setup Form Validation
+  function setupFormValidation(formId, submitBtnId) {
+    const form = document.getElementById(formId);
+    const isEditForm = formId === 'editAddressForm';
+    const prefix = isEditForm ? 'edit' : '';
+    
+    const inputs = [
+      document.getElementById(`${prefix}addressName`),
+      document.getElementById(`${prefix}mobileNumber`),
+      document.getElementById(`${prefix}buildingname`),
+      document.getElementById(`${prefix}street`),
+      document.getElementById(`${prefix}city`),
+      document.getElementById(`${prefix}state`),
+      document.getElementById(`${prefix}PINCode`)
+    ];
+    
+    const addressTypeInputs = form.querySelectorAll('input[name="addressType"]');
+    
+    inputs.forEach(input => {
+      input.addEventListener('input', () => validateForm(formId, submitBtnId));
+      input.addEventListener('blur', () => validateForm(formId, submitBtnId));
+    });
+    
+    addressTypeInputs.forEach(input => {
+      input.addEventListener('change', () => validateForm(formId, submitBtnId));
+    });
+  }
+
+  // Initialize validation for both forms
+  setupFormValidation('addressForm', 'addAddressBtn');
+  setupFormValidation('editAddressForm', 'updateAddressBtn');
+
   // Open Add Address Modal
   document.getElementById('openAddressModal').addEventListener('click', function () {
+    document.getElementById('addressForm').reset();
+    document.getElementById('addAddressBtn').disabled = true;
+    
+    // Clear validation states
+    const inputs = document.querySelectorAll('#addressForm .form-control');
+    inputs.forEach(input => {
+      input.classList.remove('is-valid', 'is-invalid');
+    });
+    const errors = document.querySelectorAll('#addressForm .error-message');
+    errors.forEach(error => {
+      error.style.display = 'none';
+    });
+    
     $('#addressModal').modal('show');
   });
 
   // Save New Address
   document.getElementById('addressForm').addEventListener('submit', function (event) {
     event.preventDefault();
+
+    if (!validateForm('addressForm', 'addAddressBtn')) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Invalid Form',
+        text: 'Please fill all fields correctly'
+      });
+      return;
+    }
 
     const addressData = {
       addressName: document.getElementById('addressName').value,
@@ -197,15 +388,6 @@
       PINCode: document.getElementById('PINCode').value,
       addressType: document.querySelector('input[name="addressType"]:checked')?.value,
     };
-
-    if (!addressData.addressType) {
-      Swal.fire({
-        icon: 'warning',
-        title: 'Missing Information',
-        text: 'Please select an address type'
-      });
-      return;
-    }
 
     fetch('/saveaddress', {
       method: 'POST',
@@ -219,7 +401,7 @@
         if (data.message) {
           document.getElementById('addressForm').reset();
           $('#addressModal').modal('hide');
-          loadAddresses(); // Reload addresses instead of full page reload
+          loadAddresses();
           Swal.fire({
             icon: 'success',
             title: 'Success!',
@@ -321,7 +503,7 @@
           .then(response => response.json())
           .then(data => {
             if (data.message) {
-              loadAddresses(); // Reload addresses instead of full page reload
+              loadAddresses();
               Swal.fire({
                 icon: 'success',
                 title: 'Deleted!',
@@ -385,6 +567,11 @@
         // Store the address ID for update
         document.getElementById('editAddressForm').setAttribute('data-current-address-id', addressId);
         
+        // Validate form after populating to enable/disable submit button
+        setTimeout(() => {
+          validateForm('editAddressForm', 'updateAddressBtn');
+        }, 100);
+        
         // Show the modal
         $('#editAddressModal').modal('show');
       })
@@ -402,6 +589,15 @@
   document.getElementById('editAddressForm').addEventListener('submit', function (event) {
     event.preventDefault();
 
+    if (!validateForm('editAddressForm', 'updateAddressBtn')) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Invalid Form',
+        text: 'Please fill all fields correctly'
+      });
+      return;
+    }
+
     const addressId = this.getAttribute('data-current-address-id');
     const updatedAddressData = {
       addressName: document.getElementById('editaddressName').value,
@@ -413,15 +609,6 @@
       PINCode: document.getElementById('editPINCode').value,
       addressType: document.querySelector('#editAddressForm input[name="addressType"]:checked')?.value,
     };
-
-    if (!updatedAddressData.addressType) {
-      Swal.fire({
-        icon: 'warning',
-        title: 'Missing Information',
-        text: 'Please select an address type'
-      });
-      return;
-    }
 
     console.log('Updating address with ID:', addressId);
     console.log('Update data:', updatedAddressData);
@@ -443,7 +630,7 @@
         console.log('Update response:', data);
         if (data.message) {
           $('#editAddressModal').modal('hide');
-          loadAddresses(); // Reload addresses instead of full page reload
+          loadAddresses();
           Swal.fire({
             icon: 'success',
             title: 'Success!',
