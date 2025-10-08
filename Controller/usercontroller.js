@@ -709,15 +709,15 @@ module.exports = {
     });
   },
 
-  // 4. In topupwallet function, add these logs
   topupwallet: async (req, res) => {
     console.log("=== TOPUP WALLET FUNCTION CALLED ===");
     console.log("Request body:", req.body);
     console.log("Session user:", req.session.user);
 
     try {
-      const amount = req.body.amount || 100; // Use body amount or default
+      const { amount, razorpayOrderId } = req.body; // Use consistent key name
       console.log("Amount to add:", amount, "Type:", typeof amount);
+      console.log("Razorpay Order ID:", razorpayOrderId);
 
       const user = req.session.user;
       console.log("User from session:", user);
@@ -734,7 +734,7 @@ module.exports = {
       console.log("User ID:", userId);
 
       console.log("=== FINDING WALLET ===");
-      const wallet = await Wallet.findOne({ user: userId });
+      let wallet = await Wallet.findOne({ user: userId });
       console.log("Wallet found:", wallet);
 
       if (!wallet) {
@@ -742,18 +742,29 @@ module.exports = {
         console.error("Creating new wallet for user:", userId);
 
         // Create new wallet if not exists
-        const newWallet = new Wallet({
+        wallet = new Wallet({
           user: userId,
-          balance: amount,
-          transactiontype: "Top-up",
+          balance: Number(amount),
+          walletTransactions: [
+            {
+              type: "credit",
+              amount: Number(amount),
+              description: "Wallet top-up",
+              date: new Date(),
+              razorpayOrderId: razorpayOrderId || null,
+            },
+          ],
         });
 
-        const savedWallet = await newWallet.save();
+        const savedWallet = await wallet.save();
         console.log("New wallet created:", savedWallet);
 
         return res.status(200).json({
           message: "Wallet created and balance updated successfully",
           newBalance: savedWallet.balance,
+          amount: Number(amount),
+          razorpayOrderId: razorpayOrderId || null,
+          transaction: savedWallet.walletTransactions[0],
         });
       }
 
@@ -762,7 +773,14 @@ module.exports = {
       console.log("Amount to add:", amount);
 
       wallet.balance += Number(amount); // Ensure amount is a number
-      wallet.transactiontype = "Top-up";
+      const newTransaction = {
+        type: "credit",
+        amount: Number(amount),
+        description: "Wallet top-up",
+        date: new Date(),
+        razorpayOrderId: razorpayOrderId || null,
+      };
+      wallet.walletTransactions.push(newTransaction);
 
       console.log("New balance before save:", wallet.balance);
 
@@ -772,6 +790,9 @@ module.exports = {
       res.status(200).json({
         message: "Wallet balance updated successfully",
         newBalance: savedWallet.balance,
+        amount: Number(amount),
+        razorpayOrderId: razorpayOrderId || null,
+        transaction: newTransaction,
       });
     } catch (error) {
       console.error("=== TOPUP WALLET ERROR ===");

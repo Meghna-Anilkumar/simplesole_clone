@@ -201,23 +201,18 @@
               <div class="label">Date:</div>
               <div class="value"><%= new Date(transaction.date).toLocaleDateString('en-IN') %></div>
             </div>
-            <% if (transaction.orderId && transaction.orderId.orderId) { %>
+            <% if (transaction.orderId && !transaction.razorpayOrderId) { %>
               <div class="transaction-row">
                 <div class="label">Order ID:</div>
-                <div class="value"><%= transaction.orderId.orderId %></div>
+                <div class="value"><a href="/orderdetails/<%= transaction.orderId %>"><%= transaction.orderId %></a></div>
               </div>
               <div class="transaction-row">
                 <div class="label">Payment Method:</div>
-                <div class="value"><%= transaction.orderId.paymentMethod || 'N/A' %></div>
+                <div class="value"><%= transaction.paymentMethod || 'N/A' %></div>
               </div>
               <div class="transaction-row">
                 <div class="label">Order Status:</div>
-                <div class="value"><%= transaction.orderId.orderStatus || 'N/A' %></div>
-              </div>
-            <% } else { %>
-              <div class="transaction-row">
-                <div class="label">Order:</div>
-                <div class="value">Not associated with an order</div>
+                <div class="value"><%= transaction.orderStatus || 'N/A' %></div>
               </div>
             <% } %>
           </div>
@@ -287,8 +282,18 @@
   }
 
   function updateBalanceDisplay(newBalance) {
+    console.log("=== UPDATING BALANCE DISPLAY ===");
+    console.log("New balance received:", newBalance);
+
     const balanceElement = document.getElementById("balanceAmount");
     const balanceDisplay = document.getElementById("walletBalanceDisplay");
+
+    // Ensure newBalance is a valid number
+    if (typeof newBalance !== 'number' || isNaN(newBalance)) {
+      console.error("Invalid balance value:", newBalance);
+      alert("Error: Invalid wallet balance received");
+      return;
+    }
 
     balanceDisplay.classList.add("balance-updated");
     balanceElement.textContent = newBalance.toFixed(2);
@@ -298,6 +303,9 @@
   }
 
   function addTransactionToHistory(transaction) {
+    console.log("=== ADDING TRANSACTION TO HISTORY ===");
+    console.log("Transaction:", transaction);
+
     const transactionDetails = document.querySelector(".transaction-details");
     const noTransactionsMsg = transactionDetails.querySelector("p");
 
@@ -328,27 +336,22 @@
         <div class="value">${new Date(transaction.date).toLocaleDateString('en-IN')}</div>
       </div>
       ${
-        transaction.orderId && transaction.orderId.orderId
+        transaction.orderId && !transaction.razorpayOrderId
           ? `
             <div class="transaction-row">
               <div class="label">Order ID:</div>
-              <div class="value">${transaction.orderId.orderId}</div>
+              <div class="value"><a href="/orderdetails/${transaction.orderId}">${transaction.orderId}</a></div>
             </div>
             <div class="transaction-row">
               <div class="label">Payment Method:</div>
-              <div class="value">${transaction.orderId.paymentMethod || 'N/A'}</div>
+              <div class="value">${transaction.paymentMethod || 'N/A'}</div>
             </div>
             <div class="transaction-row">
               <div class="label">Order Status:</div>
-              <div class="value">${transaction.orderId.orderStatus || 'N/A'}</div>
+              <div class="value">${transaction.orderStatus || 'N/A'}</div>
             </div>
           `
-          : `
-            <div class="transaction-row">
-              <div class="label">Order:</div>
-              <div class="value">Not associated with an order</div>
-            </div>
-          `
+          : ''
       }
     `;
 
@@ -384,11 +387,12 @@
         amount: 10000, // 100 INR in paisa
       }),
     })
-      .then((response) => {
+      .then(async (response) => {
         console.log("=== RAZORPAY RESPONSE ===");
         console.log("Response status:", response.status);
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+          const text = await response.text();
+          throw new Error(`HTTP error! status: ${response.status}, body: ${text}`);
         }
         return response.json();
       })
@@ -415,7 +419,7 @@
             console.log("=== PAYMENT SUCCESS ===");
             console.log("Payment response:", response);
             const amountInRupees = data.amount / 100;
-            updateWalletBalance(amountInRupees);
+            updateWalletBalance(amountInRupees, response.razorpay_order_id);
           },
           prefill: {
             name: "John Doe",
@@ -456,9 +460,10 @@
       });
   }
 
-  function updateWalletBalance(amount) {
+  function updateWalletBalance(amount, razorpayOrderId) {
     console.log("=== UPDATING WALLET BALANCE ===");
     console.log("Amount to update:", amount);
+    console.log("Razorpay Order ID:", razorpayOrderId);
 
     setButtonLoading(true);
 
@@ -469,27 +474,37 @@
       },
       body: JSON.stringify({
         amount: amount,
+        razorpayOrderId: razorpayOrderId
       }),
     })
-      .then((response) => {
+      .then(async (response) => {
         console.log("=== WALLET UPDATE RESPONSE ===");
         console.log("Response status:", response.status);
+        const text = await response.text();
+        console.log("Raw response:", text);
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+          throw new Error(`HTTP error! status: ${response.status}, body: ${text}`);
         }
-        return response.json();
+        return JSON.parse(text);
       })
       .then((data) => {
         console.log("=== WALLET UPDATE SUCCESS ===");
-        console.log("Wallet balance updated successfully:", data);
+        console.log("Parsed response data:", data);
+
+        if (!data || typeof data.newBalance !== 'number' || isNaN(data.newBalance)) {
+          console.error("Invalid or missing newBalance in response:", data);
+          alert("Error: Invalid wallet balance received from server");
+          setButtonLoading(false);
+          return;
+        }
 
         updateBalanceDisplay(data.newBalance);
         addTransactionToHistory({
           type: "credit",
-          amount: data.amount,
+          amount: data.amount || amount,
           description: "Wallet top-up",
           date: new Date(),
-          orderId: null,
+          razorpayOrderId: data.razorpayOrderId || null
         });
         showSuccessMessage();
 
@@ -513,18 +528,23 @@
           "Content-Type": "application/json",
         },
       })
-        .then((response) => {
+        .then(async (response) => {
           if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            const text = await response.text();
+            throw new Error(`HTTP error! status: ${response.status}, body: ${text}`);
           }
           return response.json();
         })
         .then((data) => {
-          if (data.transaction) {
+          console.log("=== CHECK ORDER TRANSACTION RESPONSE ===");
+          console.log("Data:", data);
+          if (data.transaction && typeof data.newBalance === 'number' && !isNaN(data.newBalance)) {
             updateBalanceDisplay(data.newBalance);
             addTransactionToHistory(data.transaction);
             sessionStorage.removeItem("lastOrderId");
             showSuccessMessage("Order payment processed successfully!");
+          } else {
+            console.error("Invalid transaction or balance data:", data);
           }
         })
         .catch((error) => {
