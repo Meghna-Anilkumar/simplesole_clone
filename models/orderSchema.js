@@ -20,7 +20,7 @@ const orderSchema = new mongoose.Schema({
       },
       size: {
         type: String,
-        required: true, // Size is required for each item
+        required: true,
       },
       itemstatus: {
         type: String,
@@ -30,7 +30,7 @@ const orderSchema = new mongoose.Schema({
       cancellationReason: {
         type: String,
         required: function () {
-          return this.itemStatus === "CANCELLED";
+          return this.itemstatus === "CANCELLED";
         },
       },
     },
@@ -42,6 +42,10 @@ const orderSchema = new mongoose.Schema({
   },
   totalAmount: {
     type: Number,
+  },
+  refundedAmount: {
+    type: Number,
+    default: 0,
   },
   paymentMethod: {
     type: String,
@@ -78,7 +82,7 @@ const orderSchema = new mongoose.Schema({
   returnReason: {
     type: String,
     required: function () {
-      return this.orderStatus === "DELIVERED";
+      return this.orderStatus === "RETURN REQUESTED";
     },
   },
   orderId: {
@@ -99,8 +103,10 @@ const orderSchema = new mongoose.Schema({
 
 orderSchema.pre("save", async function (next) {
   try {
-    const randomNumber = Math.floor(Math.random() * 90000) + 10000;
-    this.orderId = `#${randomNumber}`;
+    if (!this.orderId) {
+      const randomNumber = Math.floor(Math.random() * 90000) + 10000;
+      this.orderId = `#${randomNumber}`;
+    }
     next();
   } catch (error) {
     next(error);

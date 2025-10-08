@@ -1,6 +1,4 @@
 const mongoose = require("mongoose");
-const validator = require("validator");
-const bcrypt = require("bcrypt");
 const { generateReferralCode } = require("../utils/referralcode");
 
 const userSchema = new mongoose.Schema({

@@ -1,402 +1,537 @@
-<%-include('./header')%>
+<%- include('./header') %>
 
 <style>
-    body {
-        margin: 0;
-        padding: 0;
-    }
+  body {
+    margin: 0;
+    padding: 0;
+  }
 
-    header {
-        width: 150px;
-        background-color: #333; 
-        color: #fff; 
-        padding: 10px;
-    }
+  header {
+    width: 150px;
+    background-color: #333;
+    color: #fff;
+    padding: 10px;
+  }
 
-    main {
-        margin-left: 150px;
-        padding: 20px;
-    }
+  main {
+    margin-left: 150px;
+    padding: 20px;
+  }
 
-    .wallet-container {
-        max-width: 600px;
-        margin-top: 150px;
-    }
+  .wallet-container {
+    max-width: 600px;
+    margin-top: 150px;
+  }
 
-    .wallet-balance {
-        border: 1px solid #ccc; 
-        padding: 20px;
-        text-align: center;
-    }
+  .wallet-balance {
+    border: 1px solid #ccc;
+    padding: 20px;
+    text-align: center;
+  }
 
-    footer {
-        text-align: center;
-        padding: 10px;
-    }
-    .transaction-details {
-        margin-top: 50px;
-    }
+  footer {
+    text-align: center;
+    padding: 10px;
+  }
 
-    .transaction-box {
-        border: 1px solid #ccc;
-        padding: 20px;
-        margin-top: 20px;
-    }
+  .transaction-details {
+    margin-top: 50px;
+  }
 
-    .transaction-row {
-        display: flex;
-        flex-wrap: wrap;
-        margin-bottom: 10px;
-    }
+  .transaction-box {
+    border: 1px solid #ccc;
+    padding: 20px;
+    margin-top: 20px;
+  }
 
-    .transaction-row .label {
-        width: 120px;
-        font-weight: bold;
-    }
+  .transaction-row {
+    display: flex;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+  }
 
-    .transaction-row .value {
-        flex: 1;
-    }
+  .transaction-row .label {
+    width: 120px;
+    font-weight: bold;
+  }
 
-    /* Button styling */
-    .top-up-button {
-        background-color: #4CAF50; /* Green */
-        border: none;
-        color: white;
-        padding: 10px 20px;
-        text-align: center;
-        text-decoration: none;
-        display: inline-block;
-        font-size: 16px;
-        margin: 4px 2px;
-        cursor: pointer;
-        border-radius: 8px;
-        transition-duration: 0.4s;
-    }
+  .transaction-row .value {
+    flex: 1;
+  }
 
-    .top-up-button:hover {
-        background-color: #45a049; /* Darker Green */
-    }
+  .top-up-button {
+    background-color: #4caf50; 
+    border: none;
+    color: white;
+    padding: 10px 20px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 16px;
+    margin: 4px 2px;
+    cursor: pointer;
+    border-radius: 8px;
+    transition-duration: 0.4s;
+  }
 
-    .top-up-button:disabled {
-        background-color: #cccccc;
-        cursor: not-allowed;
-    }
+  .top-up-button:hover {
+    background-color: #45a049; 
+  }
 
-    /* Success message styling */
-    .success-message {
-        background-color: #d4edda;
-        color: #155724;
-        padding: 10px;
-        border: 1px solid #c3e6cb;
-        border-radius: 4px;
-        margin: 10px 0;
-        display: none;
-    }
+  .top-up-button:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+  }
 
-    /* Loading animation */
-    .loading {
-        display: inline-block;
-        width: 20px;
-        height: 20px;
-        border: 3px solid #f3f3f3;
-        border-top: 3px solid #3498db;
-        border-radius: 50%;
-        animation: spin 1s linear infinite;
-    }
+  .success-message {
+    background-color: #d4edda;
+    color: #155724;
+    padding: 10px;
+    border: 1px solid #c3e6cb;
+    border-radius: 4px;
+    margin: 10px 0;
+    display: none;
+  }
 
-    @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-    }
+  .loading {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid #3498db;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
 
-    /* Balance update animation */
-    .balance-updated {
-        animation: balanceFlash 0.5s ease-in-out;
+  @keyframes spin {
+    0% {
+      transform: rotate(0deg);
     }
+    100% {
+      transform: rotate(360deg);
+    }
+  }
 
-    @keyframes balanceFlash {
-        0% { background-color: transparent; }
-        50% { background-color: #d4edda; }
-        100% { background-color: transparent; }
+  .balance-updated {
+    animation: balanceFlash 0.5s ease-in-out;
+  }
+
+  @keyframes balanceFlash {
+    0% {
+      background-color: transparent;
     }
+    50% {
+      background-color: #d4edda;
+    }
+    100% {
+      background-color: transparent;
+    }
+  }
+
+  .pagination {
+    margin-top: 20px;
+    text-align: center;
+  }
+
+  .pagination a {
+    display: inline-block;
+    padding: 8px 12px;
+    margin: 0 4px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    text-decoration: none;
+    color: #333;
+    transition: background-color 0.3s;
+  }
+
+  .pagination a:hover {
+    background-color: #f0f0f0;
+  }
+
+  .pagination a.active {
+    background-color: #4caf50;
+    color: white;
+    border-color: #4caf50;
+  }
+
+  .pagination a.disabled {
+    color: #ccc;
+    cursor: not-allowed;
+  }
 </style>
 
 <main>
-    <div class="wallet-container">
-        <h2 style="color: rgb(255, 63, 108);">My Wallet</h2>
-        <div class="wallet-balance">
-            <h2 id="walletBalanceDisplay">
-                <i class="fas fa-wallet"></i> 
-                Wallet Balance: ₹ <span id="balanceAmount"><%= walletBalance %></span>
-            </h2>
-            
-            <!-- Success message -->
-            <div id="successMessage" class="success-message">
-                Wallet topped up successfully!
-            </div>
-            
-            <!-- Top-up button -->
-            <button id="topUpBtn" class="top-up-button" onclick="openRazorpay()">
-                <span id="buttonText">Top Up</span>
-                <span id="loadingSpinner" class="loading" style="display: none;"></span>
-            </button>
-        </div>
-        
-        <div class="transaction-details">
-            <% if (orders.length > 0) { %>
-                <% orders.forEach(order => { %>
-                    <% if (order.paymentMethod === 'WALLET' || order.orderStatus === 'RETURNED') { %>
-                        <div class="transaction-box">
-                            <div class="transaction-row">
-                                <div class="label">Transaction Type:</div>
-                                <div class="value"><%= order.transactiontype %></div>
-                            </div>
-                            <div class="transaction-row">
-                                <div class="label">Amount:</div>
-                                <div class="value">₹ <%= order.totalAmount %></div>
-                            </div>
-                        </div>
-                    <% } else if ((order.orderStatus === 'CANCELLED' && order.paymentMethod !== 'CASH_ON_DELIVERY') ) { %>
-                        <!-- Display wallet history for cancelled COD orders or returned orders -->
-                        <div class="transaction-box">
-                            <div class="transaction-row">
-                                <div class="label">Transaction Type:</div>
-                                <div class="value"><%= order.transactiontype %></div>
-                            </div>
-                            <div class="transaction-row">
-                                <div class="label">Amount:</div>
-                                <div class="value">₹ <%= order.totalAmount %></div>
-                            </div>
-                        </div>
-                    <% } %>
-                <% }); %>
-            <% } else { %>
-                <p>No wallet transactions found.</p>
-            <% } %>
-        </div>
+  <div class="wallet-container">
+    <h2 style="color: rgb(255, 63, 108)">My Wallet</h2>
+    <div class="wallet-balance">
+      <h2 id="walletBalanceDisplay">
+        <i class="fas fa-wallet"></i>
+        Wallet Balance: ₹ <span id="balanceAmount"><%= walletBalance.toFixed(2) %></span>
+      </h2>
+
+      <!-- Success message -->
+      <div id="successMessage" class="success-message">
+        Wallet topped up successfully!
+      </div>
+
+      <!-- Top-up button -->
+      <button id="topUpBtn" class="top-up-button" onclick="openRazorpay()">
+        <span id="buttonText">Top Up</span>
+        <span id="loadingSpinner" class="loading" style="display: none"></span>
+      </button>
     </div>
+
+    <div class="transaction-details">
+      <% if (walletHistory && walletHistory.length > 0) { %>
+        <% walletHistory.forEach(transaction => { %>
+          <div class="transaction-box">
+            <div class="transaction-row">
+              <div class="label">Type:</div>
+              <div class="value"><%= transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1) %></div>
+            </div>
+            <div class="transaction-row">
+              <div class="label">Amount:</div>
+              <div class="value">₹<%= transaction.amount.toFixed(2) %></div>
+            </div>
+            <div class="transaction-row">
+              <div class="label">Description:</div>
+              <div class="value"><%= transaction.description %></div>
+            </div>
+            <div class="transaction-row">
+              <div class="label">Date:</div>
+              <div class="value"><%= new Date(transaction.date).toLocaleDateString('en-IN') %></div>
+            </div>
+            <% if (transaction.orderId && transaction.orderId.orderId) { %>
+              <div class="transaction-row">
+                <div class="label">Order ID:</div>
+                <div class="value"><%= transaction.orderId.orderId %></div>
+              </div>
+              <div class="transaction-row">
+                <div class="label">Payment Method:</div>
+                <div class="value"><%= transaction.orderId.paymentMethod || 'N/A' %></div>
+              </div>
+              <div class="transaction-row">
+                <div class="label">Order Status:</div>
+                <div class="value"><%= transaction.orderId.orderStatus || 'N/A' %></div>
+              </div>
+            <% } else { %>
+              <div class="transaction-row">
+                <div class="label">Order:</div>
+                <div class="value">Not associated with an order</div>
+              </div>
+            <% } %>
+          </div>
+        <% }) %>
+      <% } else { %>
+        <p>No wallet transactions found.</p>
+      <% } %>
+
+      <!-- Pagination controls -->
+      <% if (pagination.totalPages > 0) { %>
+        <div class="pagination">
+          <!-- Previous button -->
+          <a href="/wallet?page=<%= pagination.currentPage - 1 %>&pageSize=<%= pagination.pageSize %>" 
+             class="<%= pagination.currentPage === 1 ? 'disabled' : '' %>">
+            Previous
+          </a>
+
+          <!-- Page numbers -->
+          <% for(let i = 1; i <= pagination.totalPages; i++) { %>
+            <a href="/wallet?page=<%= i %>&pageSize=<%= pagination.pageSize %>" 
+               class="<%= pagination.currentPage === i ? 'active' : '' %>">
+              <%= i %>
+            </a>
+          <% } %>
+
+          <!-- Next button -->
+          <a href="/wallet?page=<%= pagination.currentPage + 1 %>&pageSize=<%= pagination.pageSize %>" 
+             class="<%= pagination.currentPage === pagination.totalPages ? 'disabled' : '' %>">
+            Next
+          </a>
+        </div>
+      <% } %>
+    </div>
+  </div>
 </main>
 
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 <script>
-    // Global variables
-    let isProcessing = false;
-    
-    function setButtonLoading(loading) {
-        const button = document.getElementById('topUpBtn');
-        const buttonText = document.getElementById('buttonText');
-        const loadingSpinner = document.getElementById('loadingSpinner');
-        
-        if (loading) {
-            button.disabled = true;
-            buttonText.style.display = 'none';
-            loadingSpinner.style.display = 'inline-block';
-            isProcessing = true;
-        } else {
-            button.disabled = false;
-            buttonText.style.display = 'inline';
-            loadingSpinner.style.display = 'none';
-            isProcessing = false;
-        }
+  // Global variables
+  let isProcessing = false;
+
+  function setButtonLoading(loading) {
+    const button = document.getElementById("topUpBtn");
+    const buttonText = document.getElementById("buttonText");
+    const loadingSpinner = document.getElementById("loadingSpinner");
+
+    if (loading) {
+      button.disabled = true;
+      buttonText.style.display = "none";
+      loadingSpinner.style.display = "inline-block";
+      isProcessing = true;
+    } else {
+      button.disabled = false;
+      buttonText.style.display = "inline";
+      loadingSpinner.style.display = "none";
+      isProcessing = false;
     }
-    
-    function showSuccessMessage() {
-        const successMessage = document.getElementById('successMessage');
-        successMessage.style.display = 'block';
-        setTimeout(() => {
-            successMessage.style.display = 'none';
-        }, 3000);
-    }
-    
-    function updateBalanceDisplay(newBalance) {
-        const balanceElement = document.getElementById('balanceAmount');
-        const balanceDisplay = document.getElementById('walletBalanceDisplay');
-        
-        // Add animation class
-        balanceDisplay.classList.add('balance-updated');
-        
-        // Update the balance
-        balanceElement.textContent = newBalance;
-        
-        // Remove animation class after animation completes
-        setTimeout(() => {
-            balanceDisplay.classList.remove('balance-updated');
-        }, 500);
+  }
+
+  function showSuccessMessage(message = "Wallet topped up successfully!") {
+    const successMessage = document.getElementById("successMessage");
+    successMessage.textContent = message;
+    successMessage.style.display = "block";
+    setTimeout(() => {
+      successMessage.style.display = "none";
+    }, 3000);
+  }
+
+  function updateBalanceDisplay(newBalance) {
+    const balanceElement = document.getElementById("balanceAmount");
+    const balanceDisplay = document.getElementById("walletBalanceDisplay");
+
+    balanceDisplay.classList.add("balance-updated");
+    balanceElement.textContent = newBalance.toFixed(2);
+    setTimeout(() => {
+      balanceDisplay.classList.remove("balance-updated");
+    }, 500);
+  }
+
+  function addTransactionToHistory(transaction) {
+    const transactionDetails = document.querySelector(".transaction-details");
+    const noTransactionsMsg = transactionDetails.querySelector("p");
+
+    if (
+      noTransactionsMsg &&
+      noTransactionsMsg.textContent.includes("No wallet transactions found")
+    ) {
+      noTransactionsMsg.remove();
     }
 
-    function openRazorpay() {
-        if (isProcessing) {
-            console.log('Payment already in progress');
-            return;
+    const newTransactionBox = document.createElement("div");
+    newTransactionBox.className = "transaction-box";
+    newTransactionBox.innerHTML = `
+      <div class="transaction-row">
+        <div class="label">Type:</div>
+        <div class="value">${transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}</div>
+      </div>
+      <div class="transaction-row">
+        <div class="label">Amount:</div>
+        <div class="value">₹${transaction.amount.toFixed(2)}</div>
+      </div>
+      <div class="transaction-row">
+        <div class="label">Description:</div>
+        <div class="value">${transaction.description}</div>
+      </div>
+      <div class="transaction-row">
+        <div class="label">Date:</div>
+        <div class="value">${new Date(transaction.date).toLocaleDateString('en-IN')}</div>
+      </div>
+      ${
+        transaction.orderId && transaction.orderId.orderId
+          ? `
+            <div class="transaction-row">
+              <div class="label">Order ID:</div>
+              <div class="value">${transaction.orderId.orderId}</div>
+            </div>
+            <div class="transaction-row">
+              <div class="label">Payment Method:</div>
+              <div class="value">${transaction.orderId.paymentMethod || 'N/A'}</div>
+            </div>
+            <div class="transaction-row">
+              <div class="label">Order Status:</div>
+              <div class="value">${transaction.orderId.orderStatus || 'N/A'}</div>
+            </div>
+          `
+          : `
+            <div class="transaction-row">
+              <div class="label">Order:</div>
+              <div class="value">Not associated with an order</div>
+            </div>
+          `
+      }
+    `;
+
+    newTransactionBox.style.opacity = "0";
+    newTransactionBox.style.transform = "translateY(-10px)";
+    transactionDetails.insertBefore(
+      newTransactionBox,
+      transactionDetails.firstElementChild
+    );
+
+    setTimeout(() => {
+      newTransactionBox.style.transition = "opacity 0.3s ease, transform 0.3s ease";
+      newTransactionBox.style.opacity = "1";
+      newTransactionBox.style.transform = "translateY(0)";
+    }, 100);
+  }
+
+  function openRazorpay() {
+    if (isProcessing) {
+      console.log("Payment already in progress");
+      return;
+    }
+
+    console.log("=== OPENING RAZORPAY ===");
+    setButtonLoading(true);
+
+    fetch("/razorpay/wallet", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        amount: 10000, // 100 INR in paisa
+      }),
+    })
+      .then((response) => {
+        console.log("=== RAZORPAY RESPONSE ===");
+        console.log("Response status:", response.status);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
-        console.log('=== OPENING RAZORPAY ===');
-        setButtonLoading(true);
-        
-        fetch('/razorpay/wallet', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
+        return response.json();
+      })
+      .then((data) => {
+        console.log("=== RAZORPAY DATA ===");
+        console.log("Data received:", data);
+
+        if (data.error) {
+          console.error("Error in response:", data.error);
+          alert("Error: " + data.error);
+          setButtonLoading(false);
+          return;
+        }
+
+        var options = {
+          key: data.key_id,
+          amount: data.amount,
+          currency: "INR",
+          name: "Your Wallet",
+          description: "Top-up",
+          image: "https://example.com/your_logo.png",
+          order_id: data.id,
+          handler: function (response) {
+            console.log("=== PAYMENT SUCCESS ===");
+            console.log("Payment response:", response);
+            const amountInRupees = data.amount / 100;
+            updateWalletBalance(amountInRupees);
+          },
+          prefill: {
+            name: "John Doe",
+            email: "john@example.com",
+            contact: "9999999999",
+          },
+          theme: {
+            color: "#F37254",
+          },
+          modal: {
+            ondismiss: function () {
+              console.log("Payment modal closed");
+              setButtonLoading(false);
             },
-            body: JSON.stringify({
-                amount: 10000, // 100 INR in paisa
-            })
-        })
-        .then(response => {
-            console.log('=== RAZORPAY RESPONSE ===');
-            console.log('Response status:', response.status);
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            return response.json();
-        })
-        .then(data => {
-            console.log('=== RAZORPAY DATA ===');
-            console.log('Data received:', data);
-            
-            if (data.error) {
-                console.error('Error in response:', data.error);
-                alert('Error: ' + data.error);
-                setButtonLoading(false);
-                return;
-            }
-            
-            var options = {
-                "key": data.key_id,
-                "amount": data.amount,
-                "currency": "INR",
-                "name": "Your Wallet",
-                "description": "Top-up",
-                "image": "https://example.com/your_logo.png",
-                "order_id": data.id,
-                "handler": function (response) {
-                    console.log('=== PAYMENT SUCCESS ===');
-                    console.log('Payment response:', response);
-                    
-                    // Convert paisa to rupees for display
-                    const amountInRupees = data.amount / 100;
-                    updateWalletBalance(amountInRupees);
-                },
-                "prefill": {
-                    "name": "John Doe",
-                    "email": "john@example.com",
-                    "contact": "9999999999"
-                },
-                "theme": {
-                    "color": "#F37254"
-                },
-                "modal": {
-                    "ondismiss": function() {
-                        console.log('Payment modal closed');
-                        setButtonLoading(false);
-                    }
-                }
-            };
-            
-            console.log('=== RAZORPAY OPTIONS ===');
-            console.log('Options:', options);
-            
-            var rzp1 = new Razorpay(options);
-            
-            rzp1.on('payment.failed', function (response) {
-                console.error('=== PAYMENT FAILED ===');
-                console.error('Payment failed response:', response);
-                alert('Payment failed: ' + response.error.description);
-                setButtonLoading(false);
-            });
-            
-            // Reset loading state when modal opens
-            setButtonLoading(false);
-            rzp1.open();
-        })
-        .catch(error => {
-            console.error('=== FETCH ERROR ===');
-            console.error('Error:', error);
-            alert('Network error: ' + error.message);
-            setButtonLoading(false);
+          },
+        };
+
+        console.log("=== RAZORPAY OPTIONS ===");
+        console.log("Options:", options);
+
+        var rzp1 = new Razorpay(options);
+
+        rzp1.on("payment.failed", function (response) {
+          console.error("=== PAYMENT FAILED ===");
+          console.error("Payment failed response:", response);
+          alert("Payment failed: " + response.error.description);
+          setButtonLoading(false);
         });
-    }
 
-    function updateWalletBalance(amount) {
-        console.log('=== UPDATING WALLET BALANCE ===');
-        console.log('Amount to update:', amount);
-        
-        setButtonLoading(true);
-        
-        fetch('/wallet/topup', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                amount: amount
-            })
+        setButtonLoading(false);
+        rzp1.open();
+      })
+      .catch((error) => {
+        console.error("=== FETCH ERROR ===");
+        console.error("Error:", error);
+        alert("Network error: " + error.message);
+        setButtonLoading(false);
+      });
+  }
+
+  function updateWalletBalance(amount) {
+    console.log("=== UPDATING WALLET BALANCE ===");
+    console.log("Amount to update:", amount);
+
+    setButtonLoading(true);
+
+    fetch("/wallet/topup", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        amount: amount,
+      }),
+    })
+      .then((response) => {
+        console.log("=== WALLET UPDATE RESPONSE ===");
+        console.log("Response status:", response.status);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then((data) => {
+        console.log("=== WALLET UPDATE SUCCESS ===");
+        console.log("Wallet balance updated successfully:", data);
+
+        updateBalanceDisplay(data.newBalance);
+        addTransactionToHistory({
+          type: "credit",
+          amount: data.amount,
+          description: "Wallet top-up",
+          date: new Date(),
+          orderId: null,
+        });
+        showSuccessMessage();
+
+        setButtonLoading(false);
+      })
+      .catch((error) => {
+        console.error("=== WALLET UPDATE ERROR ===");
+        console.error("Error updating wallet balance:", error);
+        alert("Error updating wallet balance: " + error.message);
+        setButtonLoading(false);
+      });
+  }
+
+  // Check for new order transaction after page load
+  window.addEventListener("load", () => {
+    const lastOrderId = sessionStorage.getItem("lastOrderId");
+    if (lastOrderId) {
+      fetch(`/wallet/check-order-transaction/${lastOrderId}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          return response.json();
         })
-        .then(response => {
-            console.log('=== WALLET UPDATE RESPONSE ===');
-            console.log('Response status:', response.status);
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            return response.json();
-        })
-        .then(data => {
-            console.log('=== WALLET UPDATE SUCCESS ===');
-            console.log("Wallet balance updated successfully:", data);
-            
-            // Update the balance display without page reload
+        .then((data) => {
+          if (data.transaction) {
             updateBalanceDisplay(data.newBalance);
-            showSuccessMessage();
-            
-            setButtonLoading(false);
+            addTransactionToHistory(data.transaction);
+            sessionStorage.removeItem("lastOrderId");
+            showSuccessMessage("Order payment processed successfully!");
+          }
         })
-        .catch(error => {
-            console.error('=== WALLET UPDATE ERROR ===');
-            console.error('Error updating wallet balance:', error);
-            alert('Error updating wallet balance: ' + error.message);
-            setButtonLoading(false);
+        .catch((error) => {
+          console.error("Error checking order transaction:", error);
         });
     }
-    
-    // Add transaction to the transaction history dynamically
-    function addTransactionToHistory(amount) {
-        const transactionDetails = document.querySelector('.transaction-details');
-        const noTransactionsMsg = transactionDetails.querySelector('p');
-        
-        // Remove "No wallet transactions found" message if it exists
-        if (noTransactionsMsg && noTransactionsMsg.textContent.includes('No wallet transactions found')) {
-            noTransactionsMsg.remove();
-        }
-        
-        // Create new transaction box
-        const newTransactionBox = document.createElement('div');
-        newTransactionBox.className = 'transaction-box';
-        newTransactionBox.innerHTML = `
-            <div class="transaction-row">
-                <div class="label">Transaction Type:</div>
-                <div class="value">Top-up</div>
-            </div>
-            <div class="transaction-row">
-                <div class="label">Amount:</div>
-                <div class="value">₹ ${amount}</div>
-            </div>
-        `;
-        
-        // Add animation for new transaction
-        newTransactionBox.style.opacity = '0';
-        newTransactionBox.style.transform = 'translateY(-10px)';
-        
-        // Insert at the beginning of transaction details
-        transactionDetails.insertBefore(newTransactionBox, transactionDetails.firstElementChild);
-        
-        // Animate in
-        setTimeout(() => {
-            newTransactionBox.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
-            newTransactionBox.style.opacity = '1';
-            newTransactionBox.style.transform = 'translateY(0)';
-        }, 100);
-    }
+  });
 </script>
 
 <%- include('./footer') %>

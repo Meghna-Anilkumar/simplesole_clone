@@ -11,11 +11,33 @@ const walletSchema = new mongoose.Schema({
         type: Number,
         default: 0,
     },
-    transactiontype:{
-        type:String,
-        
-    },
-});
+
+    walletTransactions: [
+        {
+            type: {
+                type: String,
+                enum: ["debit", "credit"],
+                required: true,
+            },
+            amount: {
+                type: Number,
+                required: true,
+            },
+            description: {
+                type: String,
+                required: true,
+            },
+            date: {
+                type: Date,
+                default: Date.now,
+            },
+            orderId: {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: 'Order',
+            },
+        }
+    ],
+}, { timestamps: true });
 
 const Wallet = mongoose.model('Wallet', walletSchema);
 

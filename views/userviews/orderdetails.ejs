@@ -42,6 +42,10 @@
     max-width: 100px;
     height: auto;
 }
+.cancelled-item {
+    color: red;
+    font-style: italic;
+}
 </style>
 
 <div class="main-content" style="margin-top: 100px;">
@@ -72,21 +76,25 @@
         <div class="product-info-box">
             <h2>Products</h2>
             <% order.items.forEach((item) => { %>
-                <% if (item.itemstatus !== 'CANCELLED') { %>
-                    <div class="row mb-3">
-                        <div class="col-md-2">
-                            <img src="<%= item.product.images[0] %>" class="img-fluid" alt="<%= item.product.name %>">
-                        </div>
-                        <div class="col-md-6">
-                            <p><strong>Product Name:</strong> <%= item.product.name %></p>
-                            <p><strong>Size:</strong> <%= item.size %></p>
-                            <p><strong>Price:</strong> &#8377;<%= item.price.toFixed(2) %></p>
-                            <p><strong>Quantity:</strong> <%= item.quantity %></p>
-                            <p><strong>Total:</strong> &#8377;<%= (item.price * item.quantity).toFixed(2) %></p>
-                        </div>
+                <div class="row mb-3">
+                    <div class="col-md-2">
+                        <img src="<%= item.product.images[0] %>" class="img-fluid" alt="<%= item.product.name %>">
                     </div>
-                    <hr>
-                <% } %>
+                    <div class="col-md-6">
+                        <p><strong>Product Name:</strong> <%= item.product.name %></p>
+                        <p><strong>Size:</strong> <%= item.size %></p>
+                        <p><strong>Price:</strong> &#8377;<%= item.price.toFixed(2) %></p>
+                        <p><strong>Quantity:</strong> <%= item.quantity %></p>
+                        <p><strong>Total:</strong> &#8377;<%= (item.price * item.quantity).toFixed(2) %></p>
+                        <% if (item.itemstatus === 'CANCELLED') { %>
+                            <p class="cancelled-item"><strong>Status:</strong> CANCELLED</p>
+                            <% if (item.cancellationReason) { %>
+                                <p class="cancelled-item"><strong>Cancellation Reason:</strong> <%= item.cancellationReason %></p>
+                            <% } %>
+                        <% } %>
+                    </div>
+                </div>
+                <hr>
             <% }); %>
         </div>
 
@@ -107,14 +115,16 @@
             <h2>Price Details</h2>
             <% let subtotal = order.items.reduce((sum, item) => item.itemstatus !== 'CANCELLED' ? sum + (item.price * item.quantity) : sum, 0); %>
             <p><strong>Subtotal:</strong> &#8377;<%= subtotal.toFixed(2) %></p>
-            <% if (order.couponCode && order.discountAmount > 0) { %>
+            <% let effectiveTotal = subtotal; %>
+            <% if (order.couponCode && order.discountAmount > 0 && subtotal > 0) { %>
                 <p><strong>Coupon Applied:</strong> <%= order.couponCode %></p>
                 <p><strong>Coupon Discount:</strong> -&#8377;<%= order.discountAmount.toFixed(2) %></p>
+                <% effectiveTotal = subtotal - order.discountAmount; %>
             <% } else { %>
                 <p><strong>Coupon Applied:</strong> None</p>
                 <p><strong>Coupon Discount:</strong> &#8377;0.00</p>
             <% } %>
-            <p><strong>Total Amount:</strong> &#8377;<%= order.totalAmount.toFixed(2) %></p>
+            <p><strong>Total Amount:</strong> &#8377;<%= effectiveTotal.toFixed(2) %></p>
         </div>
     </div>
 </div>
