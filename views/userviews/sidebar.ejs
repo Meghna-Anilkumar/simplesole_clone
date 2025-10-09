@@ -1,172 +1,198 @@
 <style>
 body {
-  background: rgb(186, 136, 205);
-  font-family: 'Poppins', sans-serif;
-  overflow-x: hidden;
+    background: rgb(186, 136, 205);
+    font-family: 'Poppins', sans-serif;
+    overflow-x: hidden;
 }
 
-/* Sidebar container */
 .sidebar {
-  background-color: #fff;
-  border-radius: 0 15px 15px 0;
-  box-shadow: 0 4px 20px rgba(104, 39, 115, 0.15);
-  padding: 25px 20px;
-  position: fixed;
-  left: 0;
-  top: 80px;
-  bottom: 0;
-  width: 280px;
-  z-index: 100;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
+    background-color: #fff;
+    border-radius: 0 15px 0 0; 
+    box-shadow: 0 4px 20px rgba(104, 39, 115, 0.15);
+    padding: 25px 20px;
+    position: fixed;
+    left: 0;
+    top: 80px;
+    bottom: 0;
+    width: 280px;
+    z-index: 100;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
 }
 
-/* Sidebar profile section */
+
 .sidebar .profile-section {
-  text-align: center;
-  border-bottom: 2px solid #f0f0f0;
-  padding-bottom: 20px;
-  margin-bottom: 25px;
-  flex-shrink: 0;
+    text-align: center;
+    border-bottom: 2px solid #f0f0f0;
+    padding-bottom: 20px;
+    margin-bottom: 25px;
+    flex-shrink: 0;
 }
 
 .sidebar .profile-section span {
-  display: block;
-  color: #333;
-  margin-bottom: 8px;
+    display: block;
+    color: #333;
+    margin-bottom: 8px;
 }
 
 .sidebar .profile-section .font-weight-bold {
-  font-size: 16px;
-  font-weight: 600;
-  color: #682773;
-  margin-bottom: 5px;
+    font-size: 16px;
+    font-weight: 600;
+    color: #682773;
+    margin-bottom: 5px;
 }
 
 .sidebar .profile-section .phone-number {
-  font-size: 14px;
-  font-weight: 500;
-  color: #555;
-  margin-bottom: 5px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #555;
+    margin-bottom: 5px;
 }
 
 .sidebar .profile-section .text-black-50 {
-  font-size: 13px;
-  color: #666;
-  word-break: break-word;
-  margin-bottom: 12px;
+    font-size: 13px;
+    color: #666;
+    word-break: break-word;
+    margin-bottom: 12px;
 }
 
 .sidebar .profile-section a {
-  color: #682773;
-  text-decoration: none;
-  font-weight: 600;
-  font-size: 14px;
-  display: inline-block;
-  padding: 6px 16px;
-  border: 2px solid #682773;
-  border-radius: 8px;
-  transition: all 0.3s ease;
-  margin-top: 5px;
+    color: #682773;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 14px;
+    display: inline-block;
+    padding: 6px 16px;
+    border: 2px solid #682773;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    margin-top: 5px;
 }
 
 .sidebar .profile-section a:hover {
-  background-color: #682773;
-  color: #fff;
+    background-color: #682773;
+    color: #fff;
 }
 
 /* Sidebar links */
 .sidebar ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  flex-grow: 1;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    flex-grow: 1;
 }
 
 .sidebar ul li {
-  margin: 10px 0;
+    margin: 10px 0;
 }
 
 .sidebar ul li a {
-  display: flex;
-  align-items: center;
-  padding: 12px 15px;
-  color: #333;
-  background-color: #f9f9f9;
-  border-radius: 10px;
-  font-weight: 500;
-  font-size: 14px;
-  transition: all 0.3s ease;
-  text-decoration: none;
-  border: 1px solid transparent;
+    display: flex;
+    align-items: center;
+    padding: 12px 15px;
+    color: #333;
+    background-color: #f9f9f9;
+    border-radius: 10px;
+    font-weight: 500;
+    font-size: 14px;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    border: 1px solid transparent;
 }
 
 .sidebar ul li a:hover {
-  background-color: #682773;
-  color: #fff;
-  transform: translateX(5px);
-  box-shadow: 0 2px 8px rgba(104, 39, 115, 0.2);
+    background-color: #682773;
+    color: #fff;
+    transform: translateX(5px);
+    box-shadow: 0 2px 8px rgba(104, 39, 115, 0.2);
 }
 
 .sidebar ul li a span {
-  margin-right: 10px;
-  font-size: 18px;
+    margin-right: 10px;
+    font-size: 18px;
 }
 
 /* Scrollbar styling for sidebar */
 .sidebar::-webkit-scrollbar {
-  width: 6px;
+    width: 6px;
 }
 
 .sidebar::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 10px;
+    background: #f1f1f1;
+    border-radius: 10px;
 }
 
 .sidebar::-webkit-scrollbar-thumb {
-  background: #ba68c8;
-  border-radius: 10px;
+    background: #ba68c8;
+    border-radius: 10px;
 }
 
 .sidebar::-webkit-scrollbar-thumb:hover {
-  background: #682773;
+    background: #682773;
 }
 
 /* Content area spacing for sidebar */
 .content-with-sidebar {
-  margin-left: 280px;
+    margin-left: 280px;
 }
 
 @media (max-width: 768px) {
-  .sidebar {
-    position: relative;
-    left: 0;
-    top: 0;
-    bottom: auto;
-    width: 100%;
-    border-radius: 15px;
-    margin-bottom: 20px;
-  }
-  
-  .content-with-sidebar {
-    margin-left: 0;
-  }
+    .sidebar {
+        position: relative;
+        left: 0;
+        top: 0;
+        bottom: auto;
+        width: 100%;
+        border-radius: 15px;
+        margin-bottom: 20px;
+    }
+    
+    .content-with-sidebar {
+        margin-left: 0;
+    }
 }
 </style>
 
 <div class="sidebar">
-  <div class="profile-section">
-    <span class="font-weight-bold" id="sidebarName"><%= data ? (data.firstName || '') : '' %> <%= data ? (data.lastName || '') : '' %></span>
-    <span class="phone-number" id="sidebarPhone"><%= data ? (data.mobileNumber || '') : '' %></span>
-    <span class="text-black-50"><%=data.user.email %></span>
-    <span><a href="/logout">Logout</a></span>
-  </div>
+    <div class="profile-section">
+        <span class="font-weight-bold" id="sidebarName"><%= data ? (data.firstName || '') : '' %> <%= data ? (data.lastName || '') : '' %></span>
+        <span class="phone-number" id="sidebarPhone"><%= data ? (data.mobileNumber || '') : '' %></span>
+        <span class="text-black-50"><%= data ? (data.user.email || '') : '' %></span>
+        <span><a href="#" id="logoutLink">Logout</a></span>
+    </div>
 
-  <ul>
-    <li><a href="/address"><span>🏠</span> Address Book</a></li>
-    <li><a href="/orders"><span>📦</span> Orders</a></li>
-    <li><a href="/wallet"><span>💰</span> Wallet</a></li>
-    <li><a href="/changepassword"><span>🔒</span> Change Password</a></li>
-  </ul>
+    <ul>
+        <li><a href="/address"><span>🏠</span> Address Book</a></li>
+        <li><a href="/orders"><span>📦</span> Orders</a></li>
+        <li><a href="/wallet"><span>💰</span> Wallet</a></li>
+        <li><a href="/changepassword"><span>🔒</span> Change Password</a></li>
+    </ul>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const logoutLink = document.getElementById('logoutLink');
+
+    logoutLink.addEventListener('click', function (event) {
+        event.preventDefault();
+
+        Swal.fire({
+            title: 'Are you sure?',
+            text: 'Do you want to log out?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#682773',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Yes, log out!',
+            position: 'center',
+            toast: false
+        }).then((result) => {
+            if (result.isConfirmed) {
+                window.location.href = '/logout'; 
+            }
+        });
+    });
+});
+</script>
