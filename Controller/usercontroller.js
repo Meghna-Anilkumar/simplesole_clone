@@ -202,23 +202,66 @@ module.exports = {
   editprofiledetails: async (req, res) => {
     try {
       const userId = req.session.user;
-
       const { firstName, lastName, mobileNumber } = req.body;
+
+      // Get current user details
+      const currentDetails = await UserDetails.findOne({ user: userId });
+
+      // Build update object with only changed fields
+      const updateFields = {};
+      if (
+        firstName !== undefined &&
+        (!currentDetails || currentDetails.firstName !== firstName)
+      ) {
+        updateFields.firstName = firstName;
+      }
+      if (
+        lastName !== undefined &&
+        (!currentDetails || currentDetails.lastName !== lastName)
+      ) {
+        updateFields.lastName = lastName;
+      }
+      if (
+        mobileNumber !== undefined &&
+        (!currentDetails || currentDetails.mobileNumber !== mobileNumber)
+      ) {
+        updateFields.mobileNumber = mobileNumber;
+      }
+
+      // Only update if there are changes
+      if (Object.keys(updateFields).length === 0) {
+        return res.status(200).json({
+          success: true,
+          message: "No changes detected",
+          data: currentDetails || {
+            firstName: "",
+            lastName: "",
+            mobileNumber: "",
+          },
+        });
+      }
 
       const updatedDetails = await UserDetails.findOneAndUpdate(
         { user: userId },
-        {
-          firstName: firstName,
-          lastName: lastName,
-          mobileNumber: mobileNumber,
-        },
+        updateFields,
         { new: true, upsert: true }
       );
+
+      res.status(200).json({
+        success: true,
+        message: "Profile updated successfully",
+        data: {
+          firstName: updatedDetails.firstName,
+          lastName: updatedDetails.lastName,
+          mobileNumber: updatedDetails.mobileNumber,
+        },
+      });
     } catch (error) {
       console.error("Error updating profile details:", error);
-      res
-        .status(HttpStatusCode.INTERNAL_SERVER_ERROR)
-        .send(Messages.INTERNAL_SERVER_ERROR);
+      res.status(HttpStatusCode.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        message: Messages.INTERNAL_SERVER_ERROR,
+      });
     }
   },
 

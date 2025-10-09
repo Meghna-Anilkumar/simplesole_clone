@@ -1,161 +1,464 @@
-<%-include('./header')%>
-
-<style>body {
-    background: rgb(186, 136, 205)
-}
-.sidebar a {
-        display: block;
-        margin-bottom: 10px;
-        color: #333;
-        text-decoration: none;
-        font-weight: bold;
-        list-style-type: disc; /* Display as bullets */
-    }
-
-    .sidebar a:hover {
-        color: #682773;
-    }
-
-.form-control:focus {
+<%- include('./header') %>
+<style>
+  .form-control:focus {
     box-shadow: none;
-    border-color: #BA68C8
-}
+    border-color: #ba68c8;
+  }
 
-.profile-button {
+  .profile-button {
     background: rgb(99, 39, 120);
     box-shadow: none;
-    border: none
-}
+    border: none;
+  }
 
-.profile-button:hover {
-    background: #682773
-}
-
-.profile-button:focus {
+  .profile-button:hover {
     background: #682773;
-    box-shadow: none
-}
+  }
 
-.profile-button:active {
+  .profile-button:focus {
     background: #682773;
-    box-shadow: none
-}
+    box-shadow: none;
+  }
 
-.back:hover {
-    color: #682773;
-    cursor: pointer
-}
+  .profile-button:active {
+    background: #682773;
+    box-shadow: none;
+  }
 
-.labels {
-    font-size: 11px
-}
+  .labels {
+    font-size: 15px;
+  }
 
-.add-experience:hover {
-    background: #BA68C8;
-    color: #fff;
+  .error-message {
+    color: #dc3545;
+    font-size: 12px;
+    margin-top: 5px;
+    display: none;
+  }
+
+  .error-message.show {
+    display: block;
+  }
+
+  .form-control.invalid {
+    border-color: #dc3545;
+  }
+
+  .modal {
+    display: none;
+    position: fixed;
+    z-index: 1050;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0, 0, 0, 0.4);
+  }
+
+  .modal.show {
+    display: block;
+  }
+
+  .modal-dialog {
+    position: relative;
+    margin: 10% auto;
+    max-width: 500px;
+  }
+
+  .modal-content {
+    background-color: #fefefe;
+    padding: 20px;
+    border: 1px solid #888;
+    border-radius: 5px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    border-bottom: 1px solid #dee2e6;
+    padding-bottom: 10px;
+  }
+
+  .modal-title {
+    margin: 0;
+    font-size: 1.25rem;
+  }
+
+  .modal-body {
+    margin-bottom: 15px;
+  }
+
+  .modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    border-top: 1px solid #dee2e6;
+    padding-top: 15px;
+  }
+
+  .btn-secondary {
+    background-color: #6c757d;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
     cursor: pointer;
-    border: solid 1px #BA68C8
-}
+  }
+
+  .btn-secondary:hover {
+    background-color: #5a6268;
+  }
+
+  .alert {
+    padding: 12px 20px;
+    margin-bottom: 20px;
+    border-radius: 4px;
+    display: none;
+  }
+
+  .alert.show {
+    display: block;
+  }
+
+  .alert-success {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+  }
+
+  .alert-danger {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+  }
 </style>
+
 <div class="container-fluid">
-    <div class="row">
-        <!-- Sidebar -->
-        <div class="col-md-3 sidebar" style="margin-top: 90px;">
-            <div class="d-flex flex-column align-items-center text-center p-3 py-5">
-                    <span class="font-weight-bold"><%= data ? (data.firstName || '') : '' %> <%= data ? (data.lastName || '') : '' %></span>
-                    <span class="font-weight-bold">Phone:
-                        <%= data ? (data.mobileNumber || '') : '' %>
-                    </span>
+  <div class="row">
+    <%- include('./sidebar') %>
 
-                <span class="text-black-50"><%= user.email %></span>
-                <span> <a href="/logout" onclick="confirmLogout()">Logout</a> </span>
+    <div class="content-with-sidebar" style="margin-top: 80px; padding: 20px">
+      <div class="col-md-8" style="max-width: 800px">
+        <div class="p-3 py-5">
+          <!-- Alert Messages -->
+          <div id="alertMessage" class="alert"></div>
+
+          <form id="editProfileForm">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <h4 class="text-right">Edit Profile Details</h4>
             </div>
-            <!-- Sidebar Links -->
-            <div class="text-center">
-                <ul class="list-unstyled">
-                    <li><a href="/address" class="text-decoration-none text-dark">Address Book</a></li>
-                    <li><a href="/orders" class="text-decoration-none text-dark">Orders</a></li>
-                    <li><a href="/wallet" class="text-decoration-none text-dark">Wallet</a></li>
-                    <li><a href="/changepassword" class="text-decoration-none text-dark">Change password</a></li>
-                </ul>
+            <div class="row mt-2">
+              <div class="col-md-6">
+                <label class="labels">First name</label>
+                <input
+                  type="text"
+                  id="firstName"
+                  class="form-control"
+                  name="firstName"
+                  placeholder="first name"
+                  value="<%= data && data.firstName ? data.firstName : '' %>"
+                />
+                <div class="error-message" id="firstNameError"></div>
+              </div>
+              <div class="col-md-6">
+                <label class="labels">Last name</label>
+                <input
+                  type="text"
+                  id="lastName"
+                  class="form-control"
+                  name="lastName"
+                  placeholder="last name"
+                  value="<%= data && data.lastName ? data.lastName : '' %>"
+                />
+                <div class="error-message" id="lastNameError"></div>
+              </div>
             </div>
+            <div class="row mt-3">
+              <div class="col-md-12">
+                <label class="labels">Mobile Number</label>
+                <input
+                  type="text"
+                  id="mobileNumber"
+                  class="form-control"
+                  name="mobileNumber"
+                  placeholder="enter phone number"
+                  value="<%= data && data.mobileNumber ? data.mobileNumber : '' %>"
+                />
+                <div class="error-message" id="mobileNumberError"></div>
+              </div>
+            </div>
+
+            <div class="mt-5 text-center">
+              <button
+                class="btn btn-primary profile-button"
+                type="submit"
+                id="submitBtn"
+                disabled
+              >
+                Save Changes
+              </button>
+            </div>
+          </form>
         </div>
-
-        <div class="col-md-5 border-right" style="margin-top: 80px;">
-            <div class="p-3 py-5">
-                <form id="editProfileForm">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h4 class="text-right">Edit Profile Details</h4>
-                    </div>
-                    <div class="row mt-2">
-                        <div class="col-md-6">
-                            <label class="labels">First name</label>
-                            <input type="text" id="firstName" class="form-control" name="firstName" placeholder="first name" value="<%= data && data.firstName ? data.firstName : '' %>">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="labels">Last name</label>
-                            <input type="text" id="lastName" class="form-control" name="lastName" placeholder="last name" value="<%= data && data.lastName ? data.lastName : '' %>">
-                        </div>
-                    </div>
-                    <div class="row mt-3">
-                        <div class="col-md-12">
-                            <label class="labels">Mobile Number</label>
-                            <input type="text" id="mobileNumber" class="form-control" name="mobileNumber" placeholder="enter phone number" value="<%= data && data.mobileNumber ? data.mobileNumber : '' %>">
-                        </div>
-                    </div>
-                    
-                    <div class="mt-5 text-center">
-                        <button class="btn btn-primary profile-button" type="submit">Save Changes</button>
-                    </div>
-                </form>
-            </div>
+      </div>
     </div>
-</div>
-</div>
-
-<div class="mt-3 text-center">
-    <p>You get ₹100 in your wallet when anyone signs up with your referral code.</p>
-    <p>Your Referral Code: <%= user ? (user.referral || '') : '' %></p>
+  </div>
 </div>
 
+<div id="confirmModal" class="modal">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Confirm Changes</h5>
+      </div>
+      <div class="modal-body">
+        <div id="changesPreview"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="cancelBtn">
+          Cancel
+        </button>
+        <button
+          type="button"
+          class="btn btn-primary profile-button"
+          id="confirmBtn"
+        >
+          Confirm Update
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <script>
-    document.getElementById('editProfileForm').addEventListener('submit', async function (event) {
-    event.preventDefault();
-    const formData = new FormData(this);
-        const firstName = formData.get('firstName');
-        const lastName = formData.get('lastName');
-        const mobileNumber = formData.get('mobileNumber');
-        
-        try {
-        const response = await fetch('/editprofiledetails', {
-            method: 'POST',
-            body: JSON.stringify({ firstName, lastName, mobileNumber }),
-            headers: {
-                "Content-Type": "application/json",
-            }
+  (function () {
+    // Store original values
+    const originalValues = {
+      firstName: document.getElementById("firstName").value,
+      lastName: document.getElementById("lastName").value,
+      mobileNumber: document.getElementById("mobileNumber").value,
+    };
+
+    let pendingChanges = {};
+
+    // Validation functions
+    const validators = {
+      firstName: (value) => {
+        if (!value.trim()) {
+          return "First name is required";
+        }
+        if (value.trim().length < 2) {
+          return "First name must be at least 2 characters";
+        }
+        if (!/^[a-zA-Z\s]+$/.test(value)) {
+          return "First name can only contain letters";
+        }
+        return null;
+      },
+      lastName: (value) => {
+        if (!value.trim()) {
+          return null;
+        }
+        if (value.trim().length < 2) {
+          return "Last name must be at least 2 characters";
+        }
+        if (!/^[a-zA-Z\s]+$/.test(value)) {
+          return "Last name can only contain letters";
+        }
+        return null;
+      },
+      mobileNumber: (value) => {
+        if (!value.trim()) {
+          return "Mobile number is required";
+        }
+        if (!/^[6-9]\d{9}$/.test(value.replace(/\s+/g, ""))) {
+          return "Please enter a valid 10-digit Indian mobile number";
+        }
+        return null;
+      },
+    };
+
+    // Show error message
+    function showError(fieldId, message) {
+      const errorEl = document.getElementById(fieldId + "Error");
+      const inputEl = document.getElementById(fieldId);
+      errorEl.textContent = message;
+      errorEl.classList.add("show");
+      inputEl.classList.add("invalid");
+    }
+
+    // Clear error message
+    function clearError(fieldId) {
+      const errorEl = document.getElementById(fieldId + "Error");
+      const inputEl = document.getElementById(fieldId);
+      errorEl.classList.remove("show");
+      inputEl.classList.remove("invalid");
+    }
+
+    // Validate field
+    function validateField(fieldId) {
+      const value = document.getElementById(fieldId).value;
+      const error = validators[fieldId](value);
+
+      if (error) {
+        showError(fieldId, error);
+        return false;
+      } else {
+        clearError(fieldId);
+        return true;
+      }
+    }
+
+    // Check if form is valid and has changes
+    function updateSubmitButton() {
+      const allValid = ["firstName", "lastName", "mobileNumber"].every(
+        validateField
+      );
+
+      // Check for changes
+      const hasChanges = Object.keys(originalValues).some((key) => {
+        return document.getElementById(key).value !== originalValues[key];
+      });
+
+      document.getElementById("submitBtn").disabled = !(allValid && hasChanges);
+    }
+
+    // Add input event listeners
+    ["firstName", "lastName", "mobileNumber"].forEach((fieldId) => {
+      const input = document.getElementById(fieldId);
+      input.addEventListener("input", () => {
+        validateField(fieldId);
+        updateSubmitButton();
+      });
+      input.addEventListener("blur", () => validateField(fieldId));
+    });
+
+    // Show alert
+    function showAlert(message, type) {
+      const alert = document.getElementById("alertMessage");
+      alert.textContent = message;
+      alert.className = `alert alert-${type} show`;
+      setTimeout(() => {
+        alert.classList.remove("show");
+      }, 5000);
+    }
+
+    // Update sidebar display
+    function updateSidebarDisplay(data) {
+      const sidebarName = document.getElementById("sidebarName");
+      const sidebarPhone = document.getElementById("sidebarPhone");
+
+      if (sidebarName) {
+        sidebarName.textContent = `${data.firstName} ${data.lastName}`;
+      }
+      if (sidebarPhone) {
+        sidebarPhone.textContent = data.mobileNumber;
+      }
+    }
+
+    // Form submission
+    document
+      .getElementById("editProfileForm")
+      .addEventListener("submit", function (event) {
+        event.preventDefault();
+
+        // Get only changed values
+        pendingChanges = {};
+        Object.keys(originalValues).forEach((key) => {
+          const currentValue = document.getElementById(key).value;
+          if (currentValue !== originalValues[key]) {
+            pendingChanges[key] = currentValue;
+          }
         });
 
-        if (response.ok) {
-            const data = await response.json();
-
-            const { firstName: updatedFirstName, lastName: updatedLastName, mobileNumber: updatedMobileNumber } = data;
-
-            document.getElementById('firstName').value = updatedFirstName;
-            document.getElementById('lastName').value = updatedLastName;
-            document.getElementById('mobileNumber').value = updatedMobileNumber;
-
-            console.log('Profile details updated successfully');
-        } else {
-            console.error('Error updating profile details:', response.status);
+        if (Object.keys(pendingChanges).length === 0) {
+          showAlert("No changes to save", "info");
+          return;
         }
-    } catch (error) {
-        console.error('Fetch error:', error);
-    }
-  
-});
 
+        // Show changes in modal
+        const changesPreview = document.getElementById("changesPreview");
+        changesPreview.innerHTML =
+          "<p>Are you sure you want to make changes?</p>";
 
+        document.getElementById("confirmModal").classList.add("show");
+      });
+
+    // Cancel button
+    document.getElementById("cancelBtn").addEventListener("click", () => {
+      document.getElementById("confirmModal").classList.remove("show");
+    });
+
+    // Confirm button
+    document
+      .getElementById("confirmBtn")
+      .addEventListener("click", async () => {
+        document.getElementById("confirmModal").classList.remove("show");
+
+        const submitBtn = document.getElementById("submitBtn");
+        const confirmBtn = document.getElementById("confirmBtn");
+
+        submitBtn.disabled = true;
+        confirmBtn.disabled = true;
+        submitBtn.textContent = "Saving...";
+
+        try {
+          const response = await fetch("/editprofiledetails", {
+            method: "POST",
+            body: JSON.stringify(pendingChanges),
+            headers: {
+              "Content-Type": "application/json",
+            },
+          });
+
+          const result = await response.json();
+
+          if (response.ok && result.success) {
+            // Update original values
+            Object.assign(originalValues, result.data);
+
+            // Update form fields
+            document.getElementById("firstName").value = result.data.firstName;
+            document.getElementById("lastName").value = result.data.lastName;
+            document.getElementById("mobileNumber").value =
+              result.data.mobileNumber;
+
+            // Update sidebar immediately
+            updateSidebarDisplay(result.data);
+
+            showAlert(
+              result.message || "Profile updated successfully!",
+              "success"
+            );
+
+            submitBtn.disabled = true;
+          } else {
+            showAlert(result.message || "Error updating profile", "danger");
+          }
+        } catch (error) {
+          console.error("Fetch error:", error);
+          showAlert("An error occurred while updating profile", "danger");
+        } finally {
+          submitBtn.textContent = "Save Changes";
+          confirmBtn.disabled = false;
+        }
+      });
+
+    // Close modal on outside click
+    window.addEventListener("click", (event) => {
+      const modal = document.getElementById("confirmModal");
+      if (event.target === modal) {
+        modal.classList.remove("show");
+      }
+    });
+
+    // Initial validation check
+    updateSubmitButton();
+  })();
 </script>
 
-<%-include('./footer')%>
+<%- include('./footer') %>
