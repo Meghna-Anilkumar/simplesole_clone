@@ -1,131 +1,156 @@
 <%- include('./header') %>
 <style>
-#navbar {
+  #navbar {
     padding-right: 50px;
     background-color: black;
-}
+  }
 
-.nav-link:not(:last-child) {
+  .nav-link:not(:last-child) {
     color: white;
     margin-right: 10px;
-}
-#signupbody {
+  }
+
+  #signupbody,
+  #loginbody {
     padding-top: 50px;
     background-image: url(/images/wallpaper.jpg);
     background-size: cover;
     background-position: center;
     width: 100%;
-}
-#loginbody {
-    padding-top: 50px;
-    background-image: url(/images/wallpaper.jpg);
-    background-size: cover;
-    background-position: center;
-    width: 100%;
-}
-.nav-link {
+  }
+
+  .nav-link {
     color: white;
-}
-#logo {
+  }
+
+  #logo {
     height: 80px;
-}
-.main-content {
+  }
+
+  .main-content {
     margin-left: 150px;
     padding: 20px;
-}
-.order-info-box, .product-info-box, .shipping-address-box, .price-details-box {
+  }
+
+  .order-info-box,
+  .product-info-box,
+  .shipping-address-box,
+  .price-details-box {
     border: 1px solid #dee2e6;
     padding: 20px;
     margin-bottom: 20px;
-}
-.product-info-box img {
+  }
+
+  .product-info-box img {
     max-width: 100px;
     height: auto;
-}
-.cancelled-item {
+  }
+
+  .cancelled-item,
+  .returned-item {
     color: red;
     font-style: italic;
-}
+  }
 </style>
 
 <div class="main-content" style="margin-top: 100px;">
-    <div class="container">
-        <h1>Order Details</h1>
+  <div class="container">
+    <h1>Order Details</h1>
 
-        <!-- Order Information Box -->
-        <div class="order-info-box">
-            <h2>Order Information</h2>
-            <p><strong>Order ID:</strong> <%= order.orderId %></p>
-            <p><strong>Order Date:</strong> <%= order.orderdate.toLocaleDateString() %></p>
-            <p><strong>Status:</strong> <%= order.orderStatus %></p>
-            <p><strong>Payment Method:</strong> <%= order.paymentMethod %></p>
-            <% if (order.orderStatus === 'DELIVERED') { %>
-                <form action="/download-invoice/<%= order._id %>" method="GET" class="mt-3">
-                    <button type="submit" class="btn btn-primary">Download Invoice</button>
-                </form>
-            <% } %>
-            <% if (order.orderStatus === 'CANCELLED' && order.cancellationReason) { %>
-                <p><strong>Cancellation Reason:</strong> <%= order.cancellationReason %></p>
-            <% } %>
-            <% if (order.orderStatus === 'RETURN REQUESTED' && order.returnReason) { %>
-                <p><strong>Return Reason:</strong> <%= order.returnReason %></p>
-            <% } %>
-        </div>
-
-        <!-- Product Information Box -->
-        <div class="product-info-box">
-            <h2>Products</h2>
-            <% order.items.forEach((item) => { %>
-                <div class="row mb-3">
-                    <div class="col-md-2">
-                        <img src="<%= item.product.images[0] %>" class="img-fluid" alt="<%= item.product.name %>">
-                    </div>
-                    <div class="col-md-6">
-                        <p><strong>Product Name:</strong> <%= item.product.name %></p>
-                        <p><strong>Size:</strong> <%= item.size %></p>
-                        <p><strong>Price:</strong> &#8377;<%= item.price.toFixed(2) %></p>
-                        <p><strong>Quantity:</strong> <%= item.quantity %></p>
-                        <p><strong>Total:</strong> &#8377;<%= (item.price * item.quantity).toFixed(2) %></p>
-                        <% if (item.itemstatus === 'CANCELLED') { %>
-                            <p class="cancelled-item"><strong>Status:</strong> CANCELLED</p>
-                            <% if (item.cancellationReason) { %>
-                                <p class="cancelled-item"><strong>Cancellation Reason:</strong> <%= item.cancellationReason %></p>
-                            <% } %>
-                        <% } %>
-                    </div>
-                </div>
-                <hr>
-            <% }); %>
-        </div>
-
-        <!-- Shipping Address Box -->
-        <div class="shipping-address-box">
-            <h2>Shipping Address</h2>
-            <p><strong>Customer Name:</strong> <%= order.shippingAddress.name %></p>
-            <p><strong>Mobile:</strong> <%= order.shippingAddress.mobile %></p>
-            <p><strong>Building Name:</strong> <%= order.shippingAddress.buildingname %></p>
-            <p><strong>Street:</strong> <%= order.shippingAddress.street %></p>
-            <p><strong>City:</strong> <%= order.shippingAddress.city %></p>
-            <p><strong>Pincode:</strong> <%= order.shippingAddress.pincode %></p>
-            <p><strong>State:</strong> <%= order.shippingAddress.state %></p>
-        </div>
-
-        <!-- Price Details Box -->
-        <div class="price-details-box">
-            <h2>Price Details</h2>
-            <% let subtotal = order.items.reduce((sum, item) => item.itemstatus !== 'CANCELLED' ? sum + (item.price * item.quantity) : sum, 0); %>
-            <p><strong>Subtotal:</strong> &#8377;<%= subtotal.toFixed(2) %></p>
-            <% let effectiveTotal = subtotal; %>
-            <% if (order.couponCode && order.discountAmount > 0 && subtotal > 0) { %>
-                <p><strong>Coupon Applied:</strong> <%= order.couponCode %></p>
-                <p><strong>Coupon Discount:</strong> -&#8377;<%= order.discountAmount.toFixed(2) %></p>
-                <% effectiveTotal = subtotal - order.discountAmount; %>
-            <% } else { %>
-                <p><strong>Coupon Applied:</strong> None</p>
-                <p><strong>Coupon Discount:</strong> &#8377;0.00</p>
-            <% } %>
-            <p><strong>Total Amount:</strong> &#8377;<%= effectiveTotal.toFixed(2) %></p>
-        </div>
+    <!-- Order Information Box -->
+    <div class="order-info-box">
+      <h2>Order Information</h2>
+      <p><strong>Order ID:</strong> <%= order.orderId %></p>
+      <p><strong>Order Date:</strong> <%= order.orderdate.toLocaleDateString() %></p>
+      <p class="<%= order.orderStatus === 'RETURNED' ? 'returned-item' : order.orderStatus === 'CANCELLED' ? 'cancelled-item' : '' %>">
+        <strong>Status:</strong> <%= order.orderStatus %>
+      </p>
+      <p><strong>Payment Method:</strong> <%= order.paymentMethod %></p>
+      <% if (order.orderStatus === 'DELIVERED') { %>
+        <form action="/download-invoice/<%= order._id %>" method="GET" class="mt-3">
+          <button type="submit" class="btn btn-primary">Download Invoice</button>
+        </form>
+      <% } %>
+      <% if (order.orderStatus === 'CANCELLED' && order.cancellationReason) { %>
+        <p class="cancelled-item"><strong>Cancellation Reason:</strong> <%= order.cancellationReason %></p>
+      <% } %>
+      <% if (order.orderStatus === 'RETURN REQUESTED' || order.orderStatus === 'RETURNED') { %>
+        <p class="<%= order.orderStatus === 'RETURNED' ? 'returned-item' : '' %>">
+          <strong>Return Reason:</strong> <%= order.returnReason %>
+          <% if (order.updatedAt) { %>
+            (Submitted on <%= order.updatedAt.toLocaleDateString() %>)
+          <% } %>
+        </p>
+      <% } %>
     </div>
+
+    <!-- Product Information Box -->
+    <div class="product-info-box">
+      <h2>Products</h2>
+      <% order.items.forEach((item) => { %>
+        <div class="row mb-3">
+          <div class="col-md-2">
+            <img src="<%= item.product.images[0] %>" class="img-fluid" alt="<%= item.product.name %>">
+          </div>
+          <div class="col-md-6">
+            <p><strong>Product Name:</strong> <%= item.product.name %></p>
+            <p><strong>Size:</strong> <%= item.size %></p>
+            <p><strong>Price:</strong> &#8377;<%= item.price.toFixed(2) %></p>
+            <p><strong>Quantity:</strong> <%= item.quantity %></p>
+            <p><strong>Total:</strong> &#8377;<%= (item.price * item.quantity).toFixed(2) %></p>
+            <% if (item.itemstatus === 'CANCELLED') { %>
+              <p class="cancelled-item"><strong>Status:</strong> CANCELLED</p>
+              <p class="cancelled-item"><strong>Refunded Amount:</strong> &#8377;<%= (item.price * item.quantity).toFixed(2) %></p>
+              <% if (item.cancellationReason) { %>
+                <p class="cancelled-item"><strong>Cancellation Reason:</strong> <%= item.cancellationReason %></p>
+              <% } %>
+            <% } else if (item.itemstatus === 'RETURNED') { %>
+              <p class="returned-item"><strong>Status:</strong> RETURNED</p>
+              <p class="returned-item"><strong>Refunded Amount:</strong> &#8377;<%= (item.price * item.quantity).toFixed(2) %></p>
+              <% if (order.returnReason) { %>
+                <p class="returned-item"><strong>Return Reason:</strong> <%= order.returnReason %></p>
+              <% } %>
+            <% } else { %>
+              <p><strong>Status:</strong> <%= item.itemstatus || 'PENDING' %></p>
+              <p><strong>Refunded Amount:</strong> &#8377;0.00</p>
+            <% } %>
+          </div>
+        </div>
+        <hr>
+      <% }); %>
+    </div>
+
+    <!-- Shipping Address Box -->
+    <div class="shipping-address-box">
+      <h2>Shipping Address</h2>
+      <p><strong>Customer Name:</strong> <%= order.shippingAddress.name %></p>
+      <p><strong>Mobile:</strong> <%= order.shippingAddress.mobile %></p>
+      <p><strong>Building Name:</strong> <%= order.shippingAddress.buildingname %></p>
+      <p><strong>Street:</strong> <%= order.shippingAddress.street %></p>
+      <p><strong>City:</strong> <%= order.shippingAddress.city %></p>
+      <p><strong>Pincode:</strong> <%= order.shippingAddress.pincode %></p>
+      <p><strong>State:</strong> <%= order.shippingAddress.state %></p>
+    </div>
+
+    <!-- Price Details Box -->
+    <div class="price-details-box">
+      <h2>Price Details</h2>
+      <% let subtotal = order.items.reduce((sum, item) => item.itemstatus !== 'CANCELLED' && item.itemstatus !== 'RETURNED' ? sum + (item.price * item.quantity) : sum, 0); %>
+      <p><strong>Subtotal:</strong> &#8377;<%= subtotal.toFixed(2) %></p>
+      <% let effectiveTotal = subtotal; %>
+      <% if (order.couponCode && order.discountAmount > 0 && subtotal > 0) { %>
+        <p><strong>Coupon Applied:</strong> <%= order.couponCode %></p>
+        <p><strong>Coupon Discount:</strong> -&#8377;<%= order.discountAmount.toFixed(2) %></p>
+        <% effectiveTotal = subtotal - order.discountAmount; %>
+      <% } else { %>
+        <p><strong>Coupon Applied:</strong> None</p>
+        <p><strong>Coupon Discount:</strong> &#8377;0.00</p>
+      <% } %>
+      <p><strong>Total Amount:</strong> &#8377;<%= effectiveTotal.toFixed(2) %></p>
+      <% if (order.refundedAmount && order.refundedAmount > 0) { %>
+        <p class="cancelled-item"><strong>Total Refunded:</strong> &#8377;<%= order.refundedAmount.toFixed(2) %></p>
+      <% } %>
+    </div>
+  </div>
 </div>
 <%- include('./footer') %>

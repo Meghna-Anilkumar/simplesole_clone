@@ -1,11 +1,9 @@
-<%-include('./sidebar') %>
+<%- include('./sidebar') %>
 <style>
-    /* CSS styles for the content */
     .content {
         padding: 20px;
     }
 
-    /* CSS styles for the table */
     table {
         width: 100%;
         border-collapse: collapse;
@@ -22,9 +20,8 @@
         background-color: #f2f2f2;
     }
 
-    /* CSS styles for the buttons */
     .btn {
-        background-color: #4caf50; /* Green */
+        background-color: #4caf50;
         color: white;
         border: none;
         padding: 8px 16px;
@@ -33,17 +30,17 @@
         font-size: 14px;
         border-radius: 5px;
         cursor: pointer;
+        margin-right: 5px;
     }
 
     .accept-btn {
-        background-color: #4caf50; /* Green */
+        background-color: #4caf50;
     }
 
     .reject-btn {
-        background-color: #f44336; /* Red */
+        background-color: #f44336;
     }
 
-    /* Hover effect for buttons */
     .btn:hover {
         opacity: 0.8;
     }
@@ -75,58 +72,120 @@
     </table>
 </div>
 
+<!-- SweetAlert2 -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@10"></script>
+
 <script>
-    // JavaScript code for handling button clicks
     document.addEventListener('DOMContentLoaded', function () {
         document.querySelectorAll('.accept-btn').forEach(function(button) {
             button.addEventListener('click', function() {
                 var orderId = this.dataset.orderId;
-                handleAccept(orderId);
+                Swal.fire({
+                    title: 'Accept Return Request?',
+                    text: 'Are you sure you want to accept this return request?',
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonColor: '#4caf50',
+                    cancelButtonColor: '#d33',
+                    confirmButtonText: 'Yes, accept it!',
+                    cancelButtonText: 'Cancel'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        handleAccept(orderId);
+                    }
+                });
             });
         });
 
         document.querySelectorAll('.reject-btn').forEach(function(button) {
             button.addEventListener('click', function() {
                 var orderId = this.dataset.orderId;
-                handleReject(orderId);
+                Swal.fire({
+                    title: 'Reject Return Request?',
+                    text: 'Are you sure you want to reject this return request?',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#f44336',
+                    cancelButtonColor: '#3085d6',
+                    confirmButtonText: 'Yes, reject it!',
+                    cancelButtonText: 'Cancel'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        handleReject(orderId);
+                    }
+                });
             });
         });
 
-        // Function to handle accepting return request
         function handleAccept(orderId) {
             fetch('/returnrequests/' + orderId + '/accept', {
                 method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
             })
             .then(function(response) {
-                if (!response.ok) {
-                    throw new Error('Error accepting return request');
+                return response.json().then(data => ({ status: response.status, data }));
+            })
+            .then(function({ status, data }) {
+                if (status !== 200) {
+                    throw new Error(data.message || 'Error accepting return request');
                 }
-                // Reload the page or update UI as needed
-                location.reload();
+                Swal.fire({
+                    title: 'Success!',
+                    text: `Return request accepted successfully! Refunded ₹${data.refundAmount || 0}`,
+                    icon: 'success',
+                    timer: 2000,
+                    showConfirmButton: false
+                }).then(() => {
+                    location.reload();
+                });
             })
             .catch(function(error) {
                 console.error('Error accepting return request:', error);
-                // Display error message to user
-                alert('Error accepting return request. Please try again.');
+                Swal.fire({
+                    title: 'Error',
+                    text: error.message || 'Failed to accept return request. Please try again.',
+                    icon: 'error',
+                    confirmButtonText: 'OK',
+                    confirmButtonColor: '#3085d6'
+                });
             });
         }
 
-        // Function to handle rejecting return request
         function handleReject(orderId) {
             fetch('/returnrequests/' + orderId + '/reject', {
                 method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
             })
             .then(function(response) {
-                if (!response.ok) {
-                    throw new Error('Error rejecting return request');
+                return response.json().then(data => ({ status: response.status, data }));
+            })
+            .then(function({ status, data }) {
+                if (status !== 200) {
+                    throw new Error(data.message || 'Error rejecting return request');
                 }
-                // Reload the page or update UI as needed
-                location.reload();
+                Swal.fire({
+                    title: 'Success!',
+                    text: 'Return request rejected successfully!',
+                    icon: 'success',
+                    timer: 1500,
+                    showConfirmButton: false
+                }).then(() => {
+                    location.reload();
+                });
             })
             .catch(function(error) {
                 console.error('Error rejecting return request:', error);
-                // Display error message to user
-                alert('Error rejecting return request. Please try again.');
+                Swal.fire({
+                    title: 'Error',
+                    text: error.message || 'Failed to reject return request. Please try again.',
+                    icon: 'error',
+                    confirmButtonText: 'OK',
+                    confirmButtonColor: '#3085d6'
+                });
             });
         }
     });

@@ -98,21 +98,118 @@ module.exports = {
         return res.status(404).json({ message: "Order not found" });
       }
 
-      order.orderStatus = "RETURNED";
-      order.transactiontype = "CREDIT BY RETURN";
-      await order.save({ session });
+      if (order.orderStatus !== "RETURN REQUESTED") {
+        await session.abortTransaction();
+        session.endSession();
+        return res
+          .status(400)
+          .json({ message: "Order is not in return requested status" });
+      }
 
-      await Promise.all(
-        order.items.map(async (item) => {
-          const product = item.product;
-          if (product) {
-            product.stock += item.quantity;
-            product.version = (product.version || 0) + 1;
-            await product.save({ session });
+      // Calculate refund amount based on non-cancelled items
+      const refundableItems = order.items.filter(
+        (item) => item.itemstatus !== "CANCELLED"
+      );
+      if (refundableItems.length === 0) {
+        await session.abortTransaction();
+        session.endSession();
+        return res
+          .status(400)
+          .json({ message: "No refundable items in this order" });
+      }
+
+      const refundAmount = refundableItems.reduce((sum, item) => {
+        if (!item.product) {
+          console.warn(
+            `Product missing for item in order ${orderId}, item:`,
+            item
+          );
+          return sum;
+        }
+        if (!item.price || !item.quantity) {
+          console.warn(
+            `Price or quantity missing for item in order ${orderId}, item:`,
+            item
+          );
+          return sum;
+        }
+        return sum + item.price * item.quantity;
+      }, 0);
+
+      // Log refund calculation details
+      console.log("Refund calculation for order", orderId, {
+        refundableItems: refundableItems.map((item) => ({
+          productId: item.product?._id?.toString(),
+          name: item.product?.name || "Unknown",
+          size: item.size,
+          price: item.price,
+          quantity: item.quantity,
+          itemstatus: item.itemstatus,
+        })),
+        refundAmount,
+        existingRefundedAmount: order.refundedAmount,
+      });
+
+      // Allow refund if there are non-cancelled items, even if remainingRefund is 0
+      const remainingRefund = Math.max(
+        0,
+        refundAmount - (order.refundedAmount || 0)
+      );
+      if (remainingRefund === 0 && refundableItems.length > 0) {
+        console.warn(
+          `Proceeding with return for order ${orderId} despite zero remaining refund, as non-cancelled items exist`
+        );
+      } else if (remainingRefund === 0) {
+        await session.abortTransaction();
+        session.endSession();
+        return res
+          .status(400)
+          .json({ message: "No refundable amount remaining for this order" });
+      }
+
+      // Aggregate quantities by product to avoid multiple saves
+      const productUpdates = refundableItems.reduce((acc, item) => {
+        const productId = item.product?._id?.toString();
+        if (productId && item.product) {
+          if (!acc[productId]) {
+            acc[productId] = {
+              product: item.product,
+              quantity: 0,
+              size: item.size,
+            };
           }
-        })
+          acc[productId].quantity += item.quantity;
+        }
+        return acc;
+      }, {});
+
+      // Update product stock for non-cancelled items
+      await Promise.all(
+        Object.values(productUpdates).map(
+          async ({ product, quantity, size }) => {
+            if (product) {
+              const variant = product.variants.find((v) => v.size === size);
+              if (variant) {
+                variant.stock += quantity;
+                product.version = (product.version || 0) + 1;
+                await product.save({ session });
+              } else {
+                console.warn(
+                  `Variant for size ${size} not found for product ${product._id} in order ${orderId}`
+                );
+              }
+            }
+          }
+        )
       );
 
+      // Update order status and refunded amount
+      order.orderStatus = "RETURNED";
+      order.transactiontype = "CREDIT BY RETURN";
+      order.refundedAmount = (order.refundedAmount || 0) + refundAmount; // Refund full amount of non-cancelled items
+      await order.save({ session });
+
+      // Update wallet
       let userWallet = await Wallet.findOne({ user: order.user }).session(
         session
       );
@@ -124,10 +221,7 @@ module.exports = {
         });
       }
 
-      const refundAmount = order.totalAmount;
-
-      userWallet.balance += refundAmount;
-
+      userWallet.balance += refundAmount; // Refund full non-cancelled amount
       userWallet.walletTransactions.push({
         type: "credit",
         amount: refundAmount,
@@ -135,7 +229,6 @@ module.exports = {
         date: new Date(),
         orderId: order._id,
       });
-
       await userWallet.save({ session });
 
       await session.commitTransaction();
@@ -147,12 +240,18 @@ module.exports = {
         userId: order.user._id,
       });
 
-      res.json({ message: "Order returned successfully" });
+      res.json({ message: "Order returned successfully", refundAmount });
     } catch (error) {
       await session.abortTransaction();
       session.endSession();
-      console.error("Error accepting return request:", error);
-      res.status(500).json({ message: "Internal Server Error" });
+      console.error("Error accepting return request:", {
+        error: error.message,
+        stack: error.stack,
+        orderId,
+      });
+      res
+        .status(500)
+        .json({ message: "Internal Server Error: " + error.message });
     }
   },
 
