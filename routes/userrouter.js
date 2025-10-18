@@ -17,6 +17,7 @@ router.get('/Login', usercontroller.Login)
 router.get('/usericon', usercontroller.userIcon)
 router.post('/editprofiledetails', usercontroller.editprofiledetails)
 
+
 //products
 router.get('/category/:categoryId', productcontroller.getproductsCategorywise);
 router.get('/products/:id', productcontroller.getproductdetails);
@@ -87,6 +88,7 @@ router.post('/removeCoupon',couponcontroller.removeCoupon)
 //forgot password
 router.get('/forgotpassword',usercontroller.verifyemail)
 router.post('/forgot-password',usercontroller.sendOTP)
+router.get('/resetpassword', usercontroller.getResetPasswordPage)//this page is for forgot password
 router.post('/reset-password',usercontroller.resetPassword)
 
 

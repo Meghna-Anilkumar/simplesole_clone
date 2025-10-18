@@ -67,51 +67,61 @@
 </div>
 
 <!-- Coupon Details -->
-<div id="couponDetails" class="coupon-container">
-  <% function formatDate(dateString) {
-    const date = new Date(dateString);
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const year = date.getFullYear();
-    return `${day}/${month}/${year}`;
-  } %>
-  <% coupons.forEach(coupon => { %>
-    <div class="coupon-box">
-      <p>Coupon Code: <%= coupon.couponCode %></p>
-      <p>Discount Rate: <%= coupon.discountRate %>%</p>
-      <p>Minimum Purchase Amount: <%= coupon.minimumPurchaseAmount %></p>
-      <p>Expiry Date: <%= formatDate(coupon.expiryDate) %></p>
-      <button class="btn btn-primary edit-coupon-btn" 
-              data-bs-toggle="modal" 
-              data-bs-target="#editCouponModal"
-              data-coupon-id="<%= coupon._id %>"
-              data-coupon-code="<%= coupon.couponCode %>"
-              data-discount-rate="<%= coupon.discountRate %>"
-              data-min-purchase-amount="<%= coupon.minimumPurchaseAmount %>"
-              data-expiry-date="<%= coupon.expiryDate %>">Edit</button>
-      <button class="btn btn-danger delete-coupon-btn" data-coupon-id="<%= coupon._id %>">Delete</button>
-    </div>
-  <% }) %>
-</div>
+<% if (coupons.length > 0) { %>
+  <div id="couponDetails" class="coupon-container">
+    <% function formatDate(dateString) {
+      const date = new Date(dateString);
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const year = date.getFullYear();
+      return `${day}/${month}/${year}`;
+    } %>
+    <% coupons.forEach(coupon => { %>
+      <div class="coupon-box">
+        <p>Coupon Code: <%= coupon.couponCode %></p>
+        <p>Discount Rate: <%= coupon.discountRate %>%</p>
+        <p>Minimum Purchase Amount: <%= coupon.minimumPurchaseAmount %></p>
+        <p>Expiry Date: <%= formatDate(coupon.expiryDate) %></p>
+        <button class="btn btn-primary edit-coupon-btn" 
+                data-bs-toggle="modal" 
+                data-bs-target="#editCouponModal"
+                data-coupon-id="<%= coupon._id %>"
+                data-coupon-code="<%= coupon.couponCode %>"
+                data-discount-rate="<%= coupon.discountRate %>"
+                data-min-purchase-amount="<%= coupon.minimumPurchaseAmount %>"
+                data-expiry-date="<%= coupon.expiryDate %>">Edit</button>
+        <button class="btn btn-danger delete-coupon-btn" data-coupon-id="<%= coupon._id %>">Delete</button>
+      </div>
+    <% }) %>
+  </div>
 
-<!-- Pagination Controls -->
-<div class="pagination-container">
-  <nav aria-label="Page navigation">
-    <ul class="pagination justify-content-center">
-      <li class="page-item <%= currentPage === 1 ? 'disabled' : '' %>">
-        <a class="page-link" href="?page=<%= currentPage - 1 %>&limit=<%= limit %>">Previous</a>
-      </li>
-      <% for (let i = 1; i <= totalPages; i++) { %>
-        <li class="page-item <%= currentPage === i ? 'active' : '' %>">
-          <a class="page-link" href="?page=<%= i %>&limit=<%= limit %>"><%= i %></a>
-        </li>
-      <% } %>
-      <li class="page-item <%= currentPage === totalPages ? 'disabled' : '' %>">
-        <a class="page-link" href="?page=<%= currentPage + 1 %>&limit=<%= limit %>">Next</a>
-      </li>
-    </ul>
-  </nav>
-</div>
+  <!-- Pagination Controls -->
+  <% if (totalPages > 1) { %>
+    <div class="pagination-container">
+      <nav aria-label="Page navigation">
+        <ul class="pagination justify-content-center">
+          <li class="page-item <%= currentPage === 1 ? 'disabled' : '' %>">
+            <a class="page-link" href="?page=<%= currentPage - 1 %>&limit=<%= limit %>">Previous</a>
+          </li>
+          <% for (let i = 1; i <= totalPages; i++) { %>
+            <li class="page-item <%= currentPage === i ? 'active' : '' %>">
+              <a class="page-link" href="?page=<%= i %>&limit=<%= limit %>"><%= i %></a>
+            </li>
+          <% } %>
+          <li class="page-item <%= currentPage === totalPages ? 'disabled' : '' %>">
+            <a class="page-link" href="?page=<%= currentPage + 1 %>&limit=<%= limit %>">Next</a>
+          </li>
+        </ul>
+      </nav>
+    </div>
+  <% } %>
+<% } else { %>
+  <div class="text-center" style="margin-top: 50px;">
+    <h4>No coupons added yet.</h4>
+    <p>Click the <strong>Add Coupon</strong> button above to create one.</p>
+  </div>
+<% } %>
+
 
 <!-- Edit Coupon Modal -->
 <div class="modal fade" id="editCouponModal" tabindex="-1" aria-labelledby="editCouponModalLabel" aria-hidden="true">

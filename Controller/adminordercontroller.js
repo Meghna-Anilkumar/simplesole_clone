@@ -106,7 +106,20 @@ module.exports = {
           .json({ message: "Order is not in return requested status" });
       }
 
-      // Calculate refund amount based on non-cancelled items
+      // Calculate refundable amount (totalAmount - already refunded)
+      const refundableAmount = Math.max(
+        0,
+        (order.totalAmount || 0) - (order.refundedAmount || 0)
+      );
+      if (refundableAmount === 0) {
+        await session.abortTransaction();
+        session.endSession();
+        return res
+          .status(400)
+          .json({ message: "No refundable amount remaining for this order" });
+      }
+
+      // Update item status to RETURNED for non-cancelled items
       const refundableItems = order.items.filter(
         (item) => item.itemstatus !== "CANCELLED"
       );
@@ -118,56 +131,12 @@ module.exports = {
           .json({ message: "No refundable items in this order" });
       }
 
-      const refundAmount = refundableItems.reduce((sum, item) => {
-        if (!item.product) {
-          console.warn(
-            `Product missing for item in order ${orderId}, item:`,
-            item
-          );
-          return sum;
-        }
-        if (!item.price || !item.quantity) {
-          console.warn(
-            `Price or quantity missing for item in order ${orderId}, item:`,
-            item
-          );
-          return sum;
-        }
-        return sum + item.price * item.quantity;
-      }, 0);
-
-      // Log refund calculation details
-      console.log("Refund calculation for order", orderId, {
-        refundableItems: refundableItems.map((item) => ({
-          productId: item.product?._id?.toString(),
-          name: item.product?.name || "Unknown",
-          size: item.size,
-          price: item.price,
-          quantity: item.quantity,
-          itemstatus: item.itemstatus,
-        })),
-        refundAmount,
-        existingRefundedAmount: order.refundedAmount,
+      // Set itemstatus to RETURNED
+      refundableItems.forEach((item) => {
+        item.itemstatus = "RETURNED";
       });
 
-      // Allow refund if there are non-cancelled items, even if remainingRefund is 0
-      const remainingRefund = Math.max(
-        0,
-        refundAmount - (order.refundedAmount || 0)
-      );
-      if (remainingRefund === 0 && refundableItems.length > 0) {
-        console.warn(
-          `Proceeding with return for order ${orderId} despite zero remaining refund, as non-cancelled items exist`
-        );
-      } else if (remainingRefund === 0) {
-        await session.abortTransaction();
-        session.endSession();
-        return res
-          .status(400)
-          .json({ message: "No refundable amount remaining for this order" });
-      }
-
-      // Aggregate quantities by product to avoid multiple saves
+      // Update product stock
       const productUpdates = refundableItems.reduce((acc, item) => {
         const productId = item.product?._id?.toString();
         if (productId && item.product) {
@@ -183,7 +152,6 @@ module.exports = {
         return acc;
       }, {});
 
-      // Update product stock for non-cancelled items
       await Promise.all(
         Object.values(productUpdates).map(
           async ({ product, quantity, size }) => {
@@ -203,10 +171,11 @@ module.exports = {
         )
       );
 
-      // Update order status and refunded amount
+      // Update order
       order.orderStatus = "RETURNED";
       order.transactiontype = "CREDIT BY RETURN";
-      order.refundedAmount = (order.refundedAmount || 0) + refundAmount; // Refund full amount of non-cancelled items
+      order.refundedAmount = (order.refundedAmount || 0) + refundableAmount;
+
       await order.save({ session });
 
       // Update wallet
@@ -221,10 +190,10 @@ module.exports = {
         });
       }
 
-      userWallet.balance += refundAmount; // Refund full non-cancelled amount
+      userWallet.balance += refundableAmount;
       userWallet.walletTransactions.push({
         type: "credit",
-        amount: refundAmount,
+        amount: refundableAmount,
         description: `Refund for returned Order ${order.orderId}`,
         date: new Date(),
         orderId: order._id,
@@ -236,11 +205,14 @@ module.exports = {
 
       console.log("Order returned successfully:", {
         orderId,
-        refundAmount,
+        refundableAmount,
         userId: order.user._id,
       });
 
-      res.json({ message: "Order returned successfully", refundAmount });
+      res.json({
+        message: "Order returned successfully",
+        refundAmount: refundableAmount,
+      });
     } catch (error) {
       await session.abortTransaction();
       session.endSession();

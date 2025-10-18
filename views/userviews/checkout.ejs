@@ -307,17 +307,61 @@
     transition: all 0.2s ease;
   }
 
-  .button-base-button {
-    background-color: #ff3f6c;
-    color: #fff;
-    border: none;
-    cursor: pointer;
-  }
+/* Only targets the Place Order button */
+#placeorderButton {
+  display: block;
+  margin: 40px auto 0; /* centers horizontally, adds top space */
+  background-color: #ff3f6c;
+  color: #fff;
+  border: none;
+  padding: 16px 60px; /* bigger size */
+  font-size: 17px;
+  font-weight: 700;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
 
-  .button-base-button:hover {
-    background-color: #e6355e;
-    transform: translateY(-1px);
-  }
+/* Hover effect */
+#placeorderButton:hover {
+  background-color: #e6355e;
+  transform: translateY(-2px);
+}
+
+/* Common style for all coupon-related buttons */
+.button-base-button,
+#applyCouponBtn,
+#viewCouponsBtn,
+.apply-coupon-btn {
+  background-color: #ff69b4; /* bright pink */
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+/* Hover effect */
+.button-base-button:hover,
+#applyCouponBtn:hover,
+#viewCouponsBtn:hover,
+.apply-coupon-btn:hover {
+  background-color: #e85fa3; /* slightly darker pink */
+  transform: translateY(-2px);
+}
+
+
+/* Ensure button stays near bottom if page is short */
+.placeorder-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end; /* keeps it near bottom */
+  min-height: 80vh; /* pushes button down naturally */
+  text-align: center;
+}
+
 
   .css-huh2rh {
     background-color: #6f42c1;
@@ -371,6 +415,7 @@
     .summary .item-price {
       margin-top: 5px;
     }
+
   }
 </style>
 
@@ -706,46 +751,64 @@
     }
   });
 
-  document.addEventListener("DOMContentLoaded", async function () {
-    const viewCouponsBtn = document.getElementById("viewCouponsBtn");
-    const couponsContainer = document.getElementById("couponsContainer");
-    viewCouponsBtn.addEventListener("click", async () => {
-      try {
-        const response = await fetch("/coupons");
-        const coupons = await response.json();
-        couponsContainer.innerHTML = "";
-        coupons.forEach((coupon) => {
-          const couponDiv = document.createElement("div");
-          couponDiv.classList.add("coupon");
-          couponDiv.innerHTML = `
-            <p>Coupon Code: ${coupon.couponCode}</p>
-            <p>Discount Rate: ${coupon.discountRate}%</p>
-            <p>Minimum Purchase Amount: ${coupon.minimumPurchaseAmount}</p>
-            <p>Expiry Date: ${formatDate(coupon.expiryDate)}</p>
-            <button class="button-base-button apply-coupon-btn" data-code="${coupon.couponCode}">Apply Coupon</button>
-          `;
-          couponsContainer.appendChild(couponDiv);
-        });
+document.addEventListener("DOMContentLoaded", async function () {
+  const viewCouponsBtn = document.getElementById("viewCouponsBtn");
+  const couponsContainer = document.getElementById("couponsContainer");
 
-        // Add event listeners to apply coupon buttons
-        document.querySelectorAll(".apply-coupon-btn").forEach((btn) => {
-          btn.addEventListener("click", () => {
-            document.getElementById("code").value = btn.dataset.code;
-            document.getElementById("applyCouponBtn").click();
-          });
-        });
-      } catch (error) {
-        console.error("Error fetching coupons:", error);
-        Swal.fire({
-          text: "Error fetching coupons.",
-          icon: "error",
-        });
+  viewCouponsBtn.addEventListener("click", async () => {
+    try {
+      const response = await fetch("/coupons");
+      const coupons = await response.json();
+
+      couponsContainer.innerHTML = "";
+      couponsContainer.style.display = "block";
+
+      // ✅ Check if no coupons available
+      if (!coupons || coupons.length === 0) {
+        couponsContainer.innerHTML = `
+          <div class="no-coupons">
+            <p>No available coupons at the moment</p>
+          </div>
+        `;
+        return;
       }
-    });
 
-    function formatDate(date) {
-      return new Date(date).toLocaleDateString();
+      // ✅ Show available coupons
+      coupons.forEach((coupon) => {
+        const couponDiv = document.createElement("div");
+        couponDiv.classList.add("coupon");
+        couponDiv.innerHTML = `
+          <p><strong>Coupon Code:</strong> ${coupon.couponCode}</p>
+          <p>Discount Rate: ${coupon.discountRate}%</p>
+          <p>Minimum Purchase Amount: ₹${coupon.minimumPurchaseAmount}</p>
+          <p>Expiry Date: ${formatDate(coupon.expiryDate)}</p>
+          <button class="button-base-button apply-coupon-btn" data-code="${coupon.couponCode}">
+            Apply Coupon
+          </button>
+        `;
+        couponsContainer.appendChild(couponDiv);
+      });
+
+      // Apply button action
+      document.querySelectorAll(".apply-coupon-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          document.getElementById("code").value = btn.dataset.code;
+          document.getElementById("applyCouponBtn").click();
+        });
+      });
+    } catch (error) {
+      console.error("Error fetching coupons:", error);
+      Swal.fire({
+        text: "Error fetching coupons.",
+        icon: "error",
+      });
     }
+  });
+
+  function formatDate(date) {
+    return new Date(date).toLocaleDateString();
+  }
+
 
     const applyCouponBtn = document.getElementById("applyCouponBtn");
     const newTotalSpan = document.getElementById("newTotal");
@@ -825,3 +888,4 @@
   });
 </script>
 <%- include('./footer') %>
+

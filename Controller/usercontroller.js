@@ -303,6 +303,32 @@ module.exports = {
     }
   },
 
+  getResetPasswordPage: async (req, res) => {
+    try {
+      const email = req.session.email;
+
+      // Check if email exists in session (user verified OTP)
+      if (!email) {
+        return res.redirect("/forgotpassword");
+      }
+
+      const categories = await Category.find();
+      const wishlist = [];
+      const cart = [];
+
+      res.render("userviews/resetpassword", {
+        title: "Reset Password",
+        category: categories,
+        wishlist,
+        cart,
+        email: email,
+      });
+    } catch (error) {
+      console.error("Error rendering reset password page:", error);
+      res.status(500).json({ message: "Internal Server Error" });
+    }
+  },
+
   //add new address
   addnewaddress: async (req, res) => {
     try {
@@ -528,7 +554,7 @@ module.exports = {
   //change password
   changepassword: async (req, res) => {
     try {
-      const { currentPassword, newPassword, confirmPassword } = req.body;
+      const { currentPassword, newPassword } = req.body;
       const userId = req.session.user._id;
       const user = await User.findById(userId);
 
@@ -607,7 +633,6 @@ module.exports = {
         });
       }
 
-      // *** CRITICAL FIX *** - Delete existing OTP record first
       await OTP.deleteMany({ email: email });
 
       const otp = otpGenerator.generate(6, {

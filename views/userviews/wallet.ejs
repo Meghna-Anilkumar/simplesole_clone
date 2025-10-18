@@ -204,16 +204,16 @@
             <% if (transaction.orderId && !transaction.razorpayOrderId) { %>
               <div class="transaction-row">
                 <div class="label">Order ID:</div>
-                <div class="value"><a href="/orderdetails/<%= transaction.orderId %>"><%= transaction.orderId %></a></div>
+                <div class="value"><a href="/orderdetails/<%= transaction.orderId._id %>"><%= transaction.orderId.orderId %></a></div>
               </div>
-              <div class="transaction-row">
+              <!-- <div class="transaction-row">
                 <div class="label">Payment Method:</div>
                 <div class="value"><%= transaction.paymentMethod || 'N/A' %></div>
-              </div>
-              <div class="transaction-row">
+              </div> -->
+              <!-- <div class="transaction-row">
                 <div class="label">Order Status:</div>
                 <div class="value"><%= transaction.orderStatus || 'N/A' %></div>
-              </div>
+              </div> -->
             <% } %>
           </div>
         <% }) %>

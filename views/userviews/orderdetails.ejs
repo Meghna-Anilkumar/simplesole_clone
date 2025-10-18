@@ -97,22 +97,21 @@
             <p><strong>Size:</strong> <%= item.size %></p>
             <p><strong>Price:</strong> &#8377;<%= item.price.toFixed(2) %></p>
             <p><strong>Quantity:</strong> <%= item.quantity %></p>
+            <p><strong>Subtotal:</strong> &#8377;<%= (item.price * item.quantity).toFixed(2) %></p>
             <p><strong>Total:</strong> &#8377;<%= (item.price * item.quantity).toFixed(2) %></p>
+            <p class="<%= item.itemstatus === 'CANCELLED' ? 'cancelled-item' : item.itemstatus === 'RETURNED' ? 'returned-item' : '' %>">
+              <strong>Status:</strong> <%= item.itemstatus || 'PENDING' %>
+            </p>
             <% if (item.itemstatus === 'CANCELLED') { %>
-              <p class="cancelled-item"><strong>Status:</strong> CANCELLED</p>
               <p class="cancelled-item"><strong>Refunded Amount:</strong> &#8377;<%= (item.price * item.quantity).toFixed(2) %></p>
               <% if (item.cancellationReason) { %>
                 <p class="cancelled-item"><strong>Cancellation Reason:</strong> <%= item.cancellationReason %></p>
               <% } %>
             <% } else if (item.itemstatus === 'RETURNED') { %>
-              <p class="returned-item"><strong>Status:</strong> RETURNED</p>
               <p class="returned-item"><strong>Refunded Amount:</strong> &#8377;<%= (item.price * item.quantity).toFixed(2) %></p>
               <% if (order.returnReason) { %>
                 <p class="returned-item"><strong>Return Reason:</strong> <%= order.returnReason %></p>
               <% } %>
-            <% } else { %>
-              <p><strong>Status:</strong> <%= item.itemstatus || 'PENDING' %></p>
-              <p><strong>Refunded Amount:</strong> &#8377;0.00</p>
             <% } %>
           </div>
         </div>
@@ -135,18 +134,11 @@
     <!-- Price Details Box -->
     <div class="price-details-box">
       <h2>Price Details</h2>
-      <% let subtotal = order.items.reduce((sum, item) => item.itemstatus !== 'CANCELLED' && item.itemstatus !== 'RETURNED' ? sum + (item.price * item.quantity) : sum, 0); %>
+      <% let subtotal = order.items.reduce((sum, item) => sum + (item.price * item.quantity), 0); %>
       <p><strong>Subtotal:</strong> &#8377;<%= subtotal.toFixed(2) %></p>
-      <% let effectiveTotal = subtotal; %>
-      <% if (order.couponCode && order.discountAmount > 0 && subtotal > 0) { %>
-        <p><strong>Coupon Applied:</strong> <%= order.couponCode %></p>
-        <p><strong>Coupon Discount:</strong> -&#8377;<%= order.discountAmount.toFixed(2) %></p>
-        <% effectiveTotal = subtotal - order.discountAmount; %>
-      <% } else { %>
-        <p><strong>Coupon Applied:</strong> None</p>
-        <p><strong>Coupon Discount:</strong> &#8377;0.00</p>
-      <% } %>
-      <p><strong>Total Amount:</strong> &#8377;<%= effectiveTotal.toFixed(2) %></p>
+      <p><strong>Coupon Applied:</strong> <%= order.couponCode || 'None' %></p>
+      <p><strong>Coupon Discount:</strong> &#8377;<%= (order.discountAmount || 0).toFixed(2) %></p>
+      <p><strong>Total Amount:</strong> &#8377;<%= (order.totalAmount || 0).toFixed(2) %></p>
       <% if (order.refundedAmount && order.refundedAmount > 0) { %>
         <p class="cancelled-item"><strong>Total Refunded:</strong> &#8377;<%= order.refundedAmount.toFixed(2) %></p>
       <% } %>

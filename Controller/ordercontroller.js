@@ -1166,8 +1166,17 @@ module.exports = {
               const product = await Product.findById(item.product._id).session(
                 session
               );
-              if (product) {
-                product.stock += item.quantity;
+              if (product && Array.isArray(product.variants)) {
+                const variant = product.variants.find(
+                  (v) => v.size === item.size
+                );
+                if (variant) {
+                  variant.stock += item.quantity;
+                } else {
+                  console.warn(
+                    `Variant not found for size ${item.size} in product ${product._id}`
+                  );
+                }
                 product.version += 1;
                 await product.save({ session });
               }
@@ -1262,13 +1271,19 @@ module.exports = {
           const product = await Product.findById(item.product._id).session(
             session
           );
-          if (product) {
-            product.stock += item.quantity;
+          if (product && Array.isArray(product.variants)) {
+            const variant = product.variants.find((v) => v.size === item.size);
+            if (variant) {
+              variant.stock += item.quantity;
+            } else {
+              console.warn(
+                `Variant not found for size ${item.size} in product ${product._id}`
+              );
+            }
             product.version += 1;
             await product.save({ session });
           }
 
-          // Refund only the cancelled item’s total to the wallet
           if (
             order.paymentMethod === "RAZORPAY" ||
             order.paymentMethod === "WALLET"
@@ -1342,8 +1357,8 @@ module.exports = {
   getwalletpage: async (req, res) => {
     try {
       const user = req.session.user;
-      const pageSize = parseInt(req.query.pageSize) || 10; 
-      let currentPage = parseInt(req.query.page) || 1; 
+      const pageSize = parseInt(req.query.pageSize) || 10;
+      let currentPage = parseInt(req.query.page) || 1;
 
       let wallet = await Wallet.findOne({ user }).populate(
         "walletTransactions.orderId"
@@ -1365,7 +1380,7 @@ module.exports = {
 
       const totalTransactions = wallet.walletTransactions.length;
       const totalPages = Math.ceil(totalTransactions / pageSize);
-      currentPage = Math.min(Math.max(currentPage, 1), totalPages || 1); 
+      currentPage = Math.min(Math.max(currentPage, 1), totalPages || 1);
 
       const sortedTransactions = [...wallet.walletTransactions].sort(
         (a, b) => new Date(b.date) - new Date(a.date)
