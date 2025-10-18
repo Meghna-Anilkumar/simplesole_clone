@@ -61,7 +61,7 @@
                         <p class="text-muted mb-0 small">Qty: <%= item.quantity %></p>
                       </div>
                       <div class="col-md-4 text-right">
-                        <% if (order.orderStatus !== 'CANCELLED' && order.orderStatus !== 'RETURNED' && order.items.length > 1 && item.itemstatus !== 'CANCELLED' && item.itemstatus !== 'RETURNED' && order.orderStatus !== 'DELIVERED') { %>
+                        <% if (order.orderStatus !== 'CANCELLED' && order.orderStatus !== 'RETURNED' && order.orderStatus !== 'RETURN REQUESTED'&&order.items.length > 1 && item.itemstatus !== 'CANCELLED' && item.itemstatus !== 'RETURNED' && order.orderStatus !== 'DELIVERED') { %>
                           <button id="cancelItemBtn_<%= order._id %>_item_<%= index %>" class="css-huh2rh"
                             onclick="openCancelItemModal('<%= order._id %>', '<%= index %>')">
                             Cancel Item
@@ -383,7 +383,7 @@
     })
       .then(response => response.json())
       .then(data => {
-        if (data.message === 'Return request submitted successfully') {
+        if (data.message === 'Return requested successfully') {
           Swal.fire({
             title: 'Success!',
             text: 'Return request submitted successfully!',

@@ -16,113 +16,123 @@ module.exports = {
 
   //to login the admin
   adminlogin: async (req, res) => {
-    const credential = {
-      email: "admin@gmail.com",
-      password: "Admin@2024",
-    };
-    if (
-      req.body.email == credential.email &&
-      req.body.password == credential.password
-    ) {
-      req.session.isadminlogged = true;
-
-      const paymentMethodCounts = await Order.aggregate([
-        { $group: { _id: "$paymentMethod", count: { $sum: 1 } } },
-      ]);
-
-      const paymentMethodData = {
-        labels: paymentMethodCounts.map((method) => method._id),
-        data: paymentMethodCounts.map((method) => method.count),
+    try {
+      const credential = {
+        email: "admin@gmail.com",
+        password: "Admin@2024",
       };
 
-      const orderStatusCounts = await Order.aggregate([
-        { $group: { _id: "$orderStatus", count: { $sum: 1 } } },
-      ]);
+      if (
+        req.body.email === credential.email &&
+        req.body.password === credential.password
+      ) {
+        req.session.isadminlogged = true;
 
-      const orderStatusData = {
-        labels: orderStatusCounts.map((status) => status._id),
-        data: orderStatusCounts.map((status) => status.count),
-      };
-      const totalUsers = await User.countDocuments();
-      const totalOrders = await Order.countDocuments();
-      const totalProductQuantity = await Order.aggregate([
-        {
-          $unwind: "$items",
-        },
-        {
-          $group: {
-            _id: null,
-            totalProductQuantity: { $sum: "$items.quantity" },
-          },
-        },
-      ]).exec();
-      const productQuantity =
-        totalProductQuantity.length > 0
-          ? totalProductQuantity[0].totalProductQuantity
-          : 0;
+        // Fetch dashboard data (same as before)
+        const paymentMethodCounts = await Order.aggregate([
+          { $group: { _id: "$paymentMethod", count: { $sum: 1 } } },
+        ]);
 
-      const topSellingProducts = await Order.aggregate([
-        { $unwind: "$items" },
-        {
-          $group: { _id: "$items.product", sales: { $sum: "$items.quantity" } },
-        },
-        { $sort: { sales: -1 } },
-        { $limit: 5 },
-        {
-          $lookup: {
-            from: "products",
-            localField: "_id",
-            foreignField: "_id",
-            as: "product",
-          },
-        },
-        { $unwind: "$product" },
-        { $project: { name: "$product.name", sales: 1 } },
-      ]);
+        const paymentMethodData = {
+          labels: paymentMethodCounts.map((m) => m._id),
+          data: paymentMethodCounts.map((m) => m.count),
+        };
 
-      const topSellingCategories = await Order.aggregate([
-        { $unwind: "$items" },
-        {
-          $lookup: {
-            from: "products",
-            localField: "items.product",
-            foreignField: "_id",
-            as: "product",
-          },
-        },
-        { $unwind: "$product" },
-        {
-          $group: {
-            _id: "$product.category",
-            sales: { $sum: "$items.quantity" },
-          },
-        },
-        { $sort: { sales: -1 } },
-        { $limit: 5 },
-        {
-          $lookup: {
-            from: "categories",
-            localField: "_id",
-            foreignField: "_id",
-            as: "category",
-          },
-        },
-        { $unwind: "$category" },
-        { $project: { name: "$category.name", sales: 1 } },
-      ]);
+        const orderStatusCounts = await Order.aggregate([
+          { $group: { _id: "$orderStatus", count: { $sum: 1 } } },
+        ]);
 
-      res.render("adminviews/dashboard", {
-        title: "Dashboard",
-        totalOrders: totalOrders,
-        productQuantity: productQuantity,
-        totalUsers: totalUsers,
-        topSellingProducts: topSellingProducts,
-        topSellingCategories: topSellingCategories,
-        orderStatusData: orderStatusData,
-        paymentMethodData: paymentMethodData,
-      });
-    } else {
-      res.status(401).json({ message: "Invalid credentials" });
+        const orderStatusData = {
+          labels: orderStatusCounts.map((s) => s._id),
+          data: orderStatusCounts.map((s) => s.count),
+        };
+
+        const totalUsers = await User.countDocuments();
+        const totalOrders = await Order.countDocuments();
+        const totalProductQuantity = await Order.aggregate([
+          { $unwind: "$items" },
+          {
+            $group: {
+              _id: null,
+              totalProductQuantity: { $sum: "$items.quantity" },
+            },
+          },
+        ]);
+
+        const productQuantity =
+          totalProductQuantity.length > 0
+            ? totalProductQuantity[0].totalProductQuantity
+            : 0;
+
+        const topSellingProducts = await Order.aggregate([
+          { $unwind: "$items" },
+          {
+            $group: {
+              _id: "$items.product",
+              sales: { $sum: "$items.quantity" },
+            },
+          },
+          { $sort: { sales: -1 } },
+          { $limit: 5 },
+          {
+            $lookup: {
+              from: "products",
+              localField: "_id",
+              foreignField: "_id",
+              as: "product",
+            },
+          },
+          { $unwind: "$product" },
+          { $project: { name: "$product.name", sales: 1 } },
+        ]);
+
+        const topSellingCategories = await Order.aggregate([
+          { $unwind: "$items" },
+          {
+            $lookup: {
+              from: "products",
+              localField: "items.product",
+              foreignField: "_id",
+              as: "product",
+            },
+          },
+          { $unwind: "$product" },
+          {
+            $group: {
+              _id: "$product.category",
+              sales: { $sum: "$items.quantity" },
+            },
+          },
+          { $sort: { sales: -1 } },
+          { $limit: 5 },
+          {
+            $lookup: {
+              from: "categories",
+              localField: "_id",
+              foreignField: "_id",
+              as: "category",
+            },
+          },
+          { $unwind: "$category" },
+          { $project: { name: "$category.name", sales: 1 } },
+        ]);
+
+        return res.render("adminviews/dashboard", {
+          title: "Dashboard",
+          totalOrders,
+          productQuantity,
+          totalUsers,
+          topSellingProducts,
+          topSellingCategories,
+          orderStatusData,
+          paymentMethodData,
+        });
+      } else {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+    } catch (err) {
+      console.error("Admin login error:", err);
+      res.status(500).json({ message: "Internal server error" });
     }
   },
 

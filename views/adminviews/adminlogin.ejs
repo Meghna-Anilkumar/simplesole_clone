@@ -5,52 +5,144 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Admin login page</title>
-  <!-- Bootstrap CSS -->
+
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-  <!-- Font Awesome for icons -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
-    integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA=="
-    crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <link rel="stylesheet" href="adminlogin.css">
 
+  <style>
+    .error-message {
+      color: red;
+      font-size: 0.9rem;
+      margin-top: 5px;
+    }
+
+    .valid-input {
+      border-color: #28a745 !important;
+    }
+
+    .invalid-input {
+      border-color: #dc3545 !important;
+    }
+  </style>
 </head>
 
 <body>
   <div class="container">
     <div class="row">
       <div class="col-md-6 offset-md-3">
-        <h2 class="text-center text-dark mt-5">Admin login</h2>
+        <h2 class="text-center text-dark mt-5">Admin Login</h2>
 
         <div class="card my-5">
-
-          <form action="/adminlogin" method='post' class="card-body cardbody-color p-lg-5">
+          <form id="adminLoginForm" action="/adminlogin" method="post" class="card-body cardbody-color p-lg-5">
 
             <div class="text-center">
               <img src="/images/admin.jpeg" class="img-fluid profile-image-pic img-thumbnail rounded-circle my-3"
                 width="200px" alt="profile">
             </div>
 
+            <!-- Email Field -->
             <div class="mb-3">
-              <input type="text" class="form-control" id="email" name="email" aria-describedby="emailHelp"
-                placeholder="email">
+              <input type="text" class="form-control" id="email" name="email" placeholder="Email">
+              <div id="emailError" class="error-message"></div>
             </div>
-            <div class="mb-3">
-              <input type="password" class="form-control" id="password" name="password" placeholder="password">
-            </div>
-            <div class="text-center"><button type="submit" class="btn btn-color px-5 mb-5 w-100">Login</button></div>
 
+            <!-- Password Field -->
+            <div class="mb-3">
+              <input type="password" class="form-control" id="password" name="password" placeholder="Password">
+              <div id="passwordError" class="error-message"></div>
+            </div>
+
+            <div id="loginError" class="text-danger text-center mb-3"></div>
+
+            <div class="text-center">
+              <button type="submit" id="loginBtn" class="btn btn-color px-5 mb-5 w-100" disabled>Login</button>
+            </div>
           </form>
         </div>
-
       </div>
     </div>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.min.js"></script>
-
   <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
 
-</body>
+  <script>
+    const email = document.getElementById("email");
+    const password = document.getElementById("password");
+    const loginBtn = document.getElementById("loginBtn");
+    const emailError = document.getElementById("emailError");
+    const passwordError = document.getElementById("passwordError");
+    const loginError = document.getElementById("loginError");
 
+    function validateEmail(emailValue) {
+      const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      return emailPattern.test(emailValue);
+    }
+
+    function checkValidation() {
+      let isValid = true;
+
+      // Email validation
+      if (email.value.trim() === "") {
+        emailError.textContent = "Email is required.";
+        email.classList.add("invalid-input");
+        email.classList.remove("valid-input");
+        isValid = false;
+      } else if (!validateEmail(email.value)) {
+        emailError.textContent = "Enter a valid email address.";
+        email.classList.add("invalid-input");
+        email.classList.remove("valid-input");
+        isValid = false;
+      } else {
+        emailError.textContent = "";
+        email.classList.add("valid-input");
+        email.classList.remove("invalid-input");
+      }
+
+      // Password validation
+      if (password.value.trim() === "") {
+        passwordError.textContent = "Password is required.";
+        password.classList.add("invalid-input");
+        password.classList.remove("valid-input");
+        isValid = false;
+      } else {
+        passwordError.textContent = "";
+        password.classList.add("valid-input");
+        password.classList.remove("invalid-input");
+      }
+
+      // Enable or disable login button
+      loginBtn.disabled = !isValid;
+    }
+
+    email.addEventListener("input", checkValidation);
+    password.addEventListener("input", checkValidation);
+
+    // Handle form submission
+    $("#adminLoginForm").submit(function (event) {
+      event.preventDefault(); // prevent normal form submission
+      loginError.textContent = "";
+
+      $.ajax({
+        type: "POST",
+        url: "/adminlogin",
+        data: {
+          email: email.value,
+          password: password.value
+        },
+        success: function () {
+          window.location.href = "/dashboard"; 
+        },
+        error: function (xhr) {
+          if (xhr.status === 401) {
+            loginError.textContent = "Invalid email or password!";
+          } else {
+            loginError.textContent = "Something went wrong. Please try again.";
+          }
+        }
+      });
+    });
+  </script>
+</body>
 </html>
