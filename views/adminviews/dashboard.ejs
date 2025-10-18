@@ -1,34 +1,218 @@
 <%- include('./sidebar') %>
 
 <style>
-  .dashboard-card i {
-    font-size: 48px; 
-    margin-bottom: 10px;
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  .content {
+    background: linear-gradient(135deg, #ffeef8 0%, #fff5f7 100%);
+    min-height: 100vh;
+    padding: 30px;
+  }
+
+  .content h2 {
+    color: #e91e63;
+    font-size: 32px;
+    font-weight: 600;
+    margin-bottom: 30px;
+    text-shadow: 2px 2px 4px rgba(233, 30, 99, 0.1);
   }
 
   .dashboard-container {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between; 
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 25px;
+    margin-bottom: 40px;
   }
 
   .dashboard-card {
-    display:flex;
-    justify-content: space-between;
-    margin: 15px;
-    padding: 20px;
-    width: calc(33.33% - 30px); 
-    max-width: 300px; 
-    box-sizing: border-box;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 20px;
+    padding: 30px;
+    box-shadow: 0 10px 30px rgba(233, 30, 99, 0.15);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
     text-align: center;
+    border: 2px solid rgba(233, 30, 99, 0.1);
+  }
+
+  .dashboard-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 40px rgba(233, 30, 99, 0.25);
+  }
+
+  .dashboard-card i {
+    font-size: 48px;
+    margin-bottom: 15px;
+    background: linear-gradient(135deg, #e91e63 0%, #f06292 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .dashboard-card h2 {
+    color: #666;
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    text-shadow: none;
+  }
+
+  .dashboard-card p {
+    color: #e91e63;
+    font-size: 36px;
+    font-weight: 700;
   }
 
   .box {
-    border: 1px solid #ccc;
-    padding: 10px;
-    border-radius: 5px;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 15px;
+    padding: 25px;
+    box-shadow: 0 8px 25px rgba(233, 30, 99, 0.12);
   }
- 
+
+  .box h2 {
+    color: #333;
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 3px solid #e91e63;
+    text-shadow: none;
+  }
+
+  .box p {
+    color: #666;
+    font-size: 16px;
+    padding: 12px;
+    margin: 8px 0;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border-left: 4px solid #e91e63;
+    transition: all 0.3s ease;
+  }
+
+  .box p:hover {
+    background: #fff0f5;
+    transform: translateX(5px);
+  }
+
+  .chart-container {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 20px;
+    padding: 30px;
+    margin-bottom: 40px;
+    box-shadow: 0 10px 30px rgba(233, 30, 99, 0.15);
+    border: 2px solid rgba(233, 30, 99, 0.1);
+  }
+
+  .chart-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 30px;
+    margin-bottom: 40px;
+  }
+
+  .sales-report-section {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 20px;
+    padding: 35px;
+    box-shadow: 0 10px 30px rgba(233, 30, 99, 0.15);
+    border: 2px solid rgba(233, 30, 99, 0.1);
+  }
+
+  .sales-report-section h1 {
+    color: #e91e63;
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 25px;
+    padding-bottom: 15px;
+    border-bottom: 3px solid #e91e63;
+  }
+
+  #dateRangeForm {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+  }
+
+  #dateRangeForm label {
+    display: block;
+    color: #666;
+    font-weight: 600;
+    margin-bottom: 8px;
+    font-size: 14px;
+  }
+
+  #dateRangeForm input[type="date"],
+  #dateRangeForm select {
+    width: 100%;
+    padding: 12px 15px;
+    border: 2px solid #e0e0e0;
+    border-radius: 10px;
+    font-size: 14px;
+    transition: all 0.3s ease;
+    background: #fff;
+  }
+
+  #dateRangeForm input[type="date"]:focus,
+  #dateRangeForm select:focus {
+    outline: none;
+    border-color: #e91e63;
+    box-shadow: 0 0 0 3px rgba(233, 30, 99, 0.1);
+  }
+
+  #dateRangeForm button {
+    padding: 10px 20px;
+    background: linear-gradient(135deg, #e91e63 0%, #f06292 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(233, 30, 99, 0.4);
+  }
+
+  #dateRangeForm button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(233, 30, 99, 0.5);
+  }
+
+  #dateRangeForm button:active {
+    transform: translateY(0);
+  }
+
+  #dateRangeForm button[type="button"] {
+    background: linear-gradient(135deg, #f06292 0%, #f48fb1 100%);
+    box-shadow: 0 4px 15px rgba(240, 98, 146, 0.4);
+  }
+
+  #dateRangeForm button[type="button"]:hover {
+    box-shadow: 0 6px 20px rgba(240, 98, 146, 0.5);
+  }
+
+  @media (max-width: 768px) {
+    .content {
+      padding: 20px;
+    }
+
+    .dashboard-container {
+      grid-template-columns: 1fr;
+    }
+
+    .chart-grid {
+      grid-template-columns: 1fr;
+    }
+
+    #dateRangeForm {
+      grid-template-columns: 1fr;
+    }
+  }
 </style>
 
 <div class="content">
@@ -54,14 +238,12 @@
     </div>
   </div>
 
-  <!-- Add cards for top selling products and categories -->
   <div class="dashboard-container">
     <div class="dashboard-card">
       <div class="box">
         <h2>Top Selling Products</h2>
-        <!-- Display top selling products here -->
         <% topSellingProducts.forEach(product => { %>
-          <p><%= product.name %> - <%= product.sales %></p>
+          <p><%= product.name %> - <strong><%= product.sales %> units</strong></p>
         <% }); %>
       </div>
     </div>
@@ -69,43 +251,57 @@
     <div class="dashboard-card">
       <div class="box">
         <h2>Top Selling Categories</h2>
-        <!-- Display top selling categories here -->
         <% topSellingCategories.forEach(category => { %>
-          <p><%= category.name %> - <%= category.sales %></p>
+          <p><%= category.name %> - <strong><%= category.sales %> units</strong></p>
         <% }); %>
       </div>
     </div>
   </div>
 
-  <div class="dashboard-card">
-    <input type="hidden" id="orderStatusData" value='<%- JSON.stringify(orderStatusData) %>'>
-    <canvas id="orderStatusChart" width="400" height="400"></canvas>
-    <input type="hidden" id="paymentMethodData" value='<%- JSON.stringify(paymentMethodData) %>'>
-    <canvas id="paymentMethodChart" width="800" height="400"></canvas>
+  <div class="chart-grid">
+    <div class="chart-container">
+      <h2 style="color: #333; font-size: 20px; margin-bottom: 20px; text-shadow: none;">Order Status Distribution</h2>
+      <input type="hidden" id="orderStatusData" value='<%- JSON.stringify(orderStatusData) %>'>
+      <canvas id="orderStatusChart"></canvas>
+    </div>
+
+    <div class="chart-container">
+      <h2 style="color: #333; font-size: 20px; margin-bottom: 20px; text-shadow: none;">Payment Methods</h2>
+      <input type="hidden" id="paymentMethodData" value='<%- JSON.stringify(paymentMethodData) %>'>
+      <canvas id="paymentMethodChart"></canvas>
+    </div>
   </div>
 
-  <h1>Sales Report</h1>
-  <form id="dateRangeForm">
-    <label for="fromDate">From Date:</label>
-    <input type="date" id="fromDate" name="fromDate">
-    <label for="toDate">To Date:</label>
-    <input type="date" id="toDate" name="toDate">
-    <!-- <label for="interval">Select Time Interval:</label> -->
-    <select id="interval" name="interval">
-      <option value="daily">Daily</option>
-      <option value="monthly">Monthly</option>
-      <option value="yearly">Yearly</option>
-    </select>
-    <button type="submit">Generate Report</button>
-    <button type="button" onclick="generatePDF()">Generate PDF</button>
-  </form>
-  <div>
-    <canvas id="salesChart" width="800" height="400"></canvas>
+  <div class="sales-report-section">
+    <h1>Sales Report Generator</h1>
+    <form id="dateRangeForm">
+      <div>
+        <label for="fromDate">From Date:</label>
+        <input type="date" id="fromDate" name="fromDate" required>
+      </div>
+      <div>
+        <label for="toDate">To Date:</label>
+        <input type="date" id="toDate" name="toDate" required>
+      </div>
+      <div>
+        <label for="interval">Time Interval:</label>
+        <select id="interval" name="interval">
+          <option value="daily">Daily</option>
+          <option value="monthly">Monthly</option>
+          <option value="yearly">Yearly</option>
+        </select>
+      </div>
+      <button type="submit">Generate Report</button>
+      <button type="button" onclick="generatePDF()">Download PDF</button>
+    </form>
+    <div class="chart-container" style="margin-top: 30px;">
+      <canvas id="salesChart"></canvas>
+    </div>
   </div>
 </div>
 
-
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
   const form = document.getElementById('dateRangeForm');
@@ -119,7 +315,22 @@
     const toDate = document.getElementById('toDate').value;
     const interval = document.getElementById('interval').value;
 
-    const response = await fetch(`/generatesalesreport?fromDate=${fromDate}&toDate=${toDate}&interval=${interval}`);
+    if (!fromDate || !toDate) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Missing Dates',
+        text: 'Please select both start and end dates',
+        confirmButtonColor: '#e91e63'
+      });
+      return;
+    }
+
+    // Add one day to toDate to include it in the range
+    const adjustedToDate = new Date(toDate);
+    adjustedToDate.setDate(adjustedToDate.getDate() + 1);
+    const toDateString = adjustedToDate.toISOString().split('T')[0];
+
+    const response = await fetch(`/generatesalesreport?fromDate=${fromDate}&toDate=${toDateString}&interval=${interval}`);
     const data = await response.json();
 
     const labels = Object.keys(data);
@@ -134,26 +345,39 @@
       data: {
         labels: labels,
         datasets: [{
-          label: 'Sales',
+          label: 'Sales Amount',
           data: values,
-          backgroundColor: 'rgba(75, 192, 192, 0.2)',
-          borderColor: 'rgba(75, 192, 192, 1)',
-          borderWidth: 1
+          backgroundColor: 'rgba(233, 30, 99, 0.7)',
+          borderColor: 'rgba(233, 30, 99, 1)',
+          borderWidth: 2,
+          borderRadius: 8
         }]
       },
       options: {
+        responsive: true,
+        plugins: {
+          legend: {
+            display: true,
+            labels: {
+              font: { size: 14, weight: 'bold' },
+              color: '#666'
+            }
+          }
+        },
         scales: {
           y: {
-            beginAtZero: true
+            beginAtZero: true,
+            grid: { color: 'rgba(0, 0, 0, 0.05)' },
+            ticks: { color: '#666' }
+          },
+          x: {
+            grid: { display: false },
+            ticks: { color: '#666' }
           }
         }
       }
     });
   });
-
-</script>
-
-<script>
 
   async function generatePDF() {
     try {
@@ -161,118 +385,134 @@
       const toDate = document.getElementById('toDate').value;
       const interval = document.getElementById('interval').value;
 
-      const response = await fetch(`/generatepdf?fromDate=${fromDate}&toDate=${toDate}&interval=${interval}`);
+      if (!fromDate || !toDate) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Missing Dates',
+          text: 'Please select both start and end dates',
+          confirmButtonColor: '#e91e63'
+        });
+        return;
+      }
+
+      // Add one day to toDate to include it in the range
+      const adjustedToDate = new Date(toDate);
+      adjustedToDate.setDate(adjustedToDate.getDate() + 1);
+      const toDateString = adjustedToDate.toISOString().split('T')[0];
+
+      const response = await fetch(`/generatepdf?fromDate=${fromDate}&toDate=${toDateString}&interval=${interval}`);
       
       if (response.ok) {
-        
         const blob = await response.blob();
-
-        
         const url = window.URL.createObjectURL(blob);
-
-       
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'sales_report.pdf';
-
+        a.download = `sales_report_${fromDate}_${toDate}.pdf`;
         document.body.appendChild(a);
         a.click();
-
         document.body.removeChild(a);
-      } else {
+        window.URL.revokeObjectURL(url);
         
-        console.error('Failed to generate PDF');
+        Swal.fire({
+          icon: 'success',
+          title: 'Success!',
+          text: 'PDF has been downloaded successfully',
+          confirmButtonColor: '#e91e63',
+          timer: 2000
+        });
+      } else {
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'Failed to generate PDF. Please try again.',
+          confirmButtonColor: '#e91e63'
+        });
       }
     } catch (error) {
       console.error('Error generating PDF:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'An error occurred while generating PDF',
+        confirmButtonColor: '#e91e63'
+      });
     }
   }
-  document.getElementById('generatePDFButton').addEventListener('click', generatePDF);
-</script>
-
-
-<script>
-  // Get the hidden input element with id 'orderStatusData'
-const orderStatusDataInput = document.getElementById('orderStatusData');
-
-// Get the value of the hidden input element
-const orderStatusDataValue = orderStatusDataInput.value;
-
-// Parse the JSON data
-const orderStatusData = JSON.parse(orderStatusDataValue);
-
-// Get the context
-const orderStatusChart = document.getElementById('orderStatusChart').getContext('2d');
-
-// Render the chart using the parsed orderStatusData
-new Chart(orderStatusChart, {
-  type: 'pie',
-  data: {
-    labels: orderStatusData.labels,
-    datasets: [{
-      data: orderStatusData.data,
-      backgroundColor: [
-        'rgba(255, 99, 132, 0.7)',
-        'rgba(54, 162, 235, 0.7)',
-        'rgba(255, 206, 86, 0.7)',
-        'rgba(75, 192, 192, 0.7)',
-        // Add more colors if needed
-      ],
-      borderColor: [
-        'rgba(255, 99, 132, 1)',
-        'rgba(54, 162, 235, 1)',
-        'rgba(255, 206, 86, 1)',
-        'rgba(75, 192, 192, 1)',
-        // Add more colors if needed
-      ],
-      borderWidth: 1
-    }]
-  },
-  options: {
-    // Add options if needed
-  }
-});
-
 </script>
 
 <script>
-  // Get the hidden input element with id 'paymentMethodData'
-const paymentMethodDataInput = document.getElementById('paymentMethodData');
+  const orderStatusDataInput = document.getElementById('orderStatusData');
+  const orderStatusDataValue = orderStatusDataInput.value;
+  const orderStatusData = JSON.parse(orderStatusDataValue);
+  const orderStatusChart = document.getElementById('orderStatusChart').getContext('2d');
 
-// Get the value of the hidden input element
-const paymentMethodDataValue = paymentMethodDataInput.value;
+  new Chart(orderStatusChart, {
+    type: 'doughnut',
+    data: {
+      labels: orderStatusData.labels,
+      datasets: [{
+        data: orderStatusData.data,
+        backgroundColor: [
+          'rgba(233, 30, 99, 0.8)',
+          'rgba(240, 98, 146, 0.8)',
+          'rgba(244, 143, 177, 0.8)',
+          'rgba(248, 187, 208, 0.8)',
+          'rgba(252, 228, 236, 0.8)'
+        ],
+        borderColor: '#fff',
+        borderWidth: 3
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: {
+            padding: 15,
+            font: { size: 13 },
+            color: '#666'
+          }
+        }
+      }
+    }
+  });
+</script>
 
-// Parse the JSON data
-const paymentMethodData = JSON.parse(paymentMethodDataValue);
+<script>
+  const paymentMethodDataInput = document.getElementById('paymentMethodData');
+  const paymentMethodDataValue = paymentMethodDataInput.value;
+  const paymentMethodData = JSON.parse(paymentMethodDataValue);
+  const paymentMethodChart = document.getElementById('paymentMethodChart').getContext('2d');
 
-// Get the context
-const paymentMethodChart = document.getElementById('paymentMethodChart').getContext('2d');
-
-// Render the chart using the parsed paymentMethodData
-new Chart(paymentMethodChart, {
-  type: 'pie',
-  data: {
-    labels: paymentMethodData.labels,
-    datasets: [{
-      data: paymentMethodData.data,
-      backgroundColor: [
-        'rgba(255, 99, 132, 0.7)',
-        'rgba(54, 162, 235, 0.7)',
-        'rgba(255, 206, 86, 0.7)',
-        // Add more colors if needed
-      ],
-      borderColor: [
-        'rgba(255, 99, 132, 1)',
-        'rgba(54, 162, 235, 1)',
-        'rgba(255, 206, 86, 1)',
-        // Add more colors if needed
-      ],
-      borderWidth: 1
-    }]
-  },
-  options: {
-    // Add options if needed
-  }
-});
-
+  new Chart(paymentMethodChart, {
+    type: 'doughnut',
+    data: {
+      labels: paymentMethodData.labels,
+      datasets: [{
+        data: paymentMethodData.data,
+        backgroundColor: [
+          'rgba(233, 30, 99, 0.8)',
+          'rgba(240, 98, 146, 0.8)',
+          'rgba(244, 143, 177, 0.8)',
+          'rgba(189, 189, 189, 0.8)'
+        ],
+        borderColor: '#fff',
+        borderWidth: 3
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: {
+            padding: 15,
+            font: { size: 13 },
+            color: '#666'
+          }
+        }
+      }
+    }
+  });
 </script>

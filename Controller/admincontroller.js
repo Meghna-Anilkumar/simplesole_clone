@@ -1,53 +1,50 @@
-const bodyParser = require('body-parser')
-const express = require('express')
-const app = express()
-app.use(bodyParser.json())
-const Order = require('../models/orderSchema')
-const User = require('../models/user')
-const PDFDocument = require('pdfkit');
-
+const bodyParser = require("body-parser");
+const express = require("express");
+const app = express();
+app.use(bodyParser.json());
+const Order = require("../models/orderSchema");
+const User = require("../models/user");
+const PDFDocument = require("pdfkit");
 
 module.exports = {
-
   //to admin login page
   toadminlogin: async (req, res) => {
-    res.render('adminviews/adminlogin', {
-      title: 'Homepage'
+    res.render("adminviews/adminlogin", {
+      title: "Homepage",
     });
   },
 
   //to login the admin
   adminlogin: async (req, res) => {
     const credential = {
-      email: 'admin@gmail.com',
-      password: 'Admin@2024'
-    }
+      email: "admin@gmail.com",
+      password: "Admin@2024",
+    };
     if (
       req.body.email == credential.email &&
       req.body.password == credential.password
     ) {
-      req.session.isadminlogged = true
+      req.session.isadminlogged = true;
 
       const paymentMethodCounts = await Order.aggregate([
-        { $group: { _id: '$paymentMethod', count: { $sum: 1 } } },
+        { $group: { _id: "$paymentMethod", count: { $sum: 1 } } },
       ]);
 
       const paymentMethodData = {
-        labels: paymentMethodCounts.map(method => method._id),
-        data: paymentMethodCounts.map(method => method.count),
+        labels: paymentMethodCounts.map((method) => method._id),
+        data: paymentMethodCounts.map((method) => method.count),
       };
 
-
       const orderStatusCounts = await Order.aggregate([
-        { $group: { _id: '$orderStatus', count: { $sum: 1 } } },
+        { $group: { _id: "$orderStatus", count: { $sum: 1 } } },
       ]);
 
       const orderStatusData = {
-        labels: orderStatusCounts.map(status => status._id),
-        data: orderStatusCounts.map(status => status.count),
+        labels: orderStatusCounts.map((status) => status._id),
+        data: orderStatusCounts.map((status) => status.count),
       };
       const totalUsers = await User.countDocuments();
-      const totalOrders = await Order.countDocuments()
+      const totalOrders = await Order.countDocuments();
       const totalProductQuantity = await Order.aggregate([
         {
           $unwind: "$items",
@@ -65,66 +62,92 @@ module.exports = {
           : 0;
 
       const topSellingProducts = await Order.aggregate([
-        { $unwind: '$items' },
-        { $group: { _id: '$items.product', sales: { $sum: '$items.quantity' } } },
+        { $unwind: "$items" },
+        {
+          $group: { _id: "$items.product", sales: { $sum: "$items.quantity" } },
+        },
         { $sort: { sales: -1 } },
         { $limit: 5 },
-        { $lookup: { from: 'products', localField: '_id', foreignField: '_id', as: 'product' } },
-        { $unwind: '$product' },
-        { $project: { name: '$product.name', sales: 1 } }
+        {
+          $lookup: {
+            from: "products",
+            localField: "_id",
+            foreignField: "_id",
+            as: "product",
+          },
+        },
+        { $unwind: "$product" },
+        { $project: { name: "$product.name", sales: 1 } },
       ]);
 
       const topSellingCategories = await Order.aggregate([
-        { $unwind: '$items' },
-        { $lookup: { from: 'products', localField: 'items.product', foreignField: '_id', as: 'product' } },
-        { $unwind: '$product' },
-        { $group: { _id: '$product.category', sales: { $sum: '$items.quantity' } } },
+        { $unwind: "$items" },
+        {
+          $lookup: {
+            from: "products",
+            localField: "items.product",
+            foreignField: "_id",
+            as: "product",
+          },
+        },
+        { $unwind: "$product" },
+        {
+          $group: {
+            _id: "$product.category",
+            sales: { $sum: "$items.quantity" },
+          },
+        },
         { $sort: { sales: -1 } },
         { $limit: 5 },
-        { $lookup: { from: 'categories', localField: '_id', foreignField: '_id', as: 'category' } },
-        { $unwind: '$category' },
-        { $project: { name: '$category.name', sales: 1 } }
+        {
+          $lookup: {
+            from: "categories",
+            localField: "_id",
+            foreignField: "_id",
+            as: "category",
+          },
+        },
+        { $unwind: "$category" },
+        { $project: { name: "$category.name", sales: 1 } },
       ]);
 
-      res.render('adminviews/dashboard', {
-        title: 'Dashboard',
+      res.render("adminviews/dashboard", {
+        title: "Dashboard",
         totalOrders: totalOrders,
         productQuantity: productQuantity,
         totalUsers: totalUsers,
         topSellingProducts: topSellingProducts,
         topSellingCategories: topSellingCategories,
         orderStatusData: orderStatusData,
-        paymentMethodData: paymentMethodData
+        paymentMethodData: paymentMethodData,
       });
-    }
-    else {
-      res.status(401).json({ message: 'Invalid credentials' });
+    } else {
+      res.status(401).json({ message: "Invalid credentials" });
     }
   },
 
   //get dashboard
   dashboard: async (req, res) => {
-
     const paymentMethodCounts = await Order.aggregate([
-      { $group: { _id: '$paymentMethod', count: { $sum: 1 } } },
+      { $group: { _id: "$paymentMethod", count: { $sum: 1 } } },
     ]);
 
     const paymentMethodData = {
-      labels: paymentMethodCounts.map(method => method._id),
-      data: paymentMethodCounts.map(method => method.count),
+      labels: paymentMethodCounts.map((method) => method._id),
+      data: paymentMethodCounts.map((method) => method.count),
     };
 
     const orderStatusCounts = await Order.aggregate([
-      { $group: { _id: '$orderStatus', count: { $sum: 1 } } },
+      { $group: { _id: "$orderStatus", count: { $sum: 1 } } },
     ]);
 
     const orderStatusData = {
-      labels: orderStatusCounts.map(status => status._id),
-      data: orderStatusCounts.map(status => status.count),
+      labels: orderStatusCounts.map((status) => status._id),
+      data: orderStatusCounts.map((status) => status.count),
     };
 
     const totalUsers = await User.countDocuments();
-    const totalOrders = await Order.countDocuments()
+    const totalOrders = await Order.countDocuments();
     const totalProductQuantity = await Order.aggregate([
       {
         $unwind: "$items",
@@ -142,30 +165,55 @@ module.exports = {
         : 0;
 
     const topSellingProducts = await Order.aggregate([
-      { $unwind: '$items' },
-      { $group: { _id: '$items.product', sales: { $sum: '$items.quantity' } } },
+      { $unwind: "$items" },
+      { $group: { _id: "$items.product", sales: { $sum: "$items.quantity" } } },
       { $sort: { sales: -1 } },
       { $limit: 5 },
-      { $lookup: { from: 'products', localField: '_id', foreignField: '_id', as: 'product' } },
-      { $unwind: '$product' },
-      { $project: { name: '$product.name', sales: 1 } }
+      {
+        $lookup: {
+          from: "products",
+          localField: "_id",
+          foreignField: "_id",
+          as: "product",
+        },
+      },
+      { $unwind: "$product" },
+      { $project: { name: "$product.name", sales: 1 } },
     ]);
 
     const topSellingCategories = await Order.aggregate([
-      { $unwind: '$items' },
-      { $lookup: { from: 'products', localField: 'items.product', foreignField: '_id', as: 'product' } },
-      { $unwind: '$product' },
-      { $group: { _id: '$product.category', sales: { $sum: '$items.quantity' } } },
+      { $unwind: "$items" },
+      {
+        $lookup: {
+          from: "products",
+          localField: "items.product",
+          foreignField: "_id",
+          as: "product",
+        },
+      },
+      { $unwind: "$product" },
+      {
+        $group: {
+          _id: "$product.category",
+          sales: { $sum: "$items.quantity" },
+        },
+      },
       { $sort: { sales: -1 } },
       { $limit: 5 },
-      { $lookup: { from: 'categories', localField: '_id', foreignField: '_id', as: 'category' } },
-      { $unwind: '$category' },
-      { $project: { name: '$category.name', sales: 1 } }
+      {
+        $lookup: {
+          from: "categories",
+          localField: "_id",
+          foreignField: "_id",
+          as: "category",
+        },
+      },
+      { $unwind: "$category" },
+      { $project: { name: "$category.name", sales: 1 } },
     ]);
 
-
-    res.render('adminviews/dashboard', {
-      title: 'Dashboard',
+    res.render("adminviews/dashboard", {
+      title: "Dashboard",
       totalOrders: totalOrders,
       productQuantity: productQuantity,
       totalUsers: totalUsers,
@@ -176,23 +224,20 @@ module.exports = {
     });
   },
 
-
   //admin logout
   adminlogout: async (req, res) => {
+    console.log("Accessed /adminlogout");
+    req.session.isadminlogged = false;
 
-    console.log('Accessed /adminlogout');
-    req.session.isadminlogged = false
-
-    req.session.destroy(err => {
+    req.session.destroy((err) => {
       if (err) {
-        console.error('Error destroying session:', err);
-        res.status(500).send('Internal Server Error');
+        console.error("Error destroying session:", err);
+        res.status(500).send("Internal Server Error");
       } else {
-        res.redirect('/adminlogin')
+        res.redirect("/adminlogin");
       }
-    })
+    });
   },
-
 
   //generate sales report
   generatesalesreport: async (req, res) => {
@@ -208,26 +253,36 @@ module.exports = {
     let salesData = {};
 
     switch (interval) {
-      case 'daily':
-        orders.forEach(order => {
-          const date = order.orderdate.toISOString().split('T')[0];
+      case "daily":
+        orders.forEach((order) => {
+          const date = order.orderdate.toISOString().split("T")[0];
           if (!salesData[date]) salesData[date] = 0;
           salesData[date] += order.totalAmount;
         });
         break;
 
-      case 'monthly':
-        orders.forEach(order => {
+      case "monthly":
+        orders.forEach((order) => {
           const yearMonth = order.orderdate.toISOString().slice(0, 7);
           if (!salesData[yearMonth]) salesData[yearMonth] = 0;
           salesData[yearMonth] += order.totalAmount;
         });
 
-        const firstOrderDate = orders.length > 0 ? orders[0].orderdate : new Date();
-        const lastOrderDate = orders.length > 0 ? orders[orders.length - 1].orderdate : new Date();
+        const firstOrderDate =
+          orders.length > 0 ? orders[0].orderdate : new Date();
+        const lastOrderDate =
+          orders.length > 0 ? orders[orders.length - 1].orderdate : new Date();
 
-        const startDate = new Date(firstOrderDate.getFullYear(), firstOrderDate.getMonth(), 1);
-        const endDate = new Date(lastOrderDate.getFullYear(), lastOrderDate.getMonth() + 1, 0);
+        const startDate = new Date(
+          firstOrderDate.getFullYear(),
+          firstOrderDate.getMonth(),
+          1
+        );
+        const endDate = new Date(
+          lastOrderDate.getFullYear(),
+          lastOrderDate.getMonth() + 1,
+          0
+        );
 
         const currentDate = new Date(startDate);
         while (currentDate <= endDate) {
@@ -237,8 +292,8 @@ module.exports = {
         }
         break;
 
-      case 'yearly':
-        orders.forEach(order => {
+      case "yearly":
+        orders.forEach((order) => {
           const year = order.orderdate.getFullYear().toString();
           if (!salesData[year]) salesData[year] = 0;
           salesData[year] += order.totalAmount;
@@ -246,67 +301,210 @@ module.exports = {
         break;
 
       default:
-        return res.status(400).json({ error: 'Invalid interval' });
+        return res.status(400).json({ error: "Invalid interval" });
     }
 
     res.json(salesData);
   },
-
 
   //generate sales report pdf
   generatepdf: async (req, res) => {
     try {
       const { fromDate, toDate, interval } = req.query;
 
-      const orders = await Order.find({ orderdate: { $gte: fromDate, $lte: toDate } })
-        .populate('user')
-        .populate('items.product');
+      const orders = await Order.find({
+        orderdate: { $gte: fromDate, $lte: toDate },
+      })
+        .populate("user")
+        .populate("items.product");
 
       const overallSalesCount = orders.length;
-      const overallOrderAmount = orders.reduce((total, order) => total + order.totalAmount, 0);
-      const overallDiscountAmount = orders.reduce((total, order) => total + order.discountAmount, 0);
+      const overallOrderAmount = orders.reduce(
+        (total, order) => total + order.totalAmount,
+        0
+      );
+      const overallDiscountAmount = orders.reduce(
+        (total, order) => total + order.discountAmount,
+        0
+      );
 
-      const doc = new PDFDocument();
+      const doc = new PDFDocument({ margin: 50, size: "A4" });
 
-      // Set response headers for file download
       const fileName = `sales_report_${fromDate}_${toDate}.pdf`;
-      res.setHeader('Content-disposition', `attachment; filename=${fileName}`);
-      res.setHeader('Content-type', 'application/pdf');
+      res.setHeader("Content-disposition", `attachment; filename=${fileName}`);
+      res.setHeader("Content-type", "application/pdf");
 
-      // Pipe the PDF document directly to the response
       doc.pipe(res);
 
-      // Add content to PDF
-      doc.fontSize(16).text(`Sales Report (${fromDate} to ${toDate})`, { align: 'center' });
-      doc.moveDown();
-      doc.fontSize(12).text(`Overall Sales Count: ${overallSalesCount}`);
-      doc.fontSize(12).text(`Overall Order Amount: ${overallOrderAmount}`);
-      doc.fontSize(12).text(`Overall Discount Amount: ${overallDiscountAmount}`);
-      doc.moveDown();
+      // Header with gradient-like effect (using colors)
+      doc.rect(0, 0, doc.page.width, 120).fill("#667eea");
 
-      // Add table header
-      doc.font('Helvetica-Bold').text('Order ID    Customer    Order Date    Product    Quantity    Payment Method    Total Amount');
+      doc
+        .fillColor("#ffffff")
+        .fontSize(24)
+        .font("Helvetica-Bold")
+        .text("Sales Report", 50, 40, { align: "center" });
 
-      // Add orders data
-      orders.forEach(order => {
-        let productNames = '';
-        let quantities = '';
-        if (order.items && order.items.length > 0) {
-          productNames = order.items.map(item => item.product ? item.product.name : 'Unknown Product').join('\n');
-          quantities = order.items.map(item => item.quantity).join('\n');
-        }
-        doc.font('Helvetica').text(`${order.orderId}    ${order.user ? order.user.name : 'Unknown Customer'}    ${order.orderdate.toISOString().split('T')[0]}    ${productNames}    ${quantities}    ${order.paymentMethod}    ${order.totalAmount}`);
+      doc
+        .fontSize(12)
+        .font("Helvetica")
+        .text(`Period: ${fromDate} to ${toDate}`, 50, 75, { align: "center" });
+
+      doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 50, 95, {
+        align: "center",
       });
 
-      // Finalize the PDF
-      doc.end();
+      // Summary section with colored boxes
+      let yPosition = 150;
 
+      // Summary cards
+      const summaryData = [
+        { label: "Total Orders", value: overallSalesCount, color: "#667eea" },
+        {
+          label: "Total Revenue",
+          value: `₹${overallOrderAmount.toFixed(2)}`,
+          color: "#764ba2",
+        },
+        {
+          label: "Total Discounts",
+          value: `₹${overallDiscountAmount.toFixed(2)}`,
+          color: "#f5576c",
+        },
+      ];
+
+      const cardWidth = 150;
+      const cardHeight = 80;
+      const cardSpacing = 20;
+      const startX =
+        (doc.page.width -
+          (summaryData.length * cardWidth +
+            (summaryData.length - 1) * cardSpacing)) /
+        2;
+
+      summaryData.forEach((item, index) => {
+        const xPos = startX + index * (cardWidth + cardSpacing);
+
+        // Card background
+        doc
+          .rect(xPos, yPosition, cardWidth, cardHeight)
+          .fillAndStroke(item.color, item.color);
+
+        // Card text
+        doc
+          .fillColor("#ffffff")
+          .fontSize(10)
+          .font("Helvetica")
+          .text(item.label, xPos + 10, yPosition + 20, {
+            width: cardWidth - 20,
+            align: "center",
+          });
+
+        doc
+          .fontSize(18)
+          .font("Helvetica-Bold")
+          .text(item.value, xPos + 10, yPosition + 40, {
+            width: cardWidth - 20,
+            align: "center",
+          });
+      });
+
+      yPosition += cardHeight + 40;
+
+      // Table header
+      doc
+        .fillColor("#333333")
+        .fontSize(14)
+        .font("Helvetica-Bold")
+        .text("Order Details", 50, yPosition);
+
+      yPosition += 30;
+
+      // Table styling
+      const tableTop = yPosition;
+      const tableHeaders = [
+        "Order ID",
+        "Customer",
+        "Date",
+        "Products",
+        "Qty",
+        "Payment",
+        "Amount",
+      ];
+      const columnWidths = [60, 80, 70, 120, 40, 70, 60];
+      let xPos = 50;
+
+      // Draw header background
+      doc.rect(50, tableTop, doc.page.width - 100, 25).fill("#f8f9fa");
+
+      // Draw headers
+      tableHeaders.forEach((header, i) => {
+        doc
+          .fillColor("#333333")
+          .fontSize(9)
+          .font("Helvetica-Bold")
+          .text(header, xPos, tableTop + 8, {
+            width: columnWidths[i],
+            align: "left",
+          });
+        xPos += columnWidths[i];
+      });
+
+      yPosition = tableTop + 30;
+
+      // Table rows
+      orders.forEach((order, index) => {
+        // Check if we need a new page
+        if (yPosition > doc.page.height - 100) {
+          doc.addPage();
+          yPosition = 50;
+        }
+
+        // Alternate row colors
+        if (index % 2 === 0) {
+          doc.rect(50, yPosition - 5, doc.page.width - 100, 25).fill("#f8f9fa");
+        }
+
+        xPos = 50;
+        const rowData = [
+          order.orderId || "N/A",
+          order.user ? order.user.name : "Unknown",
+          order.orderdate.toISOString().split("T")[0],
+          order.items
+            .map((item) => (item.product ? item.product.name : "Unknown"))
+            .join(", "),
+          order.items.reduce((sum, item) => sum + item.quantity, 0).toString(),
+          order.paymentMethod,
+          `₹${order.totalAmount.toFixed(2)}`,
+        ];
+
+        doc.fillColor("#333333").fontSize(8).font("Helvetica");
+
+        rowData.forEach((data, i) => {
+          doc.text(data, xPos, yPosition, {
+            width: columnWidths[i] - 5,
+            align: "left",
+            ellipsis: true,
+          });
+          xPos += columnWidths[i];
+        });
+
+        yPosition += 25;
+      });
+
+      // Footer
+      const footerY = doc.page.height - 50;
+      doc.rect(0, footerY, doc.page.width, 50).fill("#667eea");
+      doc
+        .fillColor("#ffffff")
+        .fontSize(10)
+        .text("Generated by Admin Dashboard", 50, footerY + 20, {
+          align: "center",
+        });
+
+      doc.end();
     } catch (error) {
-      console.error('Error generating PDF:', error);
-      res.status(500).send('Internal Server Error');
+      console.error("Error generating PDF:", error);
+      res.status(500).send("Internal Server Error");
     }
   },
-
-
-
-}
+};

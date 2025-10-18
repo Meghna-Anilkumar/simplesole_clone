@@ -6,7 +6,8 @@
     flex-wrap: wrap;
     justify-content: space-between;
     margin-top: 20px;
-    margin-left: 155px;
+    margin-left: 260px; /* Adjusted to align with sidebar's 240px width + 20px padding */
+    padding-right: 20px; /* Added for consistent spacing */
   }
 
   .coupon-box {
@@ -14,21 +15,166 @@
     border: 1px solid #ccc;
     padding: 20px;
     margin-bottom: 20px;
+    background-color: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s ease;
+  }
+
+  .coupon-box:hover {
+    transform: translateY(-5px);
+  }
+
+  .coupon-box p {
+    margin: 0 0 10px 0;
+    font-size: 14px;
+    color: #2c3e50;
+  }
+
+  .coupon-box button {
+    margin-right: 10px;
   }
 
   .pagination-container {
-    margin: 20px 155px;
+    margin: 20px 260px 20px 260px; /* Aligned with sidebar */
     text-align: center;
+  }
+
+  .content {
+    margin-left: 240px; /* Matches sidebar width */
+    padding: 20px;
+    transition: margin-left 0.3s ease;
+    min-height: 100vh;
+    background-color: #f8f9fa;
+  }
+
+  /* Responsive Design */
+  @media (max-width: 992px) {
+    .coupon-container {
+      margin-left: 15px; /* Adjusted for no sidebar on smaller screens */
+      padding-right: 15px;
+    }
+
+    .pagination-container {
+      margin: 20px 15px;
+    }
+
+    .content {
+      margin-left: 0;
+      padding: 80px 15px 15px 15px;
+    }
+
+    .coupon-box {
+      width: calc(50% - 15px); /* Two columns on tablet */
+    }
+  }
+
+  @media (max-width: 768px) {
+    .coupon-box {
+      width: 100%; /* Single column on mobile */
+    }
+
+    .coupon-container {
+      margin-left: 10px;
+      padding-right: 10px;
+    }
+
+    .pagination-container {
+      margin: 20px 10px;
+    }
+
+    .content {
+      padding: 80px 10px 10px 10px;
+    }
+  }
+
+  @media (max-width: 576px) {
+    .coupon-box {
+      padding: 15px;
+    }
+
+    .coupon-box p {
+      font-size: 13px;
+    }
+
+    .coupon-container {
+      margin-left: 5px;
+      padding-right: 5px;
+    }
+
+    .pagination-container {
+      margin: 20px 5px;
+    }
+
+    .content {
+      padding: 70px 5px 5px 5px;
+    }
   }
 </style>
 
-<div class="content" style="margin-left: 150px;">
+<div class="content">
   <div class="container mt-3">
     <h2>Coupon Page</h2>
     <button class="btn btn-primary" id="openCouponModal" type="button" data-bs-toggle="modal" data-bs-target="#addCouponModal">
       <i class="fas fa-plus"></i> Add Coupon
     </button>
   </div>
+
+  <!-- Coupon Details -->
+  <% if (coupons.length > 0) { %>
+    <div id="couponDetails" class="coupon-container">
+      <% function formatDate(dateString) {
+        const date = new Date(dateString);
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        return `${day}/${month}/${year}`;
+      } %>
+      <% coupons.forEach(coupon => { %>
+        <div class="coupon-box">
+          <p><strong>Coupon Code:</strong> <%= coupon.couponCode %></p>
+          <p><strong>Discount Rate:</strong> <%= coupon.discountRate %>%</p>
+          <p><strong>Minimum Purchase Amount:</strong> <%= coupon.minimumPurchaseAmount %></p>
+          <p><strong>Expiry Date:</strong> <%= formatDate(coupon.expiryDate) %></p>
+          <button class="btn btn-primary edit-coupon-btn" 
+                  data-bs-toggle="modal" 
+                  data-bs-target="#editCouponModal"
+                  data-coupon-id="<%= coupon._id %>"
+                  data-coupon-code="<%= coupon.couponCode %>"
+                  data-discount-rate="<%= coupon.discountRate %>"
+                  data-min-purchase-amount="<%= coupon.minimumPurchaseAmount %>"
+                  data-expiry-date="<%= coupon.expiryDate %>">Edit</button>
+          <button class="btn btn-danger delete-coupon-btn" data-coupon-id="<%= coupon._id %>">Delete</button>
+        </div>
+      <% }) %>
+    </div>
+
+    <!-- Pagination Controls -->
+    <% if (totalPages > 1) { %>
+      <div class="pagination-container">
+        <nav aria-label="Page navigation">
+          <ul class="pagination justify-content-center">
+            <li class="page-item <%= currentPage === 1 ? 'disabled' : '' %>">
+              <a class="page-link" href="?page=<%= currentPage - 1 %>&limit=<%= limit %>">Previous</a>
+            </li>
+            <% for (let i = 1; i <= totalPages; i++) { %>
+              <li class="page-item <%= currentPage === i ? 'active' : '' %>">
+                <a class="page-link" href="?page=<%= i %>&limit=<%= limit %>"><%= i %></a>
+              </li>
+            <% } %>
+            <li class="page-item <%= currentPage === totalPages ? 'disabled' : '' %>">
+              <a class="page-link" href="?page=<%= currentPage + 1 %>&limit=<%= limit %>">Next</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    <% } %>
+  <% } else { %>
+    <div class="text-center" style="margin-top: 50px;">
+      <h4>No coupons added yet.</h4>
+      <p>Click the <strong>Add Coupon</strong> button above to create one.</p>
+    </div>
+  <% } %>
 </div>
 
 <!-- Add Coupon Modal -->
@@ -65,63 +211,6 @@
     </div>
   </div>
 </div>
-
-<!-- Coupon Details -->
-<% if (coupons.length > 0) { %>
-  <div id="couponDetails" class="coupon-container">
-    <% function formatDate(dateString) {
-      const date = new Date(dateString);
-      const day = String(date.getDate()).padStart(2, '0');
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const year = date.getFullYear();
-      return `${day}/${month}/${year}`;
-    } %>
-    <% coupons.forEach(coupon => { %>
-      <div class="coupon-box">
-        <p>Coupon Code: <%= coupon.couponCode %></p>
-        <p>Discount Rate: <%= coupon.discountRate %>%</p>
-        <p>Minimum Purchase Amount: <%= coupon.minimumPurchaseAmount %></p>
-        <p>Expiry Date: <%= formatDate(coupon.expiryDate) %></p>
-        <button class="btn btn-primary edit-coupon-btn" 
-                data-bs-toggle="modal" 
-                data-bs-target="#editCouponModal"
-                data-coupon-id="<%= coupon._id %>"
-                data-coupon-code="<%= coupon.couponCode %>"
-                data-discount-rate="<%= coupon.discountRate %>"
-                data-min-purchase-amount="<%= coupon.minimumPurchaseAmount %>"
-                data-expiry-date="<%= coupon.expiryDate %>">Edit</button>
-        <button class="btn btn-danger delete-coupon-btn" data-coupon-id="<%= coupon._id %>">Delete</button>
-      </div>
-    <% }) %>
-  </div>
-
-  <!-- Pagination Controls -->
-  <% if (totalPages > 1) { %>
-    <div class="pagination-container">
-      <nav aria-label="Page navigation">
-        <ul class="pagination justify-content-center">
-          <li class="page-item <%= currentPage === 1 ? 'disabled' : '' %>">
-            <a class="page-link" href="?page=<%= currentPage - 1 %>&limit=<%= limit %>">Previous</a>
-          </li>
-          <% for (let i = 1; i <= totalPages; i++) { %>
-            <li class="page-item <%= currentPage === i ? 'active' : '' %>">
-              <a class="page-link" href="?page=<%= i %>&limit=<%= limit %>"><%= i %></a>
-            </li>
-          <% } %>
-          <li class="page-item <%= currentPage === totalPages ? 'disabled' : '' %>">
-            <a class="page-link" href="?page=<%= currentPage + 1 %>&limit=<%= limit %>">Next</a>
-          </li>
-        </ul>
-      </nav>
-    </div>
-  <% } %>
-<% } else { %>
-  <div class="text-center" style="margin-top: 50px;">
-    <h4>No coupons added yet.</h4>
-    <p>Click the <strong>Add Coupon</strong> button above to create one.</p>
-  </div>
-<% } %>
-
 
 <!-- Edit Coupon Modal -->
 <div class="modal fade" id="editCouponModal" tabindex="-1" aria-labelledby="editCouponModalLabel" aria-hidden="true">

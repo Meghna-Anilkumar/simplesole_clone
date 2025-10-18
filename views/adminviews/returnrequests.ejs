@@ -47,30 +47,48 @@
 </style>
 
 <div class="content">
-    <h2>Return Requests</h2>
+  <h2>Return Requests</h2>
 
+  <% if (returnRequests.length > 0) { %>
     <table>
-        <thead>
-            <tr>
-                <th>Order ID</th>
-                <th>Return Reason</th>
-                <th>Action</th>
-            </tr>
-        </thead>
-        <tbody>
-            <% returnRequests.forEach(returnRequest => { %>
-                <tr>
-                    <td><%= returnRequest.orderId %></td>
-                    <td><%= returnRequest.returnReason %></td>
-                    <td>
-                        <button class="btn accept-btn" data-order-id="<%= returnRequest._id %>">Accept</button>
-                        <button class="btn reject-btn" data-order-id="<%= returnRequest._id %>">Reject</button>
-                    </td>
-                </tr>
-            <% }); %>
-        </tbody>
+      <thead>
+        <tr>
+          <th>Order ID</th>
+          <th>Return Reason</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% returnRequests.forEach(returnRequest => { %>
+          <tr>
+            <td><%= returnRequest.orderId %></td>
+            <td><%= returnRequest.returnReason %></td>
+            <td>
+              <button class="btn accept-btn" data-order-id="<%= returnRequest._id %>">Accept</button>
+              <button class="btn reject-btn" data-order-id="<%= returnRequest._id %>">Reject</button>
+            </td>
+          </tr>
+        <% }); %>
+      </tbody>
     </table>
+  <% } else { %>
+    <div style="
+      text-align: center;
+      background-color: #fff5f7;
+      border: 1px solid #f8bbd0;
+      border-radius: 10px;
+      padding: 40px 20px;
+      color: #e91e63;
+      font-size: 18px;
+      font-weight: 600;
+      box-shadow: 0 5px 15px rgba(233, 30, 99, 0.1);
+    ">
+      <i class="fas fa-box-open" style="font-size: 40px; margin-bottom: 15px;"></i><br>
+      No return requests at the moment!
+    </div>
+  <% } %>
 </div>
+
 
 <!-- SweetAlert2 -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@10"></script>
