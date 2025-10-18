@@ -324,18 +324,14 @@
               <h2 class="wishlist-card-title"><%= item.product.name %></h2>
             </a>
             <div class="wishlist-card-price">
-              <% if (item.product.newPrice) { %>
-                ₹<%= item.product.newPrice.toFixed(2) %>
-                <% if (item.product.newPrice < item.product.price) { %>
-                  <span class="original-price">₹<%= item.product.price.toFixed(2) %></span>
-                <% } %>
-              <% } else if (item.product.categoryofferprice && item.product.categoryofferprice < item.product.price) { %>
-                ₹<%= item.product.categoryofferprice.toFixed(2) %>
-                <span class="original-price">₹<%= item.product.price.toFixed(2) %></span>
-              <% } else { %>
-                ₹<%= item.product.price.toFixed(2) %>
-              <% } %>
-            </div>
+  <% if (item.newPrice) { %>
+    ₹<%= item.newPrice.toFixed(2) %>
+    <span class="original-price">₹<%= item.product.price.toFixed(2) %></span>
+  <% } else { %>
+    ₹<%= item.product.price.toFixed(2) %>
+  <% } %>
+</div>
+
             
             <div class="wishlist-card-actions">
               <% if (item.inCart) { %>
@@ -476,24 +472,25 @@
         }
         return response.json();
       })
-      .then(data => {
-        if (data && data.success) {
-          removeFromWishlist(productId, true);
-          Swal.fire({
-            icon: 'success',
-            text: 'Product added to cart successfully',
-            timer: 1500,
-            showConfirmButton: false,
-          });
-        } else if (data) {
-          Swal.fire({
-            icon: 'error',
-            text: data.error || 'Failed to add product to cart',
-            timer: 2000,
-            showConfirmButton: false,
-          });
-        }
-      })
+     .then(data => {
+  if (data && data.success) {
+    // Remove from wishlist
+    removeFromWishlist(productId, true);
+
+    // Update cart count dynamically
+    const cartCountEl = document.getElementById('cart-count');
+    let currentCount = parseInt(cartCountEl.textContent) || 0;
+    cartCountEl.textContent = currentCount + 1;
+
+    Swal.fire({
+      icon: 'success',
+      text: 'Product added to cart successfully',
+      timer: 1500,
+      showConfirmButton: false,
+    });
+  }
+})
+
       .catch(error => {
         console.error('Error adding to cart:', error);
         Swal.fire({
@@ -505,64 +502,71 @@
       });
   }
 
-  function removeFromWishlist(productId, isFromCartAdd = false) {
-    const wishlistCard = document.querySelector(`.wishlist-card[data-product-id="${productId}"]`);
-    if (!wishlistCard) return;
+function removeFromWishlist(productId, isFromCartAdd = false) {
+  const wishlistCard = document.querySelector(`.wishlist-card[data-product-id="${productId}"]`);
+  if (!wishlistCard) return;
 
-    fetch('/removeFromWishlist', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ productId }),
+  fetch('/removeFromWishlist', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ productId }),
+  })
+    .then(response => {
+      if (!response.ok) {
+        return response.json().then(err => { throw new Error(err.message); });
+      }
+      return response.json();
     })
-      .then(response => {
-        if (!response.ok) {
-          return response.json().then(err => { throw new Error(err.message); });
-        }
-        return response.json();
-      })
-      .then(data => {
-        if (data.message === 'Product removed from wishlist successfully') {
-          wishlistCard.style.animation = 'fadeOut 0.3s ease-in-out';
+    .then(data => {
+      if (data.message === 'Product removed from wishlist successfully') {
+        // Animate removal
+        wishlistCard.style.animation = 'fadeOut 0.3s ease-in-out';
+        
+        setTimeout(() => {
+          wishlistCard.remove();
           
-          setTimeout(() => {
-            wishlistCard.remove();
-            
-            if (!document.querySelector('.wishlist-card')) {
-              const container = document.querySelector('.wishlist-container');
-              container.innerHTML = `
-                <h1 class="main-heading">My Wishlist</h1>
-                <div class="empty-wishlist">
-                  <h2>Your Wishlist is Empty</h2>
-                  <p><a href="/home">Continue Shopping</a></p>
-                </div>
-              `;
-            }
-          }, 300);
+          // Update wishlist count dynamically
+          const wishlistCountEl = document.getElementById('wishlist-count');
+          let currentCount = parseInt(wishlistCountEl.textContent) || 0;
+          wishlistCountEl.textContent = Math.max(currentCount - 1, 0);
 
-          if (!isFromCartAdd) {
-            Swal.fire({
-              icon: 'success',
-              text: 'Product removed from wishlist',
-              timer: 1500,
-              showConfirmButton: false,
-            });
+          if (!document.querySelector('.wishlist-card')) {
+            const container = document.querySelector('.wishlist-container');
+            container.innerHTML = `
+              <h1 class="main-heading">My Wishlist</h1>
+              <div class="empty-wishlist">
+                <h2>Your Wishlist is Empty</h2>
+                <p><a href="/home">Continue Shopping</a></p>
+              </div>
+            `;
           }
-        } else {
-          throw new Error('Failed to remove product from wishlist');
+        }, 300);
+
+        if (!isFromCartAdd) {
+          Swal.fire({
+            icon: 'success',
+            text: 'Product removed from wishlist',
+            timer: 1500,
+            showConfirmButton: false,
+          });
         }
-      })
-      .catch(error => {
-        console.error('Error removing product from wishlist:', error);
-        Swal.fire({
-          icon: 'error',
-          text: error.message || 'Failed to remove product from wishlist',
-          timer: 2000,
-          showConfirmButton: false,
-        });
+      } else {
+        throw new Error('Failed to remove product from wishlist');
+      }
+    })
+    .catch(error => {
+      console.error('Error removing product from wishlist:', error);
+      Swal.fire({
+        icon: 'error',
+        text: error.message || 'Failed to remove product from wishlist',
+        timer: 2000,
+        showConfirmButton: false,
       });
-  }
+    });
+}
+
 </script>
 
 <%- include('./footer') %>

@@ -8,6 +8,7 @@ const ordercontroller = require('../Controller/ordercontroller')
 const wishlistcontroller = require('../Controller/wishlistcontroller')
 const couponcontroller=require('../Controller/couponcontroller')
 
+
 //user
 router.get(['/', '/home'], usercontroller.homepage)
 router.get('/signup', isAuth.islogged, usercontroller.signup)
