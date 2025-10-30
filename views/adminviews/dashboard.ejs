@@ -300,6 +300,7 @@
   </div>
 </div>
 
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
@@ -308,12 +309,12 @@
   const salesChart = document.getElementById('salesChart').getContext('2d');
   let currentChart;
 
-  form.addEventListener('submit', async function(event) {
+  form.addEventListener('submit', function(event) {
     event.preventDefault();
-    
-    const fromDate = document.getElementById('fromDate').value;
-    const toDate = document.getElementById('toDate').value;
-    const interval = document.getElementById('interval').value;
+
+    const fromDate = $('#fromDate').val();
+    const toDate = $('#toDate').val();
+    const interval = $('#interval').val();
 
     if (!fromDate || !toDate) {
       Swal.fire({
@@ -325,85 +326,113 @@
       return;
     }
 
-    // Add one day to toDate to include it in the range
     const adjustedToDate = new Date(toDate);
     adjustedToDate.setDate(adjustedToDate.getDate() + 1);
     const toDateString = adjustedToDate.toISOString().split('T')[0];
 
-    const response = await fetch(`/generatesalesreport?fromDate=${fromDate}&toDate=${toDateString}&interval=${interval}`);
-    const data = await response.json();
+    Swal.fire({
+      title: 'Generating Report...',
+      text: 'Please wait while we get the data.',
+      allowOutsideClick: false,
+      didOpen: () => Swal.showLoading()
+    });
 
-    const labels = Object.keys(data);
-    const values = Object.values(data);
+    $.ajax({
+      url: `/generatesalesreport?fromDate=${fromDate}&toDate=${toDateString}&interval=${interval}`,
+      type: 'GET',
+      success: function(data) {
+        Swal.close();
 
-    if (currentChart) {
-      currentChart.destroy(); 
-    }
+        const labels = Object.keys(data);
+        const values = Object.values(data);
 
-    currentChart = new Chart(salesChart, {
-      type: 'bar',
-      data: {
-        labels: labels,
-        datasets: [{
-          label: 'Sales Amount',
-          data: values,
-          backgroundColor: 'rgba(233, 30, 99, 0.7)',
-          borderColor: 'rgba(233, 30, 99, 1)',
-          borderWidth: 2,
-          borderRadius: 8
-        }]
-      },
-      options: {
-        responsive: true,
-        plugins: {
-          legend: {
-            display: true,
-            labels: {
-              font: { size: 14, weight: 'bold' },
-              color: '#666'
+        if (currentChart) currentChart.destroy();
+
+        currentChart = new Chart(salesChart, {
+          type: 'bar',
+          data: {
+            labels: labels,
+            datasets: [{
+              label: 'Sales Amount',
+              data: values,
+              backgroundColor: 'rgba(233, 30, 99, 0.7)',
+              borderColor: 'rgba(233, 30, 99, 1)',
+              borderWidth: 2,
+              borderRadius: 8
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: {
+                display: true,
+                labels: {
+                  font: { size: 14, weight: 'bold' },
+                  color: '#666'
+                }
+              }
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                grid: { color: 'rgba(0, 0, 0, 0.05)' },
+                ticks: { color: '#666' }
+              },
+              x: {
+                grid: { display: false },
+                ticks: { color: '#666' }
+              }
             }
           }
-        },
-        scales: {
-          y: {
-            beginAtZero: true,
-            grid: { color: 'rgba(0, 0, 0, 0.05)' },
-            ticks: { color: '#666' }
-          },
-          x: {
-            grid: { display: false },
-            ticks: { color: '#666' }
-          }
-        }
+        });
+      },
+      error: function(xhr) {
+        Swal.close();
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'Failed to generate report. Please try again.',
+          confirmButtonColor: '#e91e63'
+        });
       }
     });
   });
 
-  async function generatePDF() {
-    try {
-      const fromDate = document.getElementById('fromDate').value;
-      const toDate = document.getElementById('toDate').value;
-      const interval = document.getElementById('interval').value;
+  function generatePDF() {
+    const fromDate = $('#fromDate').val();
+    const toDate = $('#toDate').val();
+    const interval = $('#interval').val();
 
-      if (!fromDate || !toDate) {
-        Swal.fire({
-          icon: 'warning',
-          title: 'Missing Dates',
-          text: 'Please select both start and end dates',
-          confirmButtonColor: '#e91e63'
-        });
-        return;
-      }
+    if (!fromDate || !toDate) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Missing Dates',
+        text: 'Please select both start and end dates',
+        confirmButtonColor: '#e91e63'
+      });
+      return;
+    }
 
-      // Add one day to toDate to include it in the range
-      const adjustedToDate = new Date(toDate);
-      adjustedToDate.setDate(adjustedToDate.getDate() + 1);
-      const toDateString = adjustedToDate.toISOString().split('T')[0];
+    const adjustedToDate = new Date(toDate);
+    adjustedToDate.setDate(adjustedToDate.getDate() + 1);
+    const toDateString = adjustedToDate.toISOString().split('T')[0];
 
-      const response = await fetch(`/generatepdf?fromDate=${fromDate}&toDate=${toDateString}&interval=${interval}`);
-      
-      if (response.ok) {
-        const blob = await response.blob();
+    Swal.fire({
+      title: 'Generating PDF...',
+      text: 'Please wait while we create your report.',
+      allowOutsideClick: false,
+      didOpen: () => Swal.showLoading()
+    });
+
+    $.ajax({
+      url: `/generatepdf?fromDate=${fromDate}&toDate=${toDateString}&interval=${interval}`,
+      type: 'GET',
+      xhrFields: {
+        responseType: 'blob'
+      },
+      success: function(blob) {
+        Swal.close();
+
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -412,15 +441,17 @@
         a.click();
         document.body.removeChild(a);
         window.URL.revokeObjectURL(url);
-        
+
         Swal.fire({
           icon: 'success',
           title: 'Success!',
-          text: 'PDF has been downloaded successfully',
+          text: 'PDF downloaded successfully!',
           confirmButtonColor: '#e91e63',
           timer: 2000
         });
-      } else {
+      },
+      error: function() {
+        Swal.close();
         Swal.fire({
           icon: 'error',
           title: 'Error',
@@ -428,15 +459,7 @@
           confirmButtonColor: '#e91e63'
         });
       }
-    } catch (error) {
-      console.error('Error generating PDF:', error);
-      Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: 'An error occurred while generating PDF',
-        confirmButtonColor: '#e91e63'
-      });
-    }
+    });
   }
 </script>
 

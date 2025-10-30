@@ -193,10 +193,37 @@
     </div>
   </div>
 
+  <!-- Confirmation Modal -->
+  <div class="modal fade" id="confirmationModal" tabindex="-1" aria-labelledby="confirmationModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="confirmationModalLabel">Confirm Product Submission</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p>Are you sure you want to add this product?</p>
+          <div id="confirmationDetails">
+            <p><strong>Name:</strong> <span id="confirmName"></span></p>
+            <p><strong>Description:</strong> <span id="confirmDescription"></span></p>
+            <p><strong>Price:</strong> $<span id="confirmPrice"></span></p>
+            <p><strong>Variants:</strong> <span id="confirmVariants"></span></p>
+            <p><strong>Images:</strong> <span id="confirmImages"></span></p>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-success" id="confirmSubmitButton">Yes, Add Product</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css" rel="stylesheet">
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
   <script>
     let cropper;
@@ -204,6 +231,7 @@
     let croppedImages = [];
     let currentFileIndex = 0;
     let modal;
+    let confirmationModal;
     let variantCount = 1;
 
     // Variant handling
@@ -256,6 +284,7 @@
 
     document.addEventListener('DOMContentLoaded', function () {
       updateRemoveButtons();
+      confirmationModal = new bootstrap.Modal(document.getElementById('confirmationModal'));
     });
 
     function openCropperModal(input) {
@@ -320,25 +349,26 @@
       fileQueue = [];
     }
 
-    document.getElementById('cropButton').addEventListener('click', async function () {
+    document.getElementById('cropButton').addEventListener('click', function () {
       console.log('Crop button clicked');
       if (!cropper) {
         console.error('Cropper not initialized');
         return;
       }
       const canvas = cropper.getCroppedCanvas({ width: 300, height: 300 });
-      canvas.toBlob(async (blob) => {
+      canvas.toBlob(function (blob) {
         const formData = new FormData();
         formData.append('croppedImage', blob, `cropped_${Date.now()}_${fileQueue[currentFileIndex].name}`);
-        try {
-          console.log('Uploading cropped image...');
-          const response = await fetch('/upload-cropped-image', {
-            method: 'POST',
-            body: formData,
-          });
-          const result = await response.json();
-          console.log('Upload response:', result);
-          if (response.ok) {
+        
+        console.log('Uploading cropped image...');
+        $.ajax({
+          url: '/upload-cropped-image',
+          type: 'POST',
+          data: formData,
+          processData: false,
+          contentType: false,
+          success: function (result) {
+            console.log('Upload response:', result);
             croppedImages.push(result.filename);
             document.getElementById('croppedImages').value = JSON.stringify(croppedImages);
             console.log('Total cropped images:', croppedImages.length);
@@ -349,17 +379,21 @@
               cropper = null;
             }
             processNextImage();
-          } else {
-            throw new Error(result.error || 'Upload failed');
+          },
+          error: function (xhr) {
+            console.error('Error uploading cropped image:', xhr);
+            let errorMsg = 'Failed to upload cropped image';
+            try {
+              const result = JSON.parse(xhr.responseText);
+              if (result.error) errorMsg = result.error;
+            } catch (e) {}
+            Swal.fire({
+              icon: 'error',
+              title: 'Upload Failed',
+              text: errorMsg,
+            });
           }
-        } catch (error) {
-          console.error('Error uploading cropped image:', error);
-          Swal.fire({
-            icon: 'error',
-            title: 'Upload Failed',
-            text: error.message || 'Failed to upload cropped image',
-          });
-        }
+        });
       }, 'image/jpeg', 0.8);
     });
 
@@ -414,71 +448,109 @@
       previewContainer.appendChild(previewDiv);
     }
 
-    document.getElementById('singlebutton').addEventListener('click', async function (event) {
+    document.getElementById('singlebutton').addEventListener('click', function (event) {
       event.preventDefault();
       console.log('Form submission started');
       console.log('Cropped images count:', croppedImages.length);
       clearErrorMessages();
       let hasErrors = false;
+
       if (!validateName()) hasErrors = true;
       if (!validateDescription()) hasErrors = true;
       if (!validateCategory()) hasErrors = true;
       if (!validatePrice()) hasErrors = true;
       if (!validateVariants()) hasErrors = true;
       if (!validateImages()) hasErrors = true;
+
       if (hasErrors) {
         console.log('Form validation failed');
         return;
       }
-      console.log('Form validation passed, submitting...');
-      try {
-        Swal.fire({
-          title: 'Adding Product...',
-          text: 'Please wait while we add your product.',
-          allowOutsideClick: false,
-          didOpen: () => {
-            Swal.showLoading();
-          }
-        });
-        const response = await fetch('/addProduct', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-          body: new URLSearchParams(new FormData(document.getElementById('productForm'))).toString()
-        });
-        if (response.ok) {
-          const contentType = response.headers.get('content-type');
+
+      console.log('Form validation passed, showing confirmation modal...');
+      showConfirmationModal();
+    });
+
+    function showConfirmationModal() {
+      const name = document.getElementById('product_name').value.trim();
+      const description = document.getElementById('product_name_fr').value.trim();
+      const price = document.getElementById('price').value;
+      
+      const variantRows = document.querySelectorAll('.variant-row');
+      let variantText = '';
+      variantRows.forEach((row, index) => {
+        const size = row.querySelector('input[type="text"]').value;
+        const stock = row.querySelector('input[type="number"]').value;
+        variantText += `${size} (Stock: ${stock})`;
+        if (index < variantRows.length - 1) variantText += ', ';
+      });
+
+      document.getElementById('confirmName').textContent = name;
+      document.getElementById('confirmDescription').textContent = description;
+      document.getElementById('confirmPrice').textContent = price;
+      document.getElementById('confirmVariants').textContent = variantText;
+      document.getElementById('confirmImages').textContent = `${croppedImages.length} image(s)`;
+
+      confirmationModal.show();
+    }
+
+    document.getElementById('confirmSubmitButton').addEventListener('click', function () {
+      confirmationModal.hide();
+      submitForm();
+    });
+
+    function submitForm() {
+      Swal.fire({
+        title: 'Adding Product...',
+        text: 'Please wait while we add your product.',
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
+        }
+      });
+
+      const formData = $('#productForm').serialize();
+
+      $.ajax({
+        url: '/addProduct',
+        type: 'POST',
+        data: formData,
+        success: function (response, status, xhr) {
+          Swal.close();
+          const contentType = xhr.getResponseHeader('content-type');
           if (contentType && contentType.includes('application/json')) {
-            const result = await response.json();
-            Swal.close();
             Swal.fire({
               icon: 'error',
               title: 'Error',
-              text: result.message || 'Failed to add product',
+              text: response.message || 'Failed to add product',
             });
           } else {
-            window.location.href = '/products';
+            Swal.fire({
+              icon: 'success',
+              title: 'Success',
+              text: 'Product added successfully!',
+              timer: 2000,
+              showConfirmButton: false
+            }).then(() => {
+              window.location.href = '/products';
+            });
           }
-        } else {
-          const result = await response.json();
+        },
+        error: function (xhr) {
           Swal.close();
+          let errorMsg = 'An unexpected error occurred. Please try again.';
+          try {
+            const result = JSON.parse(xhr.responseText);
+            if (result.message) errorMsg = result.message;
+          } catch (e) {}
           Swal.fire({
             icon: 'error',
             title: 'Error',
-            text: result.message || 'Failed to add product',
+            text: errorMsg,
           });
         }
-      } catch (error) {
-        console.error('Form submission error:', error);
-        Swal.close();
-        Swal.fire({
-          icon: 'error',
-          title: 'Error',
-          text: 'An unexpected error occurred. Please try again.',
-        });
-      }
-    });
+      });
+    }
 
     function clearErrorMessages() {
       const errorElements = document.querySelectorAll('.error-message');

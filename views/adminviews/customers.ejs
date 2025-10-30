@@ -3,18 +3,20 @@
 <div class="content">
   <h2 style="color: blue;">Customers</h2>
   
-<!-- Search Form -->
-<form method="get" action="/customers" class="mb-4">
-  <div class="input-group input-group-sm">
-    <input type="text" name="search" 
-           class="form-control form-control-sm" 
-           style="max-width: 250px;" 
-           placeholder="Search by name or email" 
-           value="<%= typeof search !== 'undefined' ? search : '' %>">
-    <button type="submit" class="btn btn-primary btn-sm">Search</button>
-  </div>
-</form>
-
+  <!-- Search Form -->
+  <form method="get" action="/customers" class="mb-4">
+    <div class="input-group input-group-sm">
+      <input type="text" name="search" 
+             class="form-control form-control-sm" 
+             style="max-width: 250px;" 
+             placeholder="Search by name or email" 
+             value="<%= typeof search !== 'undefined' ? search : '' %>">
+      <button type="submit" class="btn btn-primary btn-sm">Search</button>
+      <% if (typeof search !== 'undefined' && search !== '') { %>
+        <a href="/customers?page=1&limit=<%= limit %>" class="btn btn-secondary btn-sm ms-2">Reset</a>
+      <% } %>
+    </div>
+  </form>
 
   <% if(message) { %>
     <div class="alert alert-dismissable fade show alert-<%=message.type %>" role="alert">
@@ -36,20 +38,23 @@
       </thead>
       <tbody>
         <% users.forEach((row, index) => { %>
-          <tr>
+          <tr data-user-id="<%= row._id %>">
             <td><%= index + 1 + (page - 1) * limit %></td>
             <td><%= row.userId %></td>
             <td><%= row.name %></td>
             <td><%= row.email %></td>
             <td>
-              <form method="post" action="/block-user">
-                <input type="hidden" name="userId" value="<%= row._id %>">
-                <% if (row.blocked) { %>
-                  <button type="submit" class="btn btn-success">Unblock</button>
-                <% } else { %>
-                  <button type="submit" class="btn btn-danger">Block</button>
-                <% } %>
-              </form>
+              <% if (row.blocked) { %>
+                <button type="button" class="btn btn-success block-user-btn" 
+                        data-user-id="<%= row._id %>" 
+                        data-blocked="true" 
+                        data-user-name="<%= row.name %>">Unblock</button>
+              <% } else { %>
+                <button type="button" class="btn btn-danger block-user-btn" 
+                        data-user-id="<%= row._id %>" 
+                        data-blocked="false" 
+                        data-user-name="<%= row.name %>">Block</button>
+              <% } %>
             </td>
           </tr>
         <% }) %>
@@ -82,5 +87,98 @@
     <h1 class="text-center text-secondary mt-5">No users found</h1>
   <% } %>
 </div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script>
+  $(document).ready(function() {
+    // Display error message if exists
+    const errorMessage = "<%= message && message.type === 'danger' ? message.message : '' %>";
+    if (errorMessage) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Oops...',
+        text: errorMessage,
+      });
+    }
+
+    // Handle block/unblock button clicks
+    $('.block-user-btn').on('click', function() {
+      const button = $(this);
+      const userId = button.data('user-id');
+      const isBlocked = button.data('blocked');
+      const userName = button.data('user-name');
+      const action = isBlocked ? 'unblock' : 'block';
+      
+      // Confirmation dialog
+      Swal.fire({
+        title: `${action.charAt(0).toUpperCase() + action.slice(1)} User?`,
+        text: `Are you sure you want to ${action} "${userName}"?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: isBlocked ? '#28a745' : '#d33',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: `Yes, ${action} it!`,
+        cancelButtonText: 'Cancel'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          // Show loading
+          Swal.fire({
+            title: `${action.charAt(0).toUpperCase() + action.slice(1)}ing User...`,
+            text: 'Please wait',
+            allowOutsideClick: false,
+            didOpen: () => {
+              Swal.showLoading();
+            }
+          });
+
+          // AJAX request to block/unblock
+          $.ajax({
+            url: '/block-user',
+            type: 'POST',
+            data: {
+              userId: userId
+            },
+            success: function(response) {
+              Swal.close();
+              
+              // Update button state
+              if (isBlocked) {
+                button.removeClass('btn-success').addClass('btn-danger');
+                button.text('Block');
+                button.data('blocked', false);
+              } else {
+                button.removeClass('btn-danger').addClass('btn-success');
+                button.text('Unblock');
+                button.data('blocked', true);
+              }
+              
+              // Success message
+              Swal.fire({
+                icon: 'success',
+                title: 'Success',
+                text: `User ${action}ed successfully`,
+                timer: 1500,
+                showConfirmButton: false
+              });
+            },
+            error: function(xhr, status, error) {
+              Swal.close();
+              const data = xhr.responseJSON;
+              
+              Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: data?.message || `Failed to ${action} user`,
+              });
+            }
+          });
+        }
+      });
+    });
+  });
+</script>
 </body>
 </html>

@@ -1,88 +1,88 @@
-const express = require('express')
-const router = express.Router()
+const express = require('express');
+const router = express.Router();
 const { diskUpload, memoryUpload } = require('../middlewares/multer');
-const customercontroller = require('../Controller/customercontroller');
-const admincontroller = require('../Controller/admincontroller');
-const productcontroller = require('../Controller/productcontroller');
-const categorycontroller = require('../Controller/categorycontroller');
-const adminAuth = require('../middlewares/adminAuth')
-const adminordercontroller = require('../Controller/adminordercontroller')
-const couponcontroller = require('../Controller/couponcontroller')
-const productoffercontroller = require('../Controller/productoffercontroller')
-const categoryoffercontroller = require('../Controller/categoryoffercontroller')
+const customerController = require('../Controller/customercontroller');
+const adminController = require('../Controller/admincontroller');
+const productController = require('../Controller/productcontroller');
+const categoryController = require('../Controller/categorycontroller');
+const adminAuth = require('../middlewares/adminAuth');
+const adminOrderController = require('../Controller/adminordercontroller');
+const couponController = require('../Controller/couponcontroller');
+const productOfferController = require('../Controller/productoffercontroller');
+const categoryOfferController = require('../Controller/categoryoffercontroller');
 const bodyParser = require('body-parser');
+
 router.use(bodyParser.urlencoded({ extended: true }));
 router.use(bodyParser.json());
 
+// admin login/signup
+router.get('/adminlogin', adminAuth.isadminlogged, adminController.toadminlogin);
+router.post('/signup', customerController.register);
+router.get('/dashboard', adminAuth.adminexist, adminController.dashboard);
+router.get('/customers', adminAuth.adminexist, customerController.customers);
+router.post('/block-user', customerController.blockUser);
+router.get('/admin', adminAuth.isadminlogged, adminController.toadminlogin);
+router.post('/adminlogin', adminController.adminlogin);
 
-router.get('/adminlogin', adminAuth.isadminlogged, admincontroller.toadminlogin)
-router.post('/signup', customercontroller.register)
-router.get('/dashboard', adminAuth.adminexist, admincontroller.dashboard)
-router.get('/customers', adminAuth.adminexist, customercontroller.customers)
-router.post('/block-user', customercontroller.blockUser);
-router.get('/admin', adminAuth.isadminlogged, admincontroller.toadminlogin)
-router.post('/adminlogin', admincontroller.adminlogin)
-router.get('/addcategory', categorycontroller.addCategory)
-router.post('/addCategory', categorycontroller.addNewCat)
-router.get('/categories', adminAuth.adminexist, categorycontroller.getcategories)
-router.get('/editCategory/:id', categorycontroller.editcategory)
-router.post('/updateCategory/:id', categorycontroller.updatecategory)
-router.post('/blockCat', categorycontroller.blockCategory)
-router.get('/products', adminAuth.adminexist, productcontroller.getproducts)
-router.get('/addProduct', productcontroller.addProduct)
-router.post('/addProduct', express.urlencoded({ extended: true }), productcontroller.addnewproduct)
-router.get('/editProduct/:id', productcontroller.editproduct)
-router.post('/updateProduct/:id', express.urlencoded({ extended: true }), diskUpload, productcontroller.updateproduct);
-router.post('/verify-otp', customercontroller.verifyotp)
-router.post('/blockProduct', productcontroller.blockProduct)
+// categories
+router.get('/addcategory', categoryController.addCategory);
+router.post('/addCategory', categoryController.addNewCat);
+router.get('/categories', adminAuth.adminexist, categoryController.getcategories);
+router.get('/editCategory/:id', categoryController.editcategory);
+router.post('/updateCategory/:id', categoryController.updatecategory);
+router.post('/blockCat', categoryController.blockCategory);
 
+// products
+router.get('/products', adminAuth.adminexist, productController.getproducts);
+router.get('/addProduct', productController.addProduct);
+router.post('/addProduct', express.urlencoded({ extended: true }), productController.addnewproduct);
+router.get('/editProduct/:id', productController.editproduct);
+router.post('/updateProduct/:id', express.urlencoded({ extended: true }), diskUpload, productController.updateproduct);
+router.post('/blockProduct', productController.blockProduct);
 
-//admin logout
-router.get('/adminlogout', admincontroller.adminlogout)
+// otp verification
+router.post('/verify-otp', customerController.verifyotp);
+router.get('/resend-otp', customerController.resendOTP);
+router.post('/resend-otp', customerController.resendOTP);
 
-//orders
-router.get('/adminorders', adminordercontroller.orderspage)
-router.get('/ordersview/:id', adminordercontroller.adminvieworder)
-router.post('/updateOrderStatus/:orderId', adminordercontroller.updateorderstatus)
+// admin logout
+router.get('/adminlogout', adminController.adminlogout);
 
-//coupons
-router.get('/coupon', couponcontroller.couponpage)
-router.post('/submitcoupon', couponcontroller.createcoupon)
-router.get('/coupon', couponcontroller.getCoupons)
-router.post('/updatecoupon', couponcontroller.editCoupon);
-router.post('/deletecoupon/:id', couponcontroller.deleteCoupon)
+// orders
+router.get('/adminorders', adminOrderController.orderspage);
+router.get('/ordersview/:id', adminOrderController.adminvieworder);
+router.post('/updateOrderStatus/:orderId', adminOrderController.updateorderstatus);
 
-//product offers
-router.get('/productoffer', productoffercontroller.getproductofferpage)
-router.post('/save-product-offer', productoffercontroller.saveProductOffer)
-router.get('/productoffer', productoffercontroller.getproductoffers)
-router.post('/update-product-offer', productoffercontroller.updateProductOffer)
-router.post('/delete-product-offer/:id', productoffercontroller.deleteproductoffer)
+// coupons
+router.get('/coupon', couponController.couponpage);
+router.post('/submitcoupon', couponController.createcoupon);
+router.get('/coupon', couponController.getCoupons);
+router.post('/updatecoupon', couponController.editCoupon);
+router.post('/deletecoupon/:id', couponController.deleteCoupon);
 
-//category offers
-router.get('/categoryoffer', categoryoffercontroller.getcategoryofferspage)
-router.post('/save-category-offer', categoryoffercontroller.saveCategoryOffer)
-router.post('/update-category-offer/:id', categoryoffercontroller.updateCategoryOffer)
-router.post('/delete-category-offer/:id', categoryoffercontroller.deleteCategoryOffer)
+// product offers
+router.get('/productoffer', productOfferController.getproductofferpage);
+router.post('/save-product-offer', productOfferController.saveProductOffer);
+router.get('/productoffer', productOfferController.getproductoffers);
+router.post('/update-product-offer', productOfferController.updateProductOffer);
+router.post('/delete-product-offer/:id', productOfferController.deleteproductoffer);
 
+// category offers
+router.get('/categoryoffer', categoryOfferController.getcategoryofferspage);
+router.post('/save-category-offer', categoryOfferController.saveCategoryOffer);
+router.post('/update-category-offer/:id', categoryOfferController.updateCategoryOffer);
+router.post('/delete-category-offer/:id', categoryOfferController.deleteCategoryOffer);
 
-//sales report
-router.get('/generatesalesreport', admincontroller.generatesalesreport)
-router.get('/generatepdf', admincontroller.generatepdf)
+// sales report
+router.get('/generatesalesreport', adminController.generatesalesreport);
+router.get('/generatepdf', adminController.generatepdf);
 
-//resend otp
-router.get('/resend-otp', customercontroller.resendOTP)
-router.post('/resend-otp', customercontroller.resendOTP);
+// crop image
+router.post('/upload-cropped-image', memoryUpload, productController.uploadCroppedImage);
 
-//crop image
-router.post('/upload-cropped-image', memoryUpload, productcontroller.uploadCroppedImage);
+// return requests
+router.get('/returnrequests', adminOrderController.getreturnrequestspage);
+router.post('/returnrequests/:orderId/accept', adminOrderController.acceptreturn);
+router.post('/returnrequests/:orderId/reject', adminOrderController.rejectreturn);
 
-//return requests
-router.get('/returnrequests',adminordercontroller.getreturnrequestspage)
-router.post('/returnrequests/:orderId/accept',adminordercontroller.acceptreturn)
-router.post('/returnrequests/:orderId/reject',adminordercontroller.rejectreturn)
-
-
-
-
-module.exports = router
+module.exports = router;

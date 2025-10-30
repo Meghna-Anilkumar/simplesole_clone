@@ -2,7 +2,7 @@
 
 <style>
   .content {
-    margin-left: 240px; /* Matches sidebar width */
+    margin-left: 240px;
     padding: 20px;
     transition: margin-left 0.3s ease;
     min-height: 100vh;
@@ -333,69 +333,68 @@
     modal.show();
   }
 
-  document.getElementById('confirmStatusChange').addEventListener('click', () => {
-    const newOrderStatus = document.getElementById(`orderStatus_${currentOrderId}`).value;
-    
-    fetch(`/updateOrderStatus/${currentOrderId}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ orderStatus: newOrderStatus }),
-    })
-      .then(response => {
-        if (!response.ok) {
-          throw new Error(`HTTP error! Status: ${response.status}`);
+  $(document).ready(function() {
+    $('#confirmStatusChange').on('click', function() {
+      const newOrderStatus = $(`#orderStatus_${currentOrderId}`).val();
+      
+      // Show loading
+      Swal.fire({
+        title: 'Updating Order Status...',
+        text: 'Please wait',
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
         }
-        return response.json();
-      })
-      .then(updatedOrder => {
-        Swal.fire({
-          icon: 'success',
-          title: 'Success',
-          text: 'Order status updated successfully'
-        });
-        currentSelectElement.dataset.previousValue = newOrderStatus;
-        const modal = bootstrap.Modal.getInstance(document.getElementById('confirmStatusModal'));
-        modal.hide();
-      })
-      .catch(error => {
-        console.error('Error updating order status:', error);
-        currentSelectElement.value = currentSelectElement.dataset.previousValue || 'PENDING';
-        Swal.fire({
-          icon: 'error',
-          title: 'Error',
-          text: 'Failed to update order status'
-        });
-        const modal = bootstrap.Modal.getInstance(document.getElementById('confirmStatusModal'));
-        modal.hide();
       });
-  });
+      
+      $.ajax({
+        url: `/updateOrderStatus/${currentOrderId}`,
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ orderStatus: newOrderStatus }),
+        success: function(updatedOrder) {
+          Swal.close();
+          
+          Swal.fire({
+            icon: 'success',
+            title: 'Success',
+            text: 'Order status updated successfully',
+            timer: 1500,
+            showConfirmButton: false
+          });
+          
+          $(currentSelectElement).data('previousValue', newOrderStatus);
+          
+          const modal = bootstrap.Modal.getInstance(document.getElementById('confirmStatusModal'));
+          modal.hide();
+        },
+        error: function(xhr, status, error) {
+          console.error('Error updating order status:', error);
+          Swal.close();
+          
+          $(currentSelectElement).val($(currentSelectElement).data('previousValue') || 'PENDING');
+          
+          const data = xhr.responseJSON;
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: data?.message || 'Failed to update order status'
+          });
+          
+          const modal = bootstrap.Modal.getInstance(document.getElementById('confirmStatusModal'));
+          modal.hide();
+        }
+      });
+    });
 
-  document.getElementById('cancelStatusChange').addEventListener('click', () => {
-    currentSelectElement.value = currentSelectElement.dataset.previousValue || 'PENDING';
-  });
+    $('#cancelStatusChange').on('click', function() {
+      $(currentSelectElement).val($(currentSelectElement).data('previousValue') || 'PENDING');
+    });
 
-  document.getElementById('confirmStatusModal').addEventListener('hidden.bs.modal', () => {
-    if (currentSelectElement) {
-      currentSelectElement.value = currentSelectElement.dataset.previousValue || 'PENDING';
-    }
+    $('#confirmStatusModal').on('hidden.bs.modal', function() {
+      if (currentSelectElement) {
+        $(currentSelectElement).val($(currentSelectElement).data('previousValue') || 'PENDING');
+      }
+    });
   });
-
-  // $(document).ready(function () {
-  //   $('#ordersTable').DataTable({
-  //     columnDefs: [
-  //       { orderable: false, targets: [6, 7] } // Disable sorting on Status and View columns
-  //     ],
-  //     responsive: true,
-  //     pageLength: <%= pageSize %>,
-  //     pagingType: 'simple_numbers',
-  //     language: {
-  //       paginate: {
-  //         previous: '&laquo;',
-  //         next: '&raquo;'
-  //       }
-  //     }
-  //   });
-  // });
 </script>

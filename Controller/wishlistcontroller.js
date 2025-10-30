@@ -8,7 +8,6 @@ const Product = require("../models/product");
 const Wishlist = require("../models/wishlist");
 
 module.exports = {
-  // Get wishlist page with pagination and cart check
   getwishlistpage: async (req, res) => {
     try {
       const user = req.session.user;
@@ -17,9 +16,8 @@ module.exports = {
         return res.redirect("/login");
       }
 
-      // Pagination parameters
       const page = parseInt(req.query.page) || 1;
-      const limit = 12; // 12 products per page (3 rows of 4)
+      const limit = 12;
       const skip = (page - 1) * limit;
 
       const wishlist = await Wishlist.findOne({ user: user._id }).populate({
@@ -40,18 +38,15 @@ module.exports = {
         totalItems = wishlist.items.length;
         totalPages = Math.ceil(totalItems / limit);
 
-        // Apply pagination to wishlist items
         const paginatedItems = wishlist.items.slice(skip, skip + limit);
         allProducts = await Promise.all(
           paginatedItems.map(async (item) => {
             const product = await Product.findById(item.product._id);
 
-            // Check if product is out of stock
             const isOutOfStock = product.variants.every(
               (variant) => variant.stock - (variant.reserved || 0) <= 0
             );
 
-            // Check if product is in cart
             const inCart =
               cart &&
               cart.items.some(
@@ -62,7 +57,6 @@ module.exports = {
 
             let newPrice = null;
 
-            // Check for active product offer
             const productOffer = await ProductOffer.findOne({
               product: product._id,
               startDate: { $lte: now },
@@ -72,7 +66,6 @@ module.exports = {
             if (productOffer) {
               newPrice = productOffer.newPrice;
             } else {
-              // Check for active category offer
               const categoryOffer = await CategoryOffer.findOne({
                 category: product.category,
                 startDate: { $lte: now },
@@ -116,7 +109,6 @@ module.exports = {
     }
   },
 
-  // Add to wishlist
   addtowishlist: async (req, res) => {
     try {
       const user = req.session.user;
@@ -154,13 +146,11 @@ module.exports = {
       wishlist.items.push({ product: productId });
       await wishlist.save();
 
-      res
-        .status(200)
-        .json({
-          message: "Product added to wishlist successfully",
-          inWishlist: true,
-          wishlistCount: wishlist.items.length,
-        });
+      res.status(200).json({
+        message: "Product added to wishlist successfully",
+        inWishlist: true,
+        wishlistCount: wishlist.items.length,
+      });
     } catch (error) {
       console.error("Error adding product to wishlist:", {
         error: error.message,
@@ -170,7 +160,7 @@ module.exports = {
     }
   },
 
-  // Remove from wishlist
+
   removefromwishlist: async (req, res) => {
     try {
       const { productId } = req.body;
@@ -199,14 +189,12 @@ module.exports = {
 
       await wishlist.save();
 
-      res
-        .status(200)
-        .json({
-          message: "Product removed from wishlist successfully",
-          inWishlist: false,
-          productId,
-          wishlistCount: wishlist.items.length,
-        });
+      res.status(200).json({
+        message: "Product removed from wishlist successfully",
+        inWishlist: false,
+        productId,
+        wishlistCount: wishlist.items.length,
+      });
     } catch (error) {
       console.error("Error removing product from wishlist:", {
         error: error.message,

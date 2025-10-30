@@ -238,6 +238,7 @@
     </div>
   </div>
 
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
@@ -257,33 +258,33 @@
     let modal;
     let variantCount = productData.variantCount;
 
-    document.getElementById('addVariant').addEventListener('click', function () {
-      const variantContainer = document.getElementById('variantContainer');
-      const variantRow = document.createElement('div');
-      variantRow.className = 'variant-row';
-      variantRow.innerHTML = `
+    $(document).ready(function() {
+      updateRemoveButtons();
+      reindexVariants();
+      checkImageCount();
+    });
+
+    $('#addVariant').on('click', function () {
+      const variantContainer = $('#variantContainer');
+      const variantRow = $('<div>', { class: 'variant-row' }).html(`
         <input type="text" name="variants[${variantCount}][size]" placeholder="Size" class="form-control input-md" required>
         <input type="number" name="variants[${variantCount}][stock]" placeholder="Stock" class="form-control input-md" required min="0">
         <button type="button" class="btn remove-variant">Remove</button>
-      `;
-      variantContainer.appendChild(variantRow);
+      `);
+      variantContainer.append(variantRow);
       variantCount++;
       updateRemoveButtons();
       reindexVariants();
     });
 
     function updateRemoveButtons() {
-      const removeButtons = document.querySelectorAll('.remove-variant');
-      removeButtons.forEach(button => {
-        button.removeEventListener('click', removeVariantHandler);
-        button.addEventListener('click', removeVariantHandler);
-      });
+      $('.remove-variant').off('click').on('click', removeVariantHandler);
     }
 
     function removeVariantHandler() {
-      const variantRows = document.querySelectorAll('.variant-row');
+      const variantRows = $('.variant-row');
       if (variantRows.length > 1) {
-        this.parentElement.remove();
+        $(this).parent().remove();
         reindexVariants();
       } else {
         Swal.fire({
@@ -295,20 +296,12 @@
     }
 
     function reindexVariants() {
-      const variantRows = document.querySelectorAll('.variant-row');
-      variantRows.forEach((row, index) => {
-        const inputs = row.querySelectorAll('input');
-        inputs[0].name = `variants[${index}][size]`;
-        inputs[1].name = `variants[${index}][stock]`;
+      $('.variant-row').each(function(index) {
+        $(this).find('input').eq(0).attr('name', `variants[${index}][size]`);
+        $(this).find('input').eq(1).attr('name', `variants[${index}][stock]`);
       });
-      variantCount = variantRows.length;
+      variantCount = $('.variant-row').length;
     }
-
-    document.addEventListener('DOMContentLoaded', function () {
-      updateRemoveButtons();
-      reindexVariants();
-      checkImageCount();
-    });
 
     function openCropperModal(input) {
       console.log('Opening cropper modal, files selected:', input.files.length);
@@ -367,40 +360,34 @@
     }
 
     function clearFileInput() {
-      document.getElementById('filebutton').value = '';
+      $('#filebutton').val('');
       currentFileIndex = 0;
       fileQueue = [];
     }
 
-    document.getElementById('cropButton').addEventListener('click', async function () {
+    $('#cropButton').on('click', function () {
       console.log('Crop button clicked');
       if (!cropper) {
         console.error('Cropper not initialized');
         return;
       }
       const canvas = cropper.getCroppedCanvas({ width: 300, height: 300 });
-      canvas.toBlob(async (blob) => {
+      canvas.toBlob(function(blob) {
         const formData = new FormData();
         formData.append('croppedImage', blob, `cropped_${Date.now()}_${fileQueue[currentFileIndex].name}`);
-        try {
-          console.log('Uploading cropped image to /upload-cropped-image');
-          const response = await fetch('/upload-cropped-image', {
-            method: 'POST',
-            body: formData,
-          });
-          console.log('Upload response status:', response.status, 'Content-Type:', response.headers.get('content-type'));
-          const contentType = response.headers.get('content-type');
-          if (!response.ok) {
-            const text = await response.text();
-            console.error('Upload failed, response:', text.substring(0, 100));
-            throw new Error(`Server returned ${response.status}: ${text.substring(0, 100)}...`);
-          }
-          if (contentType && contentType.includes('application/json')) {
-            const result = await response.json();
+        
+        console.log('Uploading cropped image to /upload-cropped-image');
+        $.ajax({
+          url: '/upload-cropped-image',
+          type: 'POST',
+          data: formData,
+          processData: false,
+          contentType: false,
+          success: function(result) {
             console.log('Upload response:', result);
             if (result.filename) {
               croppedImages.push(result.filename);
-              document.getElementById('croppedImages').value = JSON.stringify(croppedImages);
+              $('#croppedImages').val(JSON.stringify(croppedImages));
               console.log('Total cropped images:', croppedImages.length);
               addNewImagePreview(result.filename);
               currentFileIndex++;
@@ -412,23 +399,21 @@
             } else {
               throw new Error(result.error || 'No filename returned');
             }
-          } else {
-            const text = await response.text();
-            console.error('Expected JSON but received:', text.substring(0, 100));
-            throw new Error(`Expected JSON but received ${contentType || 'no content-type'}`);
+          },
+          error: function(xhr, status, error) {
+            console.error('Error uploading cropped image:', error);
+            const data = xhr.responseJSON;
+            Swal.fire({
+              icon: 'error',
+              title: 'Upload Failed',
+              text: data?.message || error || 'Failed to upload cropped image',
+            });
           }
-        } catch (error) {
-          console.error('Error uploading cropped image:', error);
-          Swal.fire({
-            icon: 'error',
-            title: 'Upload Failed',
-            text: error.message || 'Failed to upload cropped image',
-          });
-        }
+        });
       }, 'image/jpeg', 0.8);
     });
 
-    document.getElementById('skipButton').addEventListener('click', function () {
+    $('#skipButton').on('click', function () {
       console.log('Skip button clicked');
       if (cropper) {
         cropper.destroy();
@@ -438,7 +423,7 @@
       processNextImage();
     });
 
-    document.getElementById('finishButton').addEventListener('click', function () {
+    $('#finishButton').on('click', function () {
       console.log('Finish button clicked');
       if (cropper) {
         cropper.destroy();
@@ -448,7 +433,7 @@
       clearFileInput();
     });
 
-    document.getElementById('cropperModal').addEventListener('hidden.bs.modal', function () {
+    $('#cropperModal').on('hidden.bs.modal', function () {
       console.log('Modal hidden');
       if (cropper) {
         cropper.destroy();
@@ -458,87 +443,131 @@
     });
 
     function addNewImagePreview(imageUrl) {
-      const newImagesPreview = document.getElementById('newImagesPreview');
-      const newImagesTitle = document.getElementById('newImagesTitle');
-      newImagesTitle.style.display = 'block';
-      const previewDiv = document.createElement('div');
-      previewDiv.className = 'preview-container';
-      previewDiv.setAttribute('data-new-image', imageUrl);
-      const img = document.createElement('img');
-      img.src = imageUrl;
-      img.style.width = '100px';
-      img.style.height = '100px';
-      img.style.objectFit = 'cover';
-      img.alt = 'New product image preview';
-      const deleteButton = document.createElement('button');
-      deleteButton.className = 'delete-button';
-      deleteButton.innerHTML = '×';
-      deleteButton.type = 'button';
-      deleteButton.onclick = function () {
-        removeNewImage(imageUrl, previewDiv);
-      };
-      previewDiv.appendChild(img);
-      previewDiv.appendChild(deleteButton);
-      newImagesPreview.appendChild(previewDiv);
+      const newImagesPreview = $('#newImagesPreview');
+      const newImagesTitle = $('#newImagesTitle');
+      newImagesTitle.show();
+      
+      const previewDiv = $('<div>', { 
+        class: 'preview-container',
+        'data-new-image': imageUrl 
+      });
+      
+      const img = $('<img>', {
+        src: imageUrl,
+        css: {
+          width: '100px',
+          height: '100px',
+          objectFit: 'cover'
+        },
+        alt: 'New product image preview'
+      });
+      
+      const deleteButton = $('<button>', {
+        class: 'delete-button',
+        type: 'button',
+        html: '×',
+        click: function() {
+          removeNewImage(imageUrl, previewDiv);
+        }
+      });
+      
+      previewDiv.append(img).append(deleteButton);
+      newImagesPreview.append(previewDiv);
       checkImageCount();
     }
 
     function removeExistingImage(imageName) {
-      deletedImages.push(imageName);
-      document.getElementById('deletedImages').value = deletedImages.join(',');
-      const existingImagesContainer = document.getElementById('existingImages');
-      const containers = existingImagesContainer.getElementsByClassName('preview-container');
-      for (let container of containers) {
-        if (container.getAttribute('data-image') === imageName) {
-          existingImagesContainer.removeChild(container);
-          break;
+      Swal.fire({
+        title: 'Remove Image?',
+        text: 'Are you sure you want to remove this existing image?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'Yes, remove it!'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          deletedImages.push(imageName);
+          $('#deletedImages').val(deletedImages.join(','));
+          $(`#existingImages .preview-container[data-image="${imageName}"]`).remove();
+          checkImageCount();
+          
+          Swal.fire({
+            icon: 'success',
+            title: 'Removed',
+            text: 'Image marked for removal',
+            timer: 1500,
+            showConfirmButton: false
+          });
         }
-      }
-      checkImageCount();
+      });
     }
 
     function removeNewImage(imageUrl, previewDiv) {
-      croppedImages = croppedImages.filter(url => url !== imageUrl);
-      document.getElementById('croppedImages').value = JSON.stringify(croppedImages);
-      previewDiv.remove();
-      if (croppedImages.length === 0) {
-        document.getElementById('newImagesTitle').style.display = 'none';
-      }
-      checkImageCount();
+      Swal.fire({
+        title: 'Remove Image?',
+        text: 'Are you sure you want to remove this new image?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'Yes, remove it!'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          croppedImages = croppedImages.filter(url => url !== imageUrl);
+          $('#croppedImages').val(JSON.stringify(croppedImages));
+          previewDiv.remove();
+          
+          if (croppedImages.length === 0) {
+            $('#newImagesTitle').hide();
+          }
+          checkImageCount();
+          
+          Swal.fire({
+            icon: 'success',
+            title: 'Removed',
+            text: 'Image removed successfully',
+            timer: 1500,
+            showConfirmButton: false
+          });
+        }
+      });
     }
 
     function checkImageCount() {
-      const existingImagesCount = document.getElementById('existingImages').children.length;
+      const existingImagesCount = $('#existingImages').children().length;
       const newImagesCount = croppedImages.length;
       const totalImages = existingImagesCount + newImagesCount;
-      const warningDiv = document.getElementById('imageWarning');
-      const submitButton = document.getElementById('singlebutton');
+      const warningDiv = $('#imageWarning');
+      const submitButton = $('#singlebutton');
+      
       if (totalImages === 0) {
-        warningDiv.style.display = 'block';
-        submitButton.disabled = true;
-        submitButton.style.backgroundColor = '#ccc';
+        warningDiv.show();
+        submitButton.prop('disabled', true).css('backgroundColor', '#ccc');
       } else {
-        warningDiv.style.display = 'none';
-        submitButton.disabled = false;
-        submitButton.style.backgroundColor = '#007bff';
+        warningDiv.hide();
+        submitButton.prop('disabled', false).css('backgroundColor', '#007bff');
       }
     }
 
-    document.getElementById('singlebutton').addEventListener('click', async function (event) {
+    $('#singlebutton').on('click', function (event) {
       event.preventDefault();
       console.log('Form submission started');
       clearErrorMessages();
       let hasErrors = false;
+      
       if (!validateName()) hasErrors = true;
       if (!validateDescription()) hasErrors = true;
       if (!validateCategory()) hasErrors = true;
       if (!validatePrice()) hasErrors = true;
       if (!validateVariants()) hasErrors = true;
       if (!validateImages()) hasErrors = true;
+      
       if (hasErrors) {
         console.log('Form validation failed');
         return;
       }
+      
       if (!productData.id) {
         console.error('Product ID is undefined');
         Swal.fire({
@@ -548,94 +577,96 @@
         });
         return;
       }
-      console.log('Form validation passed, submitting to /updateProduct/' + productData.id);
-      try {
-        Swal.fire({
-          title: 'Updating Product...',
-          text: 'Please wait while we update your product.',
-          allowOutsideClick: false,
-          didOpen: () => {
-            Swal.showLoading();
-          }
-        });
-        const response = await fetch('/updateProduct/' + productData.id, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-          body: new URLSearchParams(new FormData(document.getElementById('editProductForm'))).toString()
-        });
-        console.log('Update response status: ' + response.status + ', Content-Type: ' + response.headers.get('content-type'));
-        const contentType = response.headers.get('content-type');
-        Swal.close();
-        if (response.ok) {
-          if (contentType && contentType.includes('application/json')) {
-            const result = await response.json();
-            console.log('Update response:', result);
-            Swal.fire({
-              icon: 'error',
-              title: 'Error',
-              text: result.message || 'Failed to update product',
-            });
-          } else {
-            const text = await response.text();
-            console.log('Update success response:', text);
-            Swal.fire({
-              icon: 'success',
-              title: 'Success',
-              text: 'Product updated successfully',
-              timer: 1500,
-              showConfirmButton: false
-            }).then(() => {
-              window.location.href = '/products';
-            });
-          }
-        } else if (response.status === 401) {
-          console.error('Unauthorized access');
+      
+      // Confirmation dialog before updating
+      Swal.fire({
+        title: 'Update Product?',
+        text: 'Are you sure you want to update this product?',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'Yes, update it!'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          console.log('Form validation passed, submitting to /updateProduct/' + productData.id);
+          
           Swal.fire({
-            icon: 'error',
-            title: 'Unauthorized',
-            text: 'Please log in to update the product.',
+            title: 'Updating Product...',
+            text: 'Please wait while we update your product.',
+            allowOutsideClick: false,
+            didOpen: () => {
+              Swal.showLoading();
+            }
           });
-        } else {
-          let errorMessage = 'Failed to update product';
-          if (contentType && contentType.includes('application/json')) {
-            const result = await response.json();
-            console.log('Update error response:', result);
-            errorMessage = result.message || errorMessage;
-          } else {
-            const text = await response.text();
-            console.error('Non-JSON response:', text.substring(0, 100));
-            errorMessage = 'Server returned ' + response.status + ': ' + text.substring(0, 100) + '...';
-          }
-          Swal.fire({
-            icon: 'error',
-            title: 'Error',
-            text: errorMessage,
+          
+          const formData = $('#editProductForm').serialize();
+          
+          $.ajax({
+            url: '/updateProduct/' + productData.id,
+            type: 'POST',
+            data: formData,
+            success: function(response, status, xhr) {
+              console.log('Update success response:', response);
+              const contentType = xhr.getResponseHeader('content-type');
+              
+              Swal.close();
+              
+              if (contentType && contentType.includes('application/json')) {
+                Swal.fire({
+                  icon: 'error',
+                  title: 'Error',
+                  text: response.message || 'Failed to update product',
+                });
+              } else {
+                Swal.fire({
+                  icon: 'success',
+                  title: 'Success',
+                  text: 'Product updated successfully',
+                  timer: 1500,
+                  showConfirmButton: false
+                }).then(() => {
+                  window.location.href = '/products';
+                });
+              }
+            },
+            error: function(xhr, status, error) {
+              console.error('Form submission error:', error);
+              Swal.close();
+              
+              const contentType = xhr.getResponseHeader('content-type');
+              let errorMessage = 'Failed to update product';
+              
+              if (xhr.status === 401) {
+                errorMessage = 'Please log in to update the product.';
+              } else if (contentType && contentType.includes('application/json')) {
+                const data = xhr.responseJSON;
+                errorMessage = data?.message || errorMessage;
+              } else if (xhr.responseText) {
+                errorMessage = 'Server returned ' + xhr.status + ': ' + xhr.responseText.substring(0, 100) + '...';
+              }
+              
+              Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: errorMessage,
+              });
+            }
           });
         }
-      } catch (error) {
-        console.error('Form submission error:', error);
-        Swal.close();
-        Swal.fire({
-          icon: 'error',
-          title: 'Error',
-          text: 'An unexpected error occurred. Please try again.',
-        });
-      }
+      });
     });
 
     function clearErrorMessages() {
-      const errorElements = document.querySelectorAll('.error-message');
-      errorElements.forEach(element => element.textContent = '');
+      $('.error-message').text('');
     }
 
     function showError(elementId, message) {
-      document.getElementById(elementId).textContent = message;
+      $('#' + elementId).text(message);
     }
 
     function validateName() {
-      const name = document.getElementById('product_name').value.trim();
+      const name = $('#product_name').val().trim();
       if (!name) {
         showError('nameError', 'Product name is required');
         return false;
@@ -648,7 +679,7 @@
     }
 
     function validateDescription() {
-      const description = document.getElementById('product_name_fr').value.trim();
+      const description = $('#product_name_fr').val().trim();
       if (!description) {
         showError('descriptionError', 'Description is required');
         return false;
@@ -657,7 +688,7 @@
     }
 
     function validateCategory() {
-      const category = document.getElementById('product_categorie').value;
+      const category = $('#product_categorie').val();
       if (!category) {
         showError('categoryError', 'Please select a category');
         return false;
@@ -666,7 +697,7 @@
     }
 
     function validatePrice() {
-      const price = document.getElementById('price').value;
+      const price = $('#price').val();
       const numericPrice = parseFloat(price);
       if (!price || isNaN(numericPrice) || numericPrice <= 0) {
         showError('priceError', 'Please enter a valid price greater than 0');
@@ -676,26 +707,29 @@
     }
 
     function validateVariants() {
-      const variantRows = document.querySelectorAll('.variant-row');
+      const variantRows = $('.variant-row');
       console.log('Number of variant rows:', variantRows.length);
+      
       if (variantRows.length === 0) {
         showError('variantError', 'At least one variant is required');
         return false;
       }
+      
       let valid = true;
-      variantRows.forEach((row, index) => {
-        console.log('Checking variant row ' + index + ':', row);
-        const sizeInput = row.querySelector('input[name="variants[' + index + '][size]"]');
-        const stockInput = row.querySelector('input[name="variants[' + index + '][stock]"]');
-        console.log('Size input for index ' + index + ':', sizeInput);
-        console.log('Stock input for index ' + index + ':', stockInput);
-        if (!sizeInput || !stockInput) {
+      variantRows.each(function(index) {
+        const row = $(this);
+        const sizeInput = row.find(`input[name="variants[${index}][size]"]`);
+        const stockInput = row.find(`input[name="variants[${index}][stock]"]`);
+        
+        if (sizeInput.length === 0 || stockInput.length === 0) {
           showError('variantError', 'Missing input for variant ' + (index + 1));
           valid = false;
           return;
         }
-        const size = sizeInput.value.trim();
-        const stock = stockInput.value;
+        
+        const size = sizeInput.val().trim();
+        const stock = stockInput.val();
+        
         if (!size) {
           showError('variantError', 'Size is required for variant ' + (index + 1));
           valid = false;
@@ -705,11 +739,12 @@
           valid = false;
         }
       });
+      
       return valid;
     }
 
     function validateImages() {
-      const existingImagesCount = document.getElementById('existingImages').children.length;
+      const existingImagesCount = $('#existingImages').children().length;
       const newImagesCount = croppedImages.length;
       if (existingImagesCount + newImagesCount === 0) {
         showError('imageError', 'Please upload or keep at least one image');
@@ -717,12 +752,6 @@
       }
       return true;
     }
-
-    document.addEventListener('DOMContentLoaded', function () {
-      checkImageCount();
-      reindexVariants();
-      updateRemoveButtons();
-    });
   </script>
 </body>
 </html>
