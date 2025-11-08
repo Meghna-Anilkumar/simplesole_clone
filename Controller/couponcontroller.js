@@ -1,6 +1,8 @@
 const Coupon = require("../models/coupon");
 const Cart = require("../models/cartSchema");
 const User = require("../models/user");
+const messages = require('../constants/messages');
+const STATUS_CODES=require('../enums/statusCodes');
 
 module.exports = {
   couponpage: async (req, res) => {
@@ -21,7 +23,7 @@ module.exports = {
       });
     } catch (error) {
       console.error("Error fetching coupons:", error);
-      res.status(500).json({ message: "Error fetching coupons" });
+      res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({ message: "Error fetching coupons" });
     }
   },
 
@@ -31,7 +33,7 @@ module.exports = {
         req.body;
 
       if (!couponCode || !discountRate || !minPurchaseAmount || !expiryDate) {
-        return res.status(400).json({ message: "All fields are required" });
+        return res.status(STATUS_CODES.BAD_REQUEST).json({ message: "All fields are required" });
       }
 
       const discountRateValue = parseFloat(discountRate);
@@ -42,7 +44,7 @@ module.exports = {
 
       if (couponCode.trim() === "" || couponCode.includes(" ")) {
         return res
-          .status(400)
+          .status(STATUS_CODES.BAD_REQUEST)
           .json({ message: "Coupon code cannot be empty or contain spaces" });
       }
 
@@ -52,13 +54,13 @@ module.exports = {
         discountRateValue > 100
       ) {
         return res
-          .status(400)
+          .status(STATUS_CODES.BAD_REQUEST)
           .json({ message: "Discount rate must be between 1 and 100" });
       }
 
       if (isNaN(minPurchaseAmountValue) || minPurchaseAmountValue < 0) {
         return res
-          .status(400)
+          .status(STATUS_CODES.BAD_REQUEST)
           .json({
             message: "Minimum purchase amount must be a non-negative number",
           });
@@ -84,13 +86,13 @@ module.exports = {
 
       const savedCoupon = await newCoupon.save();
 
-      res.status(200).json({
+      res.status(STATUS_CODES.OK).json({
         message: "Coupon added successfully",
         coupon: savedCoupon,
       });
     } catch (error) {
       console.error("Error creating coupon:", error);
-      res.status(500).json({ message: "Error creating coupon" });
+      res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({ message: messages.INTERNAL_SERVER_ERROR });
     }
   },
 
@@ -106,7 +108,7 @@ module.exports = {
       });
     } catch (error) {
       console.error("Error fetching coupons:", error);
-      res.status(500).json({ message: "Error fetching coupons" });
+      res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({ message:messages.INTERNAL_SERVER_ERROR });
     }
   },
 

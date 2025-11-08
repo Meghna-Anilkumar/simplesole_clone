@@ -3,8 +3,12 @@ const express = require("express");
 const app = express();
 app.use(bodyParser.json());
 const Order = require("../models/orderSchema");
-const User = require("../models/user");
 const PDFDocument = require("pdfkit");
+const { getDashboardData } = require("../utils/dashboardHelper");
+require("dotenv").config();
+const STATUS_CODES=require('../enums/statusCodes')
+const Messages = require("../constants/messages");
+
 
 module.exports = {
   //to admin login page
@@ -17,220 +21,32 @@ module.exports = {
   //to login the admin
   adminlogin: async (req, res) => {
     try {
-      const credential = {
-        email: "admin@gmail.com",
-        password: "Admin@2024",
-      };
-
       if (
-        req.body.email === credential.email &&
-        req.body.password === credential.password
+        req.body.email === process.env.ADMIN_EMAIL &&
+        req.body.password === process.env.ADMIN_PASSWORD
       ) {
         req.session.isadminlogged = true;
 
-        // Fetch dashboard data (same as before)
-        const paymentMethodCounts = await Order.aggregate([
-          { $group: { _id: "$paymentMethod", count: { $sum: 1 } } },
-        ]);
-
-        const paymentMethodData = {
-          labels: paymentMethodCounts.map((m) => m._id),
-          data: paymentMethodCounts.map((m) => m.count),
-        };
-
-        const orderStatusCounts = await Order.aggregate([
-          { $group: { _id: "$orderStatus", count: { $sum: 1 } } },
-        ]);
-
-        const orderStatusData = {
-          labels: orderStatusCounts.map((s) => s._id),
-          data: orderStatusCounts.map((s) => s.count),
-        };
-
-        const totalUsers = await User.countDocuments();
-        const totalOrders = await Order.countDocuments();
-        const totalProductQuantity = await Order.aggregate([
-          { $unwind: "$items" },
-          {
-            $group: {
-              _id: null,
-              totalProductQuantity: { $sum: "$items.quantity" },
-            },
-          },
-        ]);
-
-        const productQuantity =
-          totalProductQuantity.length > 0
-            ? totalProductQuantity[0].totalProductQuantity
-            : 0;
-
-        const topSellingProducts = await Order.aggregate([
-          { $unwind: "$items" },
-          {
-            $group: {
-              _id: "$items.product",
-              sales: { $sum: "$items.quantity" },
-            },
-          },
-          { $sort: { sales: -1 } },
-          { $limit: 5 },
-          {
-            $lookup: {
-              from: "products",
-              localField: "_id",
-              foreignField: "_id",
-              as: "product",
-            },
-          },
-          { $unwind: "$product" },
-          { $project: { name: "$product.name", sales: 1 } },
-        ]);
-
-        const topSellingCategories = await Order.aggregate([
-          { $unwind: "$items" },
-          {
-            $lookup: {
-              from: "products",
-              localField: "items.product",
-              foreignField: "_id",
-              as: "product",
-            },
-          },
-          { $unwind: "$product" },
-          {
-            $group: {
-              _id: "$product.category",
-              sales: { $sum: "$items.quantity" },
-            },
-          },
-          { $sort: { sales: -1 } },
-          { $limit: 5 },
-          {
-            $lookup: {
-              from: "categories",
-              localField: "_id",
-              foreignField: "_id",
-              as: "category",
-            },
-          },
-          { $unwind: "$category" },
-          { $project: { name: "$category.name", sales: 1 } },
-        ]);
-
-        return res.render("adminviews/dashboard", {
+        const dashboardData = await getDashboardData();
+        res.render("adminviews/dashboard", {
           title: "Dashboard",
-          totalOrders,
-          productQuantity,
-          totalUsers,
-          topSellingProducts,
-          topSellingCategories,
-          orderStatusData,
-          paymentMethodData,
+          ...dashboardData,
         });
       } else {
-        return res.status(401).json({ message: "Invalid credentials" });
+        return res.status(STATUS_CODES.UNAUTHORIZED).json({ message: "Invalid credentials" });
       }
     } catch (err) {
       console.error("Admin login error:", err);
-      res.status(500).json({ message: "Internal server error" });
+      res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({ message: Messages.INTERNAL_SERVER_ERROR });
     }
   },
 
   //get dashboard
   dashboard: async (req, res) => {
-    const paymentMethodCounts = await Order.aggregate([
-      { $group: { _id: "$paymentMethod", count: { $sum: 1 } } },
-    ]);
-
-    const paymentMethodData = {
-      labels: paymentMethodCounts.map((method) => method._id),
-      data: paymentMethodCounts.map((method) => method.count),
-    };
-
-    const orderStatusCounts = await Order.aggregate([
-      { $group: { _id: "$orderStatus", count: { $sum: 1 } } },
-    ]);
-
-    const orderStatusData = {
-      labels: orderStatusCounts.map((status) => status._id),
-      data: orderStatusCounts.map((status) => status.count),
-    };
-
-    const totalUsers = await User.countDocuments();
-    const totalOrders = await Order.countDocuments();
-    const totalProductQuantity = await Order.aggregate([
-      {
-        $unwind: "$items",
-      },
-      {
-        $group: {
-          _id: null,
-          totalProductQuantity: { $sum: "$items.quantity" },
-        },
-      },
-    ]).exec();
-    const productQuantity =
-      totalProductQuantity.length > 0
-        ? totalProductQuantity[0].totalProductQuantity
-        : 0;
-
-    const topSellingProducts = await Order.aggregate([
-      { $unwind: "$items" },
-      { $group: { _id: "$items.product", sales: { $sum: "$items.quantity" } } },
-      { $sort: { sales: -1 } },
-      { $limit: 5 },
-      {
-        $lookup: {
-          from: "products",
-          localField: "_id",
-          foreignField: "_id",
-          as: "product",
-        },
-      },
-      { $unwind: "$product" },
-      { $project: { name: "$product.name", sales: 1 } },
-    ]);
-
-    const topSellingCategories = await Order.aggregate([
-      { $unwind: "$items" },
-      {
-        $lookup: {
-          from: "products",
-          localField: "items.product",
-          foreignField: "_id",
-          as: "product",
-        },
-      },
-      { $unwind: "$product" },
-      {
-        $group: {
-          _id: "$product.category",
-          sales: { $sum: "$items.quantity" },
-        },
-      },
-      { $sort: { sales: -1 } },
-      { $limit: 5 },
-      {
-        $lookup: {
-          from: "categories",
-          localField: "_id",
-          foreignField: "_id",
-          as: "category",
-        },
-      },
-      { $unwind: "$category" },
-      { $project: { name: "$category.name", sales: 1 } },
-    ]);
-
+    const dashboardData = await getDashboardData();
     res.render("adminviews/dashboard", {
       title: "Dashboard",
-      totalOrders: totalOrders,
-      productQuantity: productQuantity,
-      totalUsers: totalUsers,
-      topSellingProducts: topSellingProducts,
-      topSellingCategories: topSellingCategories,
-      orderStatusData: orderStatusData,
-      paymentMethodData: paymentMethodData,
+      ...dashboardData,
     });
   },
 
@@ -242,7 +58,7 @@ module.exports = {
     req.session.destroy((err) => {
       if (err) {
         console.error("Error destroying session:", err);
-        res.status(500).send("Internal Server Error");
+        res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).send(Messages.INTERNAL_SERVER_ERROR);
       } else {
         res.redirect("/adminlogin");
       }
@@ -311,7 +127,7 @@ module.exports = {
         break;
 
       default:
-        return res.status(400).json({ error: "Invalid interval" });
+        return res.status(STATUS_CODES.BAD_REQUEST).json({ error: "Invalid interval" });
     }
 
     res.json(salesData);
@@ -346,7 +162,6 @@ module.exports = {
 
       doc.pipe(res);
 
-      // Header with gradient-like effect (using colors)
       doc.rect(0, 0, doc.page.width, 120).fill("#667eea");
 
       doc
@@ -364,10 +179,8 @@ module.exports = {
         align: "center",
       });
 
-      // Summary section with colored boxes
       let yPosition = 150;
 
-      // Summary cards
       const summaryData = [
         { label: "Total Orders", value: overallSalesCount, color: "#667eea" },
         {
@@ -394,12 +207,10 @@ module.exports = {
       summaryData.forEach((item, index) => {
         const xPos = startX + index * (cardWidth + cardSpacing);
 
-        // Card background
         doc
           .rect(xPos, yPosition, cardWidth, cardHeight)
           .fillAndStroke(item.color, item.color);
 
-        // Card text
         doc
           .fillColor("#ffffff")
           .fontSize(10)
@@ -420,7 +231,6 @@ module.exports = {
 
       yPosition += cardHeight + 40;
 
-      // Table header
       doc
         .fillColor("#333333")
         .fontSize(14)
@@ -429,7 +239,6 @@ module.exports = {
 
       yPosition += 30;
 
-      // Table styling
       const tableTop = yPosition;
       const tableHeaders = [
         "Order ID",
@@ -514,7 +323,7 @@ module.exports = {
       doc.end();
     } catch (error) {
       console.error("Error generating PDF:", error);
-      res.status(500).send("Internal Server Error");
+      res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).send("Internal Server Error");
     }
   },
 };

@@ -1,6 +1,8 @@
 const CategoryOffer = require('../models/categoryoffer');
 const { updateCategoryOfferPrice } = require('./productcontroller');
 const Category = require('../models/category');
+const messages = require('../constants/messages');
+const STATUS_CODES=require('../enums/statusCodes');
 
 module.exports = {
   // Get category offers page
@@ -27,7 +29,7 @@ module.exports = {
         limit,
       });
     } catch (error) {
-      res.status(500).json({ message: 'Internal Server Error' });
+      res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({ message: messages.INTERNAL_SERVER_ERROR});
     }
   },
 
@@ -36,23 +38,19 @@ module.exports = {
     try {
       const { categoryId, discountPercentage, startDate, expiryDate } = req.body;
 
-      // Validate inputs
       if (!categoryId) {
-        return res.status(400).json({ message: 'Category is required' });
+        return res.status(STATUS_CODES.BAD_REQUEST).json({ message: 'Category is required' });
       }
 
-      // Validate category existence
       const categoryExists = await Category.findById(categoryId);
       if (!categoryExists) {
-        return res.status(400).json({ message: 'Selected category does not exist' });
+        return res.status(STATUS_CODES.BAD_REQUEST).json({ message: 'Selected category does not exist' });
       }
 
-      // Validate discount percentage
       if (!discountPercentage || discountPercentage < 1 || discountPercentage > 100) {
-        return res.status(400).json({ message: 'Discount percentage must be between 1 and 100' });
+        return res.status(STATUS_CODES.BAD_REQUEST).json({ message: 'Discount percentage must be between 1 and 100' });
       }
 
-      // Validate dates
       if (!startDate || !expiryDate) {
         return res.status(400).json({ message: 'Start date and expiry date are required' });
       }
@@ -64,18 +62,17 @@ module.exports = {
       const expiry = new Date(expiryDate);
 
       if (isNaN(start.getTime()) || isNaN(expiry.getTime())) {
-        return res.status(400).json({ message: 'Invalid date format' });
+        return res.status(STATUS_CODES.BAD_REQUEST).json({ message: 'Invalid date format' });
       }
 
       if (start < today) {
-        return res.status(400).json({ message: 'Start date cannot be in the past' });
+        return res.status(STATUS_CODES.BAD_REQUEST).json({ message: 'Start date cannot be in the past' });
       }
 
       if (expiry <= start) {
-        return res.status(400).json({ message: 'Expiry date must be after start date' });
+        return res.status(STATUS_CODES.BAD_REQUEST).json({ message: 'Expiry date must be after start date' });
       }
 
-      // Save the category offer
       const categoryOffer = new CategoryOffer({
         category: categoryId,
         discountPercentage,
@@ -85,12 +82,11 @@ module.exports = {
 
       await categoryOffer.save();
 
-      // Update product prices
       await updateCategoryOfferPrice(categoryId);
 
       res.json({ success: true, message: 'Category offer added successfully' });
     } catch (error) {
-      res.status(500).json({ message: 'Internal Server Error' });
+      res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({ message:messages.INTERNAL_SERVER_ERROR });
     }
   },
 
@@ -99,27 +95,23 @@ module.exports = {
     try {
       const { offerId, categoryId, discountPercentage, startDate, expiryDate } = req.body;
 
-      // Validate inputs
       if (!offerId) {
-        return res.status(400).json({ message: 'Offer ID is required' });
+        return res.status(STATUS_CODES.BAD_REQUEST).json({ message: 'Offer ID is required' });
       }
 
       if (!categoryId) {
-        return res.status(400).json({ message: 'Category is required' });
+        return res.status(STATUS_CODES.BAD_REQUEST).json({ message: 'Category is required' });
       }
 
-      // Validate category existence
       const categoryExists = await Category.findById(categoryId);
       if (!categoryExists) {
-        return res.status(400).json({ message: 'Selected category does not exist' });
+        return res.status(STATUS_CODES.BAD_REQUEST).json({ message: 'Selected category does not exist' });
       }
 
-      // Validate discount percentage
       if (!discountPercentage || discountPercentage < 1 || discountPercentage > 100) {
-        return res.status(400).json({ message: 'Discount percentage must be between 1 and 100' });
+        return res.status(STATUS_CODES.BAD_REQUEST).json({ message: 'Discount percentage must be between 1 and 100' });
       }
 
-      // Validate dates
       if (!startDate || !expiryDate) {
         return res.status(400).json({ message: 'Start date and expiry date are required' });
       }
@@ -142,7 +134,6 @@ module.exports = {
         return res.status(400).json({ message: 'Expiry date must be after start date' });
       }
 
-      // Update the category offer
       const updatedOffer = await CategoryOffer.findByIdAndUpdate(
         offerId,
         {
@@ -155,10 +146,9 @@ module.exports = {
       );
 
       if (!updatedOffer) {
-        return res.status(404).json({ message: 'Category offer not found' });
+        return res.status(STATUS_CODES.NOT_FOUND).json({ message: 'Category offer not found' });
       }
 
-      // Update product prices
       await updateCategoryOfferPrice(categoryId);
 
       res.json({ success: true, message: 'Category offer updated successfully' });
@@ -178,13 +168,11 @@ module.exports = {
       }
 
       await CategoryOffer.findByIdAndDelete(offerId);
-
-      // Update product prices
       await updateCategoryOfferPrice(categoryOffer.category);
 
       res.json({ success: true, message: 'Category offer deleted successfully' });
     } catch (error) {
-      res.status(500).json({ message: 'Internal Server Error' });
+      res.status(500).json({ message: messages.INTERNAL_SERVER_ERROR });
     }
   },
 };

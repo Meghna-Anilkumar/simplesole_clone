@@ -6,6 +6,8 @@ const Category = require("../models/category");
 const bcrypt = require("bcrypt");
 const { generateReferralCode } = require("../utils/generatereferral");
 const Wallet = require("../models/wallet");
+const messages = require('../constants/messages');
+const STATUS_CODES=require('../enums/statusCodes');
 
 module.exports = {
   register: async (req, res) => {

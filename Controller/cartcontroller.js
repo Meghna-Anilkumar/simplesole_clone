@@ -6,6 +6,9 @@ const CategoryOffer = require('../models/categoryoffer');
 const Wishlist = require('../models/wishlist');
 const { calculateTotalPrice } = require('../utils/cartfunctions');
 const Category = require('../models/category');
+const messages = require('../constants/messages');
+const STATUS_CODES=require('../enums/statusCodes')
+
 
 module.exports = {
   getcart: async (req, res) => {
@@ -120,7 +123,7 @@ module.exports = {
 
       if (isNaN(totalPrice)) {
         console.error('Total price is not a number:', totalPrice);
-        return res.status(500).json({ error: 'Internal Server Error' });
+        return res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({ error: messages.INTERNAL_SERVER_ERROR });
       }
 
       cart.total = totalPrice;
@@ -146,7 +149,7 @@ module.exports = {
         error: error.message,
         stack: error.stack,
       });
-      res.status(500).json({ error: 'Internal Server Error' });
+      res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({ error:messages.INTERNAL_SERVER_ERROR });
     }
   },
 
@@ -307,7 +310,7 @@ module.exports = {
       });
       res.status(500).json({
         success: false,
-        error: error.message || 'Internal Server Error',
+        error: error.message || Messages.INTERNAL_SERVER_ERROR,
       });
     }
   },
@@ -445,7 +448,7 @@ module.exports = {
         productId,
         change,
       });
-      res.status(500).json({ error: error.message || 'Internal Server Error' });
+      res.status(500).json({ error: error.message || Messages.INTERNAL_SERVER_ERROR});
     }
   },
 
@@ -527,7 +530,7 @@ module.exports = {
         stack: error.stack,
         productId,
       });
-      res.status(500).json({ error: 'Internal Server Error' });
+      res.status(500).json({ error: Messages.INTERNAL_SERVER_ERROR});
     }
   },
 
@@ -571,7 +574,7 @@ module.exports = {
         error: error.message,
         stack: error.stack,
       });
-      res.status(500).json({ success: false, error: 'Internal Server Error' });
+      res.status(500).json({ success: false, error:  Messages.INTERNAL_SERVER_ERROR});
     }
   },
 

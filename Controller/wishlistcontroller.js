@@ -3,9 +3,11 @@ const Cart = require("../models/cartSchema");
 const Category = require("../models/category");
 const ProductOffer = require("../models/productoffermodel");
 const CategoryOffer = require("../models/categoryoffer");
-const now = new Date();
 const Product = require("../models/product");
 const Wishlist = require("../models/wishlist");
+const HTTP_STATUS = require("../enums/statusCodes")
+
+const now = new Date();
 
 module.exports = {
   getwishlistpage: async (req, res) => {
@@ -105,7 +107,9 @@ module.exports = {
         error: error.message,
         stack: error.stack,
       });
-      res.status(500).send("Internal Server Error");
+      res
+        .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+        .send("Internal Server Error");
     }
   },
 
@@ -115,16 +119,22 @@ module.exports = {
       const { productId } = req.body;
 
       if (!user) {
-        return res.status(401).json({ message: "User not authenticated" });
+        return res
+          .status(HTTP_STATUS.UNAUTHORIZED)
+          .json({ message: "User not authenticated" });
       }
 
       if (!mongoose.Types.ObjectId.isValid(productId)) {
-        return res.status(400).json({ message: "Invalid product ID" });
+        return res
+          .status(HTTP_STATUS.BAD_REQUEST)
+          .json({ message: "Invalid product ID" });
       }
 
       const product = await Product.findById(productId);
       if (!product) {
-        return res.status(404).json({ message: "Product not found" });
+        return res
+          .status(HTTP_STATUS.NOT_FOUND)
+          .json({ message: "Product not found" });
       }
 
       let wishlist = await Wishlist.findOne({ user: user._id });
@@ -138,15 +148,16 @@ module.exports = {
       );
 
       if (existingProduct) {
-        return res
-          .status(400)
-          .json({ message: "Product already in wishlist", inWishlist: true });
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({
+          message: "Product already in wishlist",
+          inWishlist: true,
+        });
       }
 
       wishlist.items.push({ product: productId });
       await wishlist.save();
 
-      res.status(200).json({
+      res.status(HTTP_STATUS.OK).json({
         message: "Product added to wishlist successfully",
         inWishlist: true,
         wishlistCount: wishlist.items.length,
@@ -156,10 +167,11 @@ module.exports = {
         error: error.message,
         stack: error.stack,
       });
-      res.status(500).json({ message: "Internal Server Error" });
+      res
+        .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+        .json({ message: "Internal Server Error" });
     }
   },
-
 
   removefromwishlist: async (req, res) => {
     try {
@@ -167,13 +179,17 @@ module.exports = {
       const user = req.session.user;
 
       if (!mongoose.Types.ObjectId.isValid(productId)) {
-        return res.status(400).json({ message: "Invalid product ID" });
+        return res
+          .status(HTTP_STATUS.BAD_REQUEST)
+          .json({ message: "Invalid product ID" });
       }
 
       const wishlist = await Wishlist.findOne({ user: user._id });
 
       if (!wishlist) {
-        return res.status(404).json({ message: "Wishlist not found" });
+        return res
+          .status(HTTP_STATUS.NOT_FOUND)
+          .json({ message: "Wishlist not found" });
       }
 
       const initialLength = wishlist.items.length;
@@ -183,13 +199,13 @@ module.exports = {
 
       if (wishlist.items.length === initialLength) {
         return res
-          .status(404)
+          .status(HTTP_STATUS.NOT_FOUND)
           .json({ message: "Product not found in wishlist" });
       }
 
       await wishlist.save();
 
-      res.status(200).json({
+      res.status(HTTP_STATUS.OK).json({
         message: "Product removed from wishlist successfully",
         inWishlist: false,
         productId,
@@ -201,7 +217,9 @@ module.exports = {
         stack: error.stack,
         productId,
       });
-      res.status(500).json({ message: "Internal Server Error" });
+      res
+        .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+        .json({ message: "Internal Server Error" });
     }
   },
 };

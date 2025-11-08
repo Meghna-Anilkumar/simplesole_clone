@@ -5,6 +5,8 @@ app.use(bodyParser.json());
 const Order = require("../models/orderSchema");
 const Wallet = require("../models/wallet");
 const mongoose = require("mongoose");
+const Messages = require("../constants/messages");
+const STATUS_CODES=require('../enums/statusCodes')
 
 module.exports = {
   orderspage: async (req, res) => {
@@ -29,7 +31,7 @@ module.exports = {
       });
     } catch (error) {
       console.error(error);
-      res.status(500).json({ error: "Internal Server Error" });
+      res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({ error: Messages.INTERNAL_SERVER_ERROR });
     }
   },
 
@@ -42,7 +44,7 @@ module.exports = {
       res.render("adminviews/vieworder", { title: "View order", order });
     } catch (error) {
       console.error(error);
-      res.status(500).json({ error: "Internal Server Error" });
+      res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({ error: Messages.INTERNAL_SERVER_ERROR });
     }
   },
 
@@ -59,7 +61,7 @@ module.exports = {
       res.json(updatedOrder);
     } catch (error) {
       console.error(error);
-      res.status(500).json({ error: "Internal Server Error" });
+      res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({ error: Messages.INTERNAL_SERVER_ERROR });
     }
   },
 
@@ -76,7 +78,7 @@ module.exports = {
       });
     } catch (error) {
       console.error("Error fetching return requests:", error);
-      res.status(500).json({ message: "Internal Server Error" });
+      res.status(500).json({ message: Messages.INTERNAL_SERVER_ERROR });
     }
   },
 
@@ -106,7 +108,6 @@ module.exports = {
           .json({ message: "Order is not in return requested status" });
       }
 
-      // Calculate refundable amount (totalAmount - already refunded)
       const refundableAmount = Math.max(
         0,
         (order.totalAmount || 0) - (order.refundedAmount || 0)
@@ -119,7 +120,6 @@ module.exports = {
           .json({ message: "No refundable amount remaining for this order" });
       }
 
-      // Update item status to RETURNED for non-cancelled items
       const refundableItems = order.items.filter(
         (item) => item.itemstatus !== "CANCELLED"
       );
@@ -131,12 +131,10 @@ module.exports = {
           .json({ message: "No refundable items in this order" });
       }
 
-      // Set itemstatus to RETURNED
       refundableItems.forEach((item) => {
         item.itemstatus = "RETURNED";
       });
 
-      // Update product stock
       const productUpdates = refundableItems.reduce((acc, item) => {
         const productId = item.product?._id?.toString();
         if (productId && item.product) {
@@ -171,14 +169,12 @@ module.exports = {
         )
       );
 
-      // Update order
       order.orderStatus = "RETURNED";
       order.transactiontype = "CREDIT BY RETURN";
       order.refundedAmount = (order.refundedAmount || 0) + refundableAmount;
 
       await order.save({ session });
 
-      // Update wallet
       let userWallet = await Wallet.findOne({ user: order.user }).session(
         session
       );
@@ -221,9 +217,7 @@ module.exports = {
         stack: error.stack,
         orderId,
       });
-      res
-        .status(500)
-        .json({ message: "Internal Server Error: " + error.message });
+      res.status(500).json({ message: Messages.INTERNAL_SERVER_ERROR });
     }
   },
 
@@ -238,7 +232,7 @@ module.exports = {
       res.sendStatus(200);
     } catch (error) {
       console.error("Error rejecting return request:", error);
-      res.status(500).json({ message: "Internal Server Error" });
+      res.status(500).json({ message: Messages.INTERNAL_SERVER_ERROR });
     }
   },
 };

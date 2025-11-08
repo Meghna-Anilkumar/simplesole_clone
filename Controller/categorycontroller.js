@@ -1,4 +1,7 @@
+const messages = require('../constants/messages');
+const STATUS_CODES=require('../enums/statusCodes')
 const Category = require('../models/category')
+
 
 module.exports = {
   //to get add category page  
@@ -37,7 +40,7 @@ module.exports = {
       res.redirect('/categories');
     } catch (error) {
       console.error(error);
-      res.status(500).json({ message: 'Internal Server Error', type: 'danger' });
+      res.status(STATUS_CODES.INTERNAL_SERVER_ERRORODES).json({ message:messages.INTERNAL_SERVER_ERROR, type: 'danger' });
     }
   },
 
@@ -125,7 +128,7 @@ module.exports = {
       console.log(category);
 
       if (!category) {
-        return res.status(404).send('Category not found');
+        return res.status(STATUS_CODES.NOT_FOUND).send('Category not found');
       }
 
       category.blocked = !category.blocked;
@@ -135,7 +138,7 @@ module.exports = {
       res.redirect('/categories');
     } catch (error) {
       console.error(error);
-      res.status(500).send('Internal Server Error');
+      res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).send(messages.INTERNAL_SERVER_ERROR);
     }
   },
 }
