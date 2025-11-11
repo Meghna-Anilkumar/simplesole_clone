@@ -102,7 +102,7 @@
             <p class="<%= item.itemstatus === 'CANCELLED' ? 'cancelled-item' : item.itemstatus === 'RETURNED' ? 'returned-item' : '' %>">
               <strong>Status:</strong> <%= item.itemstatus || 'PENDING' %>
             </p>
-            <% if (item.itemstatus === 'CANCELLED') { %>
+            <% if (item.itemstatus === 'CANCELLED'&&order.paymentMethod!='CASH_ON_DELIVERY') { %>
               <p class="cancelled-item"><strong>Refunded Amount:</strong> &#8377;<%= (item.price * item.quantity).toFixed(2) %></p>
               <% if (item.cancellationReason) { %>
                 <p class="cancelled-item"><strong>Cancellation Reason:</strong> <%= item.cancellationReason %></p>
