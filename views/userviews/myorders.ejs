@@ -85,8 +85,13 @@
                     </div>
                     <div class="col-md-8 text-right">
                       <a href="/orderdetails/<%= order._id %>" class="btn btn-primary">View Details</a>
+<%
+  const currentDate = new Date();
+  const orderDate = new Date(order.orderdate);
+  const daysPassed = Math.floor((currentDate - orderDate) / (1000 * 60 * 60 * 24));
+%>
 
-                      <% if (order.orderStatus === 'DELIVERED') { %>
+                      <% if (order.orderStatus === 'DELIVERED'&&daysPassed<=7) { %>
                         <button class="css-ibwr57" data-order-id="<%= order._id %>" data-action="return"
                           onclick="openReturnOrderModal('<%= order._id %>')">Return</button>
                       <% } else if (order.orderStatus === 'CANCELLED') { %>

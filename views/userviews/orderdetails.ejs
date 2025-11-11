@@ -97,8 +97,8 @@
             <p><strong>Size:</strong> <%= item.size %></p>
             <p><strong>Price:</strong> &#8377;<%= item.price.toFixed(2) %></p>
             <p><strong>Quantity:</strong> <%= item.quantity %></p>
-            <p><strong>Subtotal:</strong> &#8377;<%= (item.price * item.quantity).toFixed(2) %></p>
-            <p><strong>Total:</strong> &#8377;<%= (item.price * item.quantity).toFixed(2) %></p>
+            <!-- <p><strong>Subtotal:</strong> &#8377;<%= (item.price * item.quantity).toFixed(2) %></p> -->
+            <p><strong>Total:</strong> &#8377;<%= (order.totalAmount).toFixed(2) %></p>
             <p class="<%= item.itemstatus === 'CANCELLED' ? 'cancelled-item' : item.itemstatus === 'RETURNED' ? 'returned-item' : '' %>">
               <strong>Status:</strong> <%= item.itemstatus || 'PENDING' %>
             </p>
@@ -108,7 +108,7 @@
                 <p class="cancelled-item"><strong>Cancellation Reason:</strong> <%= item.cancellationReason %></p>
               <% } %>
             <% } else if (item.itemstatus === 'RETURNED') { %>
-              <p class="returned-item"><strong>Refunded Amount:</strong> &#8377;<%= (item.price * item.quantity).toFixed(2) %></p>
+              <p class="returned-item"><strong>Refunded Amount:</strong> &#8377;<%= (order.totalAmount).toFixed(2) %></p>
               <% if (order.returnReason) { %>
                 <p class="returned-item"><strong>Return Reason:</strong> <%= order.returnReason %></p>
               <% } %>
