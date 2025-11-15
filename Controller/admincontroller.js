@@ -6,9 +6,10 @@ const Order = require("../models/orderSchema");
 const PDFDocument = require("pdfkit");
 const { getDashboardData } = require("../utils/dashboardHelper");
 require("dotenv").config();
-const STATUS_CODES=require('../enums/statusCodes')
+const STATUS_CODES = require("../enums/statusCodes");
 const Messages = require("../constants/messages");
-
+const Admin = require("../models/adminSchema");
+const bcrypt = require("bcrypt");
 
 module.exports = {
   //to admin login page
@@ -21,23 +22,39 @@ module.exports = {
   //to login the admin
   adminlogin: async (req, res) => {
     try {
-      if (
-        req.body.email === process.env.ADMIN_EMAIL &&
-        req.body.password === process.env.ADMIN_PASSWORD
-      ) {
-        req.session.isadminlogged = true;
+      const { email, password } = req.body;
+      console.log("Request body:", req.body);
 
-        const dashboardData = await getDashboardData();
-        res.render("adminviews/dashboard", {
-          title: "Dashboard",
-          ...dashboardData,
+      let admin = await Admin.findOne({ email: "admin@gmail.com" });
+
+      if (!admin) {
+        admin = await Admin.create({
+          email: "admin@gmail.com",
+          password: "Admin@2024",
         });
-      } else {
-        return res.status(STATUS_CODES.UNAUTHORIZED).json({ message: "Invalid credentials" });
+        console.log("Admin created");
       }
+
+      if (email !== "admin@gmail.com") {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+      const isMatch = await bcrypt.compare(password, admin.password);
+      console.log("Password match:", isMatch);
+
+      if (!isMatch) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+
+      req.session.isadminlogged = true;
+      const dashboardData = await getDashboardData();
+
+      return res.render("adminviews/dashboard", {
+        title: "Dashboard",
+        ...dashboardData,
+      });
     } catch (err) {
       console.error("Admin login error:", err);
-      res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({ message: Messages.INTERNAL_SERVER_ERROR });
+      res.status(500).json({ message: Messages.INTERNAL_SERVER_ERROR });
     }
   },
 
@@ -58,7 +75,9 @@ module.exports = {
     req.session.destroy((err) => {
       if (err) {
         console.error("Error destroying session:", err);
-        res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).send(Messages.INTERNAL_SERVER_ERROR);
+        res
+          .status(STATUS_CODES.INTERNAL_SERVER_ERROR)
+          .send(Messages.INTERNAL_SERVER_ERROR);
       } else {
         res.redirect("/adminlogin");
       }
@@ -127,7 +146,9 @@ module.exports = {
         break;
 
       default:
-        return res.status(STATUS_CODES.BAD_REQUEST).json({ error: "Invalid interval" });
+        return res
+          .status(STATUS_CODES.BAD_REQUEST)
+          .json({ error: "Invalid interval" });
     }
 
     res.json(salesData);
@@ -323,7 +344,9 @@ module.exports = {
       doc.end();
     } catch (error) {
       console.error("Error generating PDF:", error);
-      res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).send("Internal Server Error");
+      res
+        .status(STATUS_CODES.INTERNAL_SERVER_ERROR)
+        .send("Internal Server Error");
     }
   },
 };

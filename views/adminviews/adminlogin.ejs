@@ -121,7 +121,7 @@
 
     // Handle form submission
     $("#adminLoginForm").submit(function (event) {
-      event.preventDefault(); // prevent normal form submission
+      event.preventDefault();
       loginError.textContent = "";
 
       $.ajax({
