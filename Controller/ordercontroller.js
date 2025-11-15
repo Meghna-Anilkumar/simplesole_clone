@@ -36,7 +36,6 @@ module.exports = {
         "items.product"
       );
 
-      // Initialize discount variable
       let discount = 0;
 
       if (cart) {
@@ -55,7 +54,6 @@ module.exports = {
         );
         cart.total = totalPrice;
 
-        // Only apply discount if a coupon is actively applied in the session
         if (
           req.session.couponCode &&
           cart.couponApplied === req.session.couponCode
@@ -68,14 +66,12 @@ module.exports = {
             cart.newTotal = cart.total - discount;
             cart.couponApplied = req.session.couponCode;
           } else {
-            // Reset if coupon is invalid or minimum purchase not met
             cart.newTotal = cart.total;
             cart.couponApplied = null;
             req.session.couponCode = null;
             req.session.discount = 0;
           }
         } else {
-          // Reset coupon data if no active coupon in session
           cart.newTotal = cart.total;
           cart.couponApplied = null;
           req.session.couponCode = null;
@@ -125,7 +121,6 @@ module.exports = {
         return res.status(400).json({ success: false, error: "Cart is empty" });
       }
 
-      // Validate stock before creating Razorpay order
       const unavailableItems = [];
       for (const item of cart.items) {
         const product = await Product.findOne({
@@ -228,7 +223,6 @@ module.exports = {
         });
       }
 
-      // Extend reservation time
       cart.items.forEach((item) => {
         item.reservedAt = new Date();
       });
@@ -256,9 +250,20 @@ module.exports = {
         });
       });
 
+      // --- FIX: Save session data BEFORE committing ---
+      req.session.razorpayOrderId = razorpayOrder.id;
+
+      // Update reservedAt for all items
+      cart.items.forEach((item) => {
+        item.reservedAt = new Date();
+      });
+      await cart.save({ session }); // ← Must be BEFORE commit
+
+      // --- Now commit ---
       await session.commitTransaction();
       session.endSession();
 
+      // --- Respond ---
       res.json({
         success: true,
         orderId: razorpayOrder.id,
@@ -266,8 +271,12 @@ module.exports = {
         currency: razorpayOrder.currency,
       });
     } catch (error) {
-      await session.abortTransaction();
+      // --- Only abort if not already committed ---
+      if (session.transaction.isActive) {
+        await session.abortTransaction();
+      }
       session.endSession();
+
       console.error("Error creating Razorpay order:", error);
       res.status(500).json({
         success: false,
@@ -305,15 +314,52 @@ module.exports = {
         .update(order_id + "|" + payment_id)
         .digest("hex");
 
-      if (generatedSignature !== signature) {
+if (generatedSignature !== signature) {
+  // ---- CREATE FAILED ORDER ----
+  const failedOrder = new Order({
+    user: user._id,
+    items: cart.items.map(i => ({
+      product: i.product._id,
+      quantity: i.quantity,
+      price: i.price,
+      size: i.size,
+    })),
+    shippingAddress: selectedAddress, // ← Now it's safe (from form)
+    totalAmount: cart.newTotal || cart.total,
+    paymentMethod,
+    orderStatus: "PAYMENT_FAILED",
+    paymentError: "Invalid Razorpay signature",
+    couponCode: appliedCouponCode || null,
+    discountAmount: cart.couponApplied ? cart.total - cart.newTotal : 0,
+  });
+  await failedOrder.save({ session });
+  // ... release stock
+
+
+        // release reservations (same as you already do)
+        for (const item of cart.items) {
+          const product = await Product.findOne({
+            _id: item.product._id,
+          }).session(session);
+          if (product) {
+            const variant = product.variants.find((v) => v.size === item.size);
+            if (variant) {
+              variant.reserved = (variant.reserved || 0) - item.quantity;
+              product.reserved = (product.reserved || 0) - item.quantity;
+              product.version += 1;
+              await product.save({ session });
+            }
+          }
+        }
+
         await session.abortTransaction();
         session.endSession();
-        return res
-          .status(400)
-          .json({ success: false, error: "Invalid payment signature" });
+        return res.status(400).json({
+          success: false,
+          error: "Payment verification failed – order recorded as failed",
+        });
       }
 
-      // Validate stock again
       const unavailableItems = [];
       for (const item of cart.items) {
         const product = await Product.findOne({
@@ -355,7 +401,6 @@ module.exports = {
       }
 
       if (unavailableItems.length > 0) {
-        // Release reservations for all items
         for (const item of cart.items) {
           const product = await Product.findOne({
             _id: item.product._id,
@@ -497,6 +542,86 @@ module.exports = {
       });
     }
   },
+
+razorpayFailure: async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const { razorpay_order_id, error, selectedAddress, appliedCouponCode } = req.body;
+    const user = req.session.user;
+
+    // ---- 1. Get cart (populate products) ----
+    const cart = await Cart.findOne({ user })
+      .populate("items.product")
+      .session(session);
+
+    if (!cart || !cart.items.length) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.json({ success: false, error: "Cart empty" });
+    }
+
+    // ---- 2. Release reserved stock (same as before) ----
+    for (const item of cart.items) {
+      const product = await Product.findById(item.product._id).session(session);
+      if (product) {
+        const variant = product.variants.find(v => v.size === item.size);
+        if (variant) {
+          variant.reserved = Math.max(0, (variant.reserved || 0) - item.quantity);
+          product.reserved = Math.max(0, (product.reserved || 0) - item.quantity);
+          product.version += 1;
+          await product.save({ session });
+        }
+      }
+    }
+
+    // ---- 3. CREATE FAILED ORDER (NEW) ----
+    const totalAmount = cart.newTotal || cart.total;
+    const failedOrder = new Order({
+      user: user._id,
+      items: cart.items.map(i => ({
+        product: i.product._id,
+        quantity: i.quantity,
+        price: i.price,
+        size: i.size,
+        itemstatus: "PENDING"
+      })),
+      shippingAddress: selectedAddress,               // from frontend
+      totalAmount,
+      paymentMethod: "RAZORPAY",
+      orderStatus: "PAYMENT_FAILED",
+      paymentError: error?.description || error?.reason || "Payment failed",
+      couponCode: appliedCouponCode || null,
+      discountAmount: cart.couponApplied ? (cart.total - cart.newTotal) : 0,
+      razorpayOrderId: razorpay_order_id,             // optional – for tracking
+    });
+
+    await failedOrder.save({ session });
+
+    // ---- 4. Clear cart (optional – user may retry) ----
+    cart.items = [];
+    cart.total = 0;
+    cart.newTotal = 0;
+    cart.couponApplied = null;
+    await cart.save({ session });
+
+    await session.commitTransaction();
+    session.endSession();
+
+    return res.json({
+      success: true,
+      message: "Payment failed – order recorded as failed",
+      redirect: "/myorders"   // or "/checkout"
+    });
+
+  } catch (err) {
+    await session.abortTransaction();
+    session.endSession();
+    console.error("razorpayFailure error:", err);
+    res.status(500).json({ success: false, error: "Server error" });
+  }
+},
 
   placeorder: async (req, res) => {
     try {

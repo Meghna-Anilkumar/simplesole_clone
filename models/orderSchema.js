@@ -24,7 +24,7 @@ const orderSchema = new mongoose.Schema({
       },
       itemstatus: {
         type: String,
-        enum: ["PENDING", "CANCELLED","RETURNED"],
+        enum: ["PENDING", "CANCELLED", "RETURNED"],
         default: "PENDING",
       },
       cancellationReason: {
@@ -63,9 +63,11 @@ const orderSchema = new mongoose.Schema({
       "RETURNED",
       "RETURN REQUESTED",
       "RETURN REJECTED",
+      "PAYMENT_FAILED",
     ],
     default: "PENDING",
   },
+  paymentError: { type: String },
   orderdate: {
     type: Date,
     default: Date.now,
