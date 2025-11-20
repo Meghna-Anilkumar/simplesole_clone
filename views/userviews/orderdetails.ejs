@@ -1,148 +1,204 @@
 <%- include('./header') %>
 <style>
-  #navbar {
-    padding-right: 50px;
-    background-color: black;
+  #navbar { padding-right: 50px; background-color: black; }
+  .nav-link:not(:last-child) { color: white; margin-right: 10px; }
+  .nav-link { color: white; }
+  #logo { height: 80px; }
+  .main-content { margin-left: 150px; padding: 20px; margin-top: 100px; }
+  .order-info-box, .product-info-box, .shipping-address-box, .price-details-box {
+    border: 1px solid #dee2e6; padding: 20px; margin-bottom: 20px; border-radius: 8px;
   }
-
-  .nav-link:not(:last-child) {
-    color: white;
-    margin-right: 10px;
-  }
-
-  #signupbody,
-  #loginbody {
-    padding-top: 50px;
-    background-image: url(/images/wallpaper.jpg);
-    background-size: cover;
-    background-position: center;
-    width: 100%;
-  }
-
-  .nav-link {
-    color: white;
-  }
-
-  #logo {
-    height: 80px;
-  }
-
-  .main-content {
-    margin-left: 150px;
-    padding: 20px;
-  }
-
-  .order-info-box,
-  .product-info-box,
-  .shipping-address-box,
-  .price-details-box {
-    border: 1px solid #dee2e6;
-    padding: 20px;
-    margin-bottom: 20px;
-  }
-
-  .product-info-box img {
-    max-width: 100px;
-    height: auto;
-  }
-
-  .cancelled-item,
-  .returned-item {
-    color: red;
-    font-style: italic;
-  }
+  .product-info-box img { max-width: 100px; height: auto; }
+  .cancelled-item, .returned-item { color: red; font-style: italic; }
+  .text-danger { color: #dc3545 !important; }
+  .btn-warning { background-color: #ffc107; border: none; }
+  .btn-warning:hover { background-color: #e0a800; }
 </style>
 
-<div class="main-content" style="margin-top: 100px;">
+<div class="main-content">
   <div class="container">
     <h1>Order Details</h1>
 
-    <!-- Order Information Box -->
+    <!-- Order Information -->
     <div class="order-info-box">
       <h2>Order Information</h2>
       <p><strong>Order ID:</strong> <%= order.orderId %></p>
-      <p><strong>Order Date:</strong> <%= order.orderdate.toLocaleDateString() %></p>
+      <p><strong>Order Date:</strong> <%= order.orderdate.toLocaleDateString('en-IN') %></p>
       <p class="<%= order.orderStatus === 'RETURNED' ? 'returned-item' : order.orderStatus === 'CANCELLED' ? 'cancelled-item' : '' %>">
-        <strong>Status:</strong> <%= order.orderStatus %>
+        <strong>Status:</strong> <%= order.orderStatus.replace('_', ' ') %>
       </p>
       <p><strong>Payment Method:</strong> <%= order.paymentMethod %></p>
+
       <% if (order.orderStatus === 'DELIVERED') { %>
         <form action="/download-invoice/<%= order._id %>" method="GET" class="mt-3">
           <button type="submit" class="btn btn-primary">Download Invoice</button>
         </form>
       <% } %>
+
+      <% if (order.orderStatus === 'PAYMENT_FAILED') { %>
+        <div class="alert alert-danger mt-3">
+          <strong>Payment Failed:</strong> <%= order.paymentError || 'Payment could not be completed' %>
+        </div>
+        <button id="retryPaymentBtn"
+                class="btn btn-warning btn-lg mt-2"
+                data-order-id="<%= order._id %>"
+                data-amount="<%= order.totalAmount %>">
+          Retry Payment (₹<%= order.totalAmount.toFixed(2) %>)
+        </button>
+      <% } %>
+
       <% if (order.orderStatus === 'CANCELLED' && order.cancellationReason) { %>
         <p class="cancelled-item"><strong>Cancellation Reason:</strong> <%= order.cancellationReason %></p>
       <% } %>
-      <% if (order.orderStatus === 'RETURN REQUESTED' || order.orderStatus === 'RETURNED') { %>
-        <p class="<%= order.orderStatus === 'RETURNED' ? 'returned-item' : '' %>">
-          <strong>Return Reason:</strong> <%= order.returnReason %>
-          <% if (order.updatedAt) { %>
-            (Submitted on <%= order.updatedAt.toLocaleDateString() %>)
-          <% } %>
+
+      <% if (['RETURN REQUESTED', 'RETURNED'].includes(order.orderStatus)) { %>
+        <p class="returned-item">
+          <strong>Return Reason:</strong> <%= order.returnReason || 'Not specified' %>
+          <% if (order.updatedAt) { %> (Submitted on <%= order.updatedAt.toLocaleDateString('en-IN') %>)<% } %>
         </p>
       <% } %>
     </div>
 
-    <!-- Product Information Box -->
+    <!-- Products -->
     <div class="product-info-box">
       <h2>Products</h2>
-      <% order.items.forEach((item) => { %>
-        <div class="row mb-3">
+      <% order.items.forEach(item => { %>
+        <div class="row mb-4 align-items-center">
           <div class="col-md-2">
-            <img src="<%= item.product.images[0] %>" class="img-fluid" alt="<%= item.product.name %>">
+            <img src="<%= item.product.images[0] %>" class="img-fluid rounded" alt="<%= item.product.name %>">
           </div>
-          <div class="col-md-6">
-            <p><strong>Product Name:</strong> <%= item.product.name %></p>
-            <p><strong>Size:</strong> <%= item.size %></p>
-            <p><strong>Price:</strong> &#8377;<%= item.price.toFixed(2) %></p>
-            <p><strong>Quantity:</strong> <%= item.quantity %></p>
-            <!-- <p><strong>Subtotal:</strong> &#8377;<%= (item.price * item.quantity).toFixed(2) %></p> -->
-            <p><strong>Total:</strong> &#8377;<%= (order.totalAmount).toFixed(2) %></p>
+          <div class="col-md-10">
+            <h5><%= item.product.name %></h5>
+            <p><strong>Size:</strong> <%= item.size %> | 
+               <strong>Qty:</strong> <%= item.quantity %> | 
+               <strong>Price:</strong> ₹<%= item.price.toFixed(2) %></p>
+            <p><strong>Total:</strong> ₹<%= (item.price * item.quantity).toFixed(2) %></p>
             <p class="<%= item.itemstatus === 'CANCELLED' ? 'cancelled-item' : item.itemstatus === 'RETURNED' ? 'returned-item' : '' %>">
               <strong>Status:</strong> <%= item.itemstatus || 'PENDING' %>
             </p>
-            <% if (item.itemstatus === 'CANCELLED'&&order.paymentMethod!='CASH_ON_DELIVERY') { %>
-              <p class="cancelled-item"><strong>Refunded Amount:</strong> &#8377;<%= (item.price * item.quantity).toFixed(2) %></p>
-              <% if (item.cancellationReason) { %>
-                <p class="cancelled-item"><strong>Cancellation Reason:</strong> <%= item.cancellationReason %></p>
-              <% } %>
-            <% } else if (item.itemstatus === 'RETURNED') { %>
-              <p class="returned-item"><strong>Refunded Amount:</strong> &#8377;<%= (order.totalAmount).toFixed(2) %></p>
-              <% if (order.returnReason) { %>
-                <p class="returned-item"><strong>Return Reason:</strong> <%= order.returnReason %></p>
-              <% } %>
+            <% if (item.itemstatus === 'CANCELLED' && item.cancellationReason) { %>
+              <small class="text-muted">Reason: <%= item.cancellationReason %></small>
             <% } %>
           </div>
         </div>
         <hr>
-      <% }); %>
+      <% }) %>
     </div>
 
-    <!-- Shipping Address Box -->
+    <!-- Shipping Address -->
     <div class="shipping-address-box">
       <h2>Shipping Address</h2>
-      <p><strong>Customer Name:</strong> <%= order.shippingAddress.name %></p>
+      <p><strong>Name:</strong> <%= order.shippingAddress.name %></p>
       <p><strong>Mobile:</strong> <%= order.shippingAddress.mobile %></p>
-      <p><strong>Building Name:</strong> <%= order.shippingAddress.buildingname %></p>
-      <p><strong>Street:</strong> <%= order.shippingAddress.street %></p>
-      <p><strong>City:</strong> <%= order.shippingAddress.city %></p>
-      <p><strong>Pincode:</strong> <%= order.shippingAddress.pincode %></p>
-      <p><strong>State:</strong> <%= order.shippingAddress.state %></p>
+      <p><%= order.shippingAddress.buildingname %>, <%= order.shippingAddress.street %></p>
+      <p><%= order.shippingAddress.city %>, <%= order.shippingAddress.state %> - <%= order.shippingAddress.pincode %></p>
     </div>
 
-    <!-- Price Details Box -->
+    <!-- Price Details -->
     <div class="price-details-box">
       <h2>Price Details</h2>
-      <% let subtotal = order.items.reduce((sum, item) => sum + (item.price * item.quantity), 0); %>
-      <p><strong>Subtotal:</strong> &#8377;<%= subtotal.toFixed(2) %></p>
-      <p><strong>Coupon Applied:</strong> <%= order.couponCode || 'None' %></p>
-      <p><strong>Coupon Discount:</strong> &#8377;<%= (order.discountAmount || 0).toFixed(2) %></p>
-      <p><strong>Total Amount:</strong> &#8377;<%= (order.totalAmount || 0).toFixed(2) %></p>
-      <% if (order.refundedAmount && order.refundedAmount > 0) { %>
-        <p class="cancelled-item"><strong>Total Refunded:</strong> &#8377;<%= order.refundedAmount.toFixed(2) %></p>
+      <% const subtotal = order.items.reduce((sum, item) => sum + (item.price * item.quantity), 0) %>
+      <p><strong>Subtotal:</strong> ₹<%= subtotal.toFixed(2) %></p>
+      <% if (order.couponCode) { %>
+        <p><strong>Coupon Applied:</strong> <%= order.couponCode %> 
+           (-₹<%= order.discountAmount.toFixed(2) %>)</p>
+      <% } else { %>
+        <p><strong>Coupon:</strong> None</p>
+      <% } %>
+      <hr>
+      <h4><strong>Total Amount:</strong> ₹<%= order.totalAmount.toFixed(2) %></h4>
+      <% if (order.refundedAmount > 0) { %>
+        <p class="text-success"><strong>Refunded:</strong> ₹<%= order.refundedAmount.toFixed(2) %></p>
       <% } %>
     </div>
   </div>
 </div>
+
+<!-- Razorpay Retry Payment Script -->
+<% if (order.orderStatus === 'PAYMENT_FAILED') { %>
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<script>
+document.getElementById('retryPaymentBtn').addEventListener('click', async function() {
+  const btn = this;
+  btn.disabled = true;
+  btn.innerHTML = 'Processing...';
+
+  const orderId = btn.getAttribute('data-order-id');
+  const amount = btn.getAttribute('data-amount');
+
+  try {
+    const res = await fetch('/create-razorpay-retry-order', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderId, amount: parseFloat(amount) })
+    });
+
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Failed to create payment order');
+
+    const options = {
+      key: '<%= process.env.key_id %>',  
+      amount: data.amount,
+      currency: "INR",
+      name: "Simple Sole",
+      description: "Retry Payment - Order <%= order.orderId %>",
+      order_id: data.razorpayOrderId,
+      handler: async function(response) {
+        // Verify payment
+        const verifyRes = await fetch('/verify-retry-payment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            orderId,
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_order_id: response.razorpay_order_id,
+            razorpay_signature: response.razorpay_signature
+          })
+        });
+
+        const verifyData = await verifyRes.json();
+        if (verifyData.success) {
+          Swal.fire({
+  icon: 'success',
+  title: 'Payment Successful!',
+  text: 'Your order is now confirmed.',
+  confirmButtonColor: '#3085d6'
+}).then(() => {
+  window.location.reload();
+});
+
+        } else {
+          alert('Payment failed: ' + (verifyData.error || 'Verification failed'));
+          btn.disabled = false;
+          btn.innerHTML = 'Retry Payment';
+        }
+      },
+      prefill: {
+        name: "<%= user.name %>",
+        email: "<%= user.email %>",
+        contact: "<%= order.shippingAddress.mobile %>"
+      },
+      theme: { color: "#F37254" }
+    };
+
+    const rzp = new Razorpay(options);
+    rzp.open();
+
+    rzp.on('payment.failed', function() {
+      alert('Payment failed. Please try again.');
+      btn.disabled = false;
+      btn.innerHTML = 'Retry Payment';
+    });
+
+  } catch (err) {
+    alert('Error: ' + err.message);
+    btn.disabled = false;
+    btn.innerHTML = 'Retry Payment';
+  }
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<% } %>
+
 <%- include('./footer') %>

@@ -314,27 +314,26 @@ module.exports = {
         .update(order_id + "|" + payment_id)
         .digest("hex");
 
-if (generatedSignature !== signature) {
-  // ---- CREATE FAILED ORDER ----
-  const failedOrder = new Order({
-    user: user._id,
-    items: cart.items.map(i => ({
-      product: i.product._id,
-      quantity: i.quantity,
-      price: i.price,
-      size: i.size,
-    })),
-    shippingAddress: selectedAddress, // ← Now it's safe (from form)
-    totalAmount: cart.newTotal || cart.total,
-    paymentMethod,
-    orderStatus: "PAYMENT_FAILED",
-    paymentError: "Invalid Razorpay signature",
-    couponCode: appliedCouponCode || null,
-    discountAmount: cart.couponApplied ? cart.total - cart.newTotal : 0,
-  });
-  await failedOrder.save({ session });
-  // ... release stock
-
+      if (generatedSignature !== signature) {
+        // ---- CREATE FAILED ORDER ----
+        const failedOrder = new Order({
+          user: user._id,
+          items: cart.items.map((i) => ({
+            product: i.product._id,
+            quantity: i.quantity,
+            price: i.price,
+            size: i.size,
+          })),
+          shippingAddress: selectedAddress, // ← Now it's safe (from form)
+          totalAmount: cart.newTotal || cart.total,
+          paymentMethod,
+          orderStatus: "PAYMENT_FAILED",
+          paymentError: "Invalid Razorpay signature",
+          couponCode: appliedCouponCode || null,
+          discountAmount: cart.couponApplied ? cart.total - cart.newTotal : 0,
+        });
+        await failedOrder.save({ session });
+        // ... release stock
 
         // release reservations (same as you already do)
         for (const item of cart.items) {
@@ -543,85 +542,93 @@ if (generatedSignature !== signature) {
     }
   },
 
-razorpayFailure: async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
+  razorpayFailure: async (req, res) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
 
-  try {
-    const { razorpay_order_id, error, selectedAddress, appliedCouponCode } = req.body;
-    const user = req.session.user;
+    try {
+      const { razorpay_order_id, error, selectedAddress, appliedCouponCode } =
+        req.body;
+      const user = req.session.user;
 
-    // ---- 1. Get cart (populate products) ----
-    const cart = await Cart.findOne({ user })
-      .populate("items.product")
-      .session(session);
+      // ---- 1. Get cart (populate products) ----
+      const cart = await Cart.findOne({ user })
+        .populate("items.product")
+        .session(session);
 
-    if (!cart || !cart.items.length) {
-      await session.abortTransaction();
-      session.endSession();
-      return res.json({ success: false, error: "Cart empty" });
-    }
+      if (!cart || !cart.items.length) {
+        await session.abortTransaction();
+        session.endSession();
+        return res.json({ success: false, error: "Cart empty" });
+      }
 
-    // ---- 2. Release reserved stock (same as before) ----
-    for (const item of cart.items) {
-      const product = await Product.findById(item.product._id).session(session);
-      if (product) {
-        const variant = product.variants.find(v => v.size === item.size);
-        if (variant) {
-          variant.reserved = Math.max(0, (variant.reserved || 0) - item.quantity);
-          product.reserved = Math.max(0, (product.reserved || 0) - item.quantity);
-          product.version += 1;
-          await product.save({ session });
+      // ---- 2. Release reserved stock (same as before) ----
+      for (const item of cart.items) {
+        const product = await Product.findById(item.product._id).session(
+          session
+        );
+        if (product) {
+          const variant = product.variants.find((v) => v.size === item.size);
+          if (variant) {
+            variant.reserved = Math.max(
+              0,
+              (variant.reserved || 0) - item.quantity
+            );
+            product.reserved = Math.max(
+              0,
+              (product.reserved || 0) - item.quantity
+            );
+            product.version += 1;
+            await product.save({ session });
+          }
         }
       }
+
+      // ---- 3. CREATE FAILED ORDER (NEW) ----
+      const totalAmount = cart.newTotal || cart.total;
+      const failedOrder = new Order({
+        user: user._id,
+        items: cart.items.map((i) => ({
+          product: i.product._id,
+          quantity: i.quantity,
+          price: i.price,
+          size: i.size,
+          itemstatus: "PENDING",
+        })),
+        shippingAddress: selectedAddress, // from frontend
+        totalAmount,
+        paymentMethod: "RAZORPAY",
+        orderStatus: "PAYMENT_FAILED",
+        paymentError: error?.description || error?.reason || "Payment failed",
+        couponCode: appliedCouponCode || null,
+        discountAmount: cart.couponApplied ? cart.total - cart.newTotal : 0,
+        razorpayOrderId: razorpay_order_id, // optional – for tracking
+      });
+
+      await failedOrder.save({ session });
+
+      // ---- 4. Clear cart (optional – user may retry) ----
+      cart.items = [];
+      cart.total = 0;
+      cart.newTotal = 0;
+      cart.couponApplied = null;
+      await cart.save({ session });
+
+      await session.commitTransaction();
+      session.endSession();
+
+      return res.json({
+        success: true,
+        message: "Payment failed – order recorded as failed",
+        redirect: "/myorders", // or "/checkout"
+      });
+    } catch (err) {
+      await session.abortTransaction();
+      session.endSession();
+      console.error("razorpayFailure error:", err);
+      res.status(500).json({ success: false, error: "Server error" });
     }
-
-    // ---- 3. CREATE FAILED ORDER (NEW) ----
-    const totalAmount = cart.newTotal || cart.total;
-    const failedOrder = new Order({
-      user: user._id,
-      items: cart.items.map(i => ({
-        product: i.product._id,
-        quantity: i.quantity,
-        price: i.price,
-        size: i.size,
-        itemstatus: "PENDING"
-      })),
-      shippingAddress: selectedAddress,               // from frontend
-      totalAmount,
-      paymentMethod: "RAZORPAY",
-      orderStatus: "PAYMENT_FAILED",
-      paymentError: error?.description || error?.reason || "Payment failed",
-      couponCode: appliedCouponCode || null,
-      discountAmount: cart.couponApplied ? (cart.total - cart.newTotal) : 0,
-      razorpayOrderId: razorpay_order_id,             // optional – for tracking
-    });
-
-    await failedOrder.save({ session });
-
-    // ---- 4. Clear cart (optional – user may retry) ----
-    cart.items = [];
-    cart.total = 0;
-    cart.newTotal = 0;
-    cart.couponApplied = null;
-    await cart.save({ session });
-
-    await session.commitTransaction();
-    session.endSession();
-
-    return res.json({
-      success: true,
-      message: "Payment failed – order recorded as failed",
-      redirect: "/myorders"   // or "/checkout"
-    });
-
-  } catch (err) {
-    await session.abortTransaction();
-    session.endSession();
-    console.error("razorpayFailure error:", err);
-    res.status(500).json({ success: false, error: "Server error" });
-  }
-},
+  },
 
   placeorder: async (req, res) => {
     try {
@@ -935,13 +942,11 @@ razorpayFailure: async (req, res) => {
           }
         }
 
-        // Process payment based on method
         if (paymentMethod === "WALLET") {
           let userWallet = await Wallet.findOne({ user: user._id }).session(
             mainSession
           );
 
-          // Ensure wallet exists and has walletTransactions array
           if (!userWallet) {
             userWallet = new Wallet({
               user: user._id,
@@ -1002,7 +1007,6 @@ razorpayFailure: async (req, res) => {
           }
         }
 
-        // Clear cart
         await Cart.findOneAndUpdate(
           { user: user._id },
           {
@@ -1016,7 +1020,6 @@ razorpayFailure: async (req, res) => {
           { session: mainSession }
         );
 
-        // Clear session coupon data
         if (req.session.couponCode) {
           delete req.session.couponCode;
         }
@@ -1148,6 +1151,102 @@ razorpayFailure: async (req, res) => {
     }
   },
 
+  createRazorpayRetryOrder: async (req, res) => {
+    try {
+      const { orderId, amount } = req.body;
+      const userId = req.session.user._id;
+
+      const order = await Order.findOne({ _id: orderId, user: userId });
+      if (!order || order.orderStatus !== "PAYMENT_FAILED") {
+        return res.json({ success: false, error: "Invalid order for retry" });
+      }
+
+      if (Math.abs(parseFloat(amount) - order.totalAmount) > 0.01) {
+        return res.json({ success: false, error: "Amount mismatch" });
+      }
+
+      const receipt = `retry_${order._id.toString().slice(-10)}_${Date.now()
+        .toString()
+        .slice(-8)}`;
+
+      const razorpayOrder = await instance.orders.create({
+        amount: Math.round(order.totalAmount * 100),
+        currency: "INR",
+        receipt: receipt.substring(0, 40),
+      });
+
+      res.json({
+        success: true,
+        razorpayOrderId: razorpayOrder.id,
+        amount: razorpayOrder.amount,
+      });
+    } catch (err) {
+      console.error("Retry order creation error:", err);
+      res
+        .status(500)
+        .json({ success: false, error: err.message || "Server error" });
+    }
+  },
+
+  verifyRetryPayment: async (req, res) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+      const {
+        orderId,
+        razorpay_payment_id,
+        razorpay_order_id,
+        razorpay_signature,
+      } = req.body;
+      const userId = req.session.user._id;
+
+      const order = await Order.findOne({ _id: orderId, user: userId }).session(
+        session
+      );
+      if (!order || order.orderStatus !== "PAYMENT_FAILED") {
+        throw new Error("Invalid order");
+      }
+
+      const expectedSignature = crypto
+        .createHmac("sha256", process.env.key_secret)
+        .update(razorpay_order_id + "|" + razorpay_payment_id)
+        .digest("hex");
+
+      if (expectedSignature !== razorpay_signature) {
+        throw new Error("Invalid payment signature");
+      }
+
+      for (const item of order.items) {
+        const product = await Product.findById(item.product).session(session);
+        if (product) {
+          const variant = product.variants.find((v) => v.size === item.size);
+          if (variant) {
+            variant.stock -= item.quantity;
+            product.version += 1;
+            await product.save({ session });
+          }
+        }
+      }
+
+      order.orderStatus = "PROCESSING";
+      order.paymentMethod = "RAZORPAY";
+      order.paymentError = null;
+      await order.save({ session });
+
+      await session.commitTransaction();
+      session.endSession();
+
+      res.json({ success: true });
+    } catch (err) {
+      await session.abortTransaction();
+      session.endSession();
+
+      console.error("Retry payment failed:", err);
+      res.json({ success: false, error: err.message });
+    }
+  },
+
   myorders: async (req, res) => {
     try {
       const user = req.session.user;
@@ -1238,6 +1337,7 @@ razorpayFailure: async (req, res) => {
         category: categories,
         wishlist,
         cart,
+        user,
       });
     } catch (error) {
       console.error(error);
@@ -1262,7 +1362,6 @@ razorpayFailure: async (req, res) => {
       }
 
       if (order.orderStatus !== "CANCELLED") {
-        // Calculate subtotal of non-cancelled items
         const subtotal = order.items.reduce((sum, item) => {
           if (item.itemstatus !== "CANCELLED") {
             return sum + item.price * item.quantity;
@@ -1270,19 +1369,16 @@ razorpayFailure: async (req, res) => {
           return sum;
         }, 0);
 
-        // Calculate effective total (subtotal minus coupon discount)
         let effectiveTotal = subtotal;
         if (order.couponCode && order.discountAmount > 0 && subtotal > 0) {
           effectiveTotal -= order.discountAmount;
         }
 
-        // Calculate remaining amount to refund
         const remainingRefund = Math.max(
           0,
           effectiveTotal - (order.refundedAmount || 0)
         );
 
-        // Restock all non-cancelled items
         await Promise.all(
           order.items.map(async (item) => {
             if (item.itemstatus !== "CANCELLED") {
@@ -1318,7 +1414,6 @@ razorpayFailure: async (req, res) => {
             session
           );
 
-          // Ensure wallet exists and has walletTransactions array
           if (!userWallet) {
             userWallet = new Wallet({ user: order.user });
             await userWallet.save({ session });
@@ -1392,7 +1487,6 @@ razorpayFailure: async (req, res) => {
         if (item.product && item.product.price) {
           const cancelledItemTotal = item.product.price * item.quantity;
 
-          // Restock the product
           const product = await Product.findById(item.product._id).session(
             session
           );
@@ -1417,7 +1511,6 @@ razorpayFailure: async (req, res) => {
               user: order.user,
             }).session(session);
 
-            // Ensure wallet exists and has walletTransactions array
             if (!userWallet) {
               userWallet = new Wallet({ user: order.user });
               await userWallet.save({ session });
@@ -1428,7 +1521,7 @@ razorpayFailure: async (req, res) => {
 
             userWallet.balance += cancelledItemTotal;
             userWallet.walletTransactions.push({
-              type: "credit", // lowercase to match enum
+              type: "credit", 
               amount: cancelledItemTotal,
               description: `Refund for cancelled item in Order ${order.orderId}`,
               date: new Date(),
@@ -1441,7 +1534,6 @@ razorpayFailure: async (req, res) => {
             order.transactiontype = "CREDIT";
           }
 
-          // Check if all items are cancelled
           const allItemsCancelled = order.items.every(
             (item) => item.itemstatus === "CANCELLED"
           );

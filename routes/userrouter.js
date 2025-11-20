@@ -66,6 +66,8 @@ router.post('/confirmCancellation/:orderId', orderController.confirmcancellation
 router.post('/confirmItemCancellation/:orderId/:index', orderController.confirmItemCancellation);
 router.post('/confirmReturn/:orderId', isAuth.checkAuth, orderController.returnorder);
 router.get('/download-invoice/:orderId', orderController.downloadinvoice);
+router.post('/create-razorpay-retry-order', orderController.createRazorpayRetryOrder);
+router.post('/verify-retry-payment', orderController.verifyRetryPayment);
 
 // wishlist
 router.get('/wishlist', wishlistController.getwishlistpage);
