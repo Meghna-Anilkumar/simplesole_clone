@@ -6,7 +6,7 @@ const Order = require("../models/orderSchema");
 const Wallet = require("../models/wallet");
 const mongoose = require("mongoose");
 const Messages = require("../constants/messages");
-const STATUS_CODES=require('../enums/statusCodes')
+const STATUS_CODES = require("../enums/statusCodes");
 
 module.exports = {
   orderspage: async (req, res) => {
@@ -31,7 +31,9 @@ module.exports = {
       });
     } catch (error) {
       console.error(error);
-      res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({ error: Messages.INTERNAL_SERVER_ERROR });
+      res
+        .status(STATUS_CODES.INTERNAL_SERVER_ERROR)
+        .json({ error: Messages.INTERNAL_SERVER_ERROR });
     }
   },
 
@@ -44,7 +46,9 @@ module.exports = {
       res.render("adminviews/vieworder", { title: "View order", order });
     } catch (error) {
       console.error(error);
-      res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({ error: Messages.INTERNAL_SERVER_ERROR });
+      res
+        .status(STATUS_CODES.INTERNAL_SERVER_ERROR)
+        .json({ error: Messages.INTERNAL_SERVER_ERROR });
     }
   },
 
@@ -61,7 +65,9 @@ module.exports = {
       res.json(updatedOrder);
     } catch (error) {
       console.error(error);
-      res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({ error: Messages.INTERNAL_SERVER_ERROR });
+      res
+        .status(STATUS_CODES.INTERNAL_SERVER_ERROR)
+        .json({ error: Messages.INTERNAL_SERVER_ERROR });
     }
   },
 
@@ -228,8 +234,12 @@ module.exports = {
       await Order.findByIdAndUpdate(orderId, {
         orderStatus: "RETURN REJECTED",
       });
+
       console.log("rejected ", orderId);
-      res.sendStatus(200);
+
+      return res.status(200).json({
+        message: "Return request rejected successfully",
+      });
     } catch (error) {
       console.error("Error rejecting return request:", error);
       res.status(500).json({ message: Messages.INTERNAL_SERVER_ERROR });

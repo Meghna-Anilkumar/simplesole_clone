@@ -29,7 +29,7 @@
       </p>
       <p><strong>Payment Method:</strong> <%= order.paymentMethod %></p>
 
-      <% if (order.orderStatus === 'DELIVERED') { %>
+      <% if (['DELIVERED', 'RETURNED', 'RETURN REJECTED'].includes(order.orderStatus)) { %>
         <form action="/download-invoice/<%= order._id %>" method="GET" class="mt-3">
           <button type="submit" class="btn btn-primary">Download Invoice</button>
         </form>
