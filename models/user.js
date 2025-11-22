@@ -43,17 +43,19 @@ const userSchema = new mongoose.Schema({
 
 userSchema.pre("save", async function (next) {
   try {
-    if (!this.isBlocked) {
+    if (this.isModified("password")) {
       const hashedPassword = await bcrypt.hash(this.password, 10);
       this.password = hashedPassword;
     }
-
-    const randomNumber = Math.floor(Math.random() * 90000) + 10000;
-    this.userId = `user#${randomNumber}`;
+    if (this.isNew) {
+      const randomNumber = Math.floor(Math.random() * 90000) + 10000;
+      this.userId = `user#${randomNumber}`;
+    }
     next();
   } catch (error) {
     next(error);
   }
 });
+
 
 module.exports = mongoose.model("User", userSchema);

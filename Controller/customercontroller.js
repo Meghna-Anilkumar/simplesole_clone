@@ -520,15 +520,11 @@ module.exports = {
 
   customers: async (req, res) => {
     try {
-      // Get pagination parameters
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 10;
       const skip = (page - 1) * limit;
-
-      // Get search query
       const search = req.query.search || "";
 
-      // Build search query
       const searchQuery = {
         $or: [
           { name: { $regex: search, $options: "i" } },
@@ -536,11 +532,9 @@ module.exports = {
         ],
       };
 
-      // Get total count of matching documents
       const totalUsers = await User.countDocuments(search ? searchQuery : {});
       const totalPages = Math.ceil(totalUsers / limit);
 
-      // Fetch users with pagination and search
       const users = await User.find(search ? searchQuery : {})
         .skip(skip)
         .limit(limit)
