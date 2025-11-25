@@ -563,17 +563,21 @@
             </div>
           <% } %>
         </div>
-        <div class="payment__type payment__type--paypal">
-          <input
-            type="radio"
-            name="paymentMethod"
-            id="paymentWallet"
-            value="WALLET"
-          />
-          <label for="paymentWallet">
-            <i class="icon icon-paypal"></i>Wallet
-          </label>
-        </div>
+    <div class="payment__type payment__type--paypal <%= ((wallet && wallet.balance) || 0) < (cart.newTotal || cart.total) ? 'disabled' : '' %>">
+  <input 
+    type="radio" 
+    name="paymentMethod" 
+    id="paymentWallet" 
+    value="WALLET"
+    <%= ((wallet && wallet.balance) || 0) < (cart.newTotal || cart.total) ? 'disabled' : '' %> 
+  />
+  <label for="paymentWallet">
+    Wallet (₹<%= ((wallet && wallet.balance) || 0).toFixed(2) %>)
+  </label>
+  <% if (((wallet && wallet.balance) || 0) < (cart.newTotal || cart.total)) { %>
+    <div class="error-message">Insufficient balance</div>
+  <% } %>
+</div>
         <div class="payment__type payment__type--paypal">
           <input
             type="radio"

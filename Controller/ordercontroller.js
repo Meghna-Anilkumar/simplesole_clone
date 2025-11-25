@@ -26,7 +26,7 @@ module.exports = {
     try {
       const user = req.session.user;
       const order = await Order.find();
-      const coupon = await Coupon.find();
+      const wallet = await Wallet.findOne({ user: user._id || user });
       const categories = await Category.find();
       const addresses = await Address.find({ user: user });
       const cart = await Cart.findOne({ user })
@@ -95,6 +95,7 @@ module.exports = {
         order,
         wishlist,
         discount,
+        wallet,
       });
     } catch (error) {
       console.error("Error in checkoutpage:", error);
@@ -250,20 +251,16 @@ module.exports = {
         });
       });
 
-      // --- FIX: Save session data BEFORE committing ---
       req.session.razorpayOrderId = razorpayOrder.id;
 
-      // Update reservedAt for all items
       cart.items.forEach((item) => {
         item.reservedAt = new Date();
       });
-      await cart.save({ session }); // ← Must be BEFORE commit
+      await cart.save({ session });
 
-      // --- Now commit ---
       await session.commitTransaction();
       session.endSession();
 
-      // --- Respond ---
       res.json({
         success: true,
         orderId: razorpayOrder.id,
@@ -271,7 +268,6 @@ module.exports = {
         currency: razorpayOrder.currency,
       });
     } catch (error) {
-      // --- Only abort if not already committed ---
       if (session.transaction.isActive) {
         await session.abortTransaction();
       }
@@ -315,7 +311,6 @@ module.exports = {
         .digest("hex");
 
       if (generatedSignature !== signature) {
-        // ---- CREATE FAILED ORDER ----
         const failedOrder = new Order({
           user: user._id,
           items: cart.items.map((i) => ({
@@ -324,7 +319,7 @@ module.exports = {
             price: i.price,
             size: i.size,
           })),
-          shippingAddress: selectedAddress, // ← Now it's safe (from form)
+          shippingAddress: selectedAddress,
           totalAmount: cart.newTotal || cart.total,
           paymentMethod,
           orderStatus: "PAYMENT_FAILED",
@@ -333,9 +328,7 @@ module.exports = {
           discountAmount: cart.couponApplied ? cart.total - cart.newTotal : 0,
         });
         await failedOrder.save({ session });
-        // ... release stock
 
-        // release reservations (same as you already do)
         for (const item of cart.items) {
           const product = await Product.findOne({
             _id: item.product._id,
@@ -425,7 +418,6 @@ module.exports = {
         });
       }
 
-      // Validate coupon
       let coupon = null;
       if (appliedCouponCode) {
         coupon = await Coupon.findOne({
@@ -450,7 +442,6 @@ module.exports = {
 
       const totalAmount = cart.newTotal || cart.total;
 
-      // Create order
       const orderItems = cart.items.map((item) => ({
         product: item.product._id,
         quantity: item.quantity,
@@ -471,7 +462,6 @@ module.exports = {
 
       await order.save({ session });
 
-      // Update stock for each variant
       for (const item of cart.items) {
         const product = await Product.findOne({
           _id: item.product._id,
@@ -485,7 +475,6 @@ module.exports = {
         await product.save({ session });
       }
 
-      // Add coupon to usedCoupons
       if (coupon) {
         const userDoc = await User.findById(user._id).session(session);
         if (!userDoc.usedCoupons) {
@@ -495,7 +484,6 @@ module.exports = {
         await userDoc.save({ session });
       }
 
-      // Clear cart and session data
       cart.items = [];
       cart.total = 0;
       cart.newTotal = 0;
@@ -515,7 +503,6 @@ module.exports = {
       session.endSession();
       console.error("Error processing payment:", error);
 
-      // Release reservations on failure
       const cart = await Cart.findOne({ user: req.session.user }).populate(
         "items.product"
       );
@@ -551,7 +538,6 @@ module.exports = {
         req.body;
       const user = req.session.user;
 
-      // ---- 1. Get cart (populate products) ----
       const cart = await Cart.findOne({ user })
         .populate("items.product")
         .session(session);
@@ -562,7 +548,6 @@ module.exports = {
         return res.json({ success: false, error: "Cart empty" });
       }
 
-      // ---- 2. Release reserved stock (same as before) ----
       for (const item of cart.items) {
         const product = await Product.findById(item.product._id).session(
           session
@@ -584,7 +569,6 @@ module.exports = {
         }
       }
 
-      // ---- 3. CREATE FAILED ORDER (NEW) ----
       const totalAmount = cart.newTotal || cart.total;
       const failedOrder = new Order({
         user: user._id,
@@ -595,19 +579,18 @@ module.exports = {
           size: i.size,
           itemstatus: "PENDING",
         })),
-        shippingAddress: selectedAddress, // from frontend
+        shippingAddress: selectedAddress,
         totalAmount,
         paymentMethod: "RAZORPAY",
         orderStatus: "PAYMENT_FAILED",
         paymentError: error?.description || error?.reason || "Payment failed",
         couponCode: appliedCouponCode || null,
         discountAmount: cart.couponApplied ? cart.total - cart.newTotal : 0,
-        razorpayOrderId: razorpay_order_id, // optional – for tracking
+        razorpayOrderId: razorpay_order_id,
       });
 
       await failedOrder.save({ session });
 
-      // ---- 4. Clear cart (optional – user may retry) ----
       cart.items = [];
       cart.total = 0;
       cart.newTotal = 0;
@@ -620,7 +603,7 @@ module.exports = {
       return res.json({
         success: true,
         message: "Payment failed – order recorded as failed",
-        redirect: "/myorders", // or "/checkout"
+        redirect: "/myorders",
       });
     } catch (err) {
       await session.abortTransaction();
@@ -1521,7 +1504,7 @@ module.exports = {
 
             userWallet.balance += cancelledItemTotal;
             userWallet.walletTransactions.push({
-              type: "credit", 
+              type: "credit",
               amount: cancelledItemTotal,
               description: `Refund for cancelled item in Order ${order.orderId}`,
               date: new Date(),
