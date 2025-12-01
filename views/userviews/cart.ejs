@@ -1,303 +1,35 @@
 <%- include('./header') %>
 <style>
-  body {
-    background: #f5f5f5;
-    min-height: 100vh;
-    font-family: 'Open Sans', sans-serif;
-    font-size: 0.9rem;
-    font-weight: 600;
+  body { background: #f5f5f5; min-height: 100vh; font-family: 'Open Sans', sans-serif; font-size: 0.9rem; font-weight: 600; }
+  .container { padding-top: 100px; padding-bottom: 2rem; }
+  .card { margin: 2rem auto; max-width: 1000px; background: #fff; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); overflow: hidden; }
+  .cart { padding: 2rem; border-radius: 12px 0 0 12px; background: #fff; }
+  .summary { background: #e8ecef; padding: 2rem; border-radius: 0 12px 12px 0; color: #333; }
+  .title h4 { color: rgb(255, 63, 108); font-size: 1.5rem; font-weight: 700; }
+  .main { padding: 1.5rem 0; align-items: center; border-bottom: 1px solid #eee; }
+  .cart-item img { width: 120px; height: 120px; object-fit: cover; border-radius: 8px; }
+  .quantity-button { 
+    background: #f5f5f5; border: 1px solid #ddd; padding: 0.5rem 1rem;
+    font-size: 0.9rem; border-radius: 4px; min-width: 40px; transition: all 0.2s;
   }
-  .container {
-    padding-top: 100px;
-    padding-bottom: 2rem;
+  .quantity-button:hover:not(:disabled) { 
+    background: rgb(255, 63, 108); color: white; border-color: rgb(255, 63, 108); 
   }
-  .card {
-    margin: 2rem auto;
-    max-width: 1000px;
-    background: #fff;
-    border-radius: 12px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    overflow: hidden;
+  .quantity-button:disabled { 
+    background: #e0e0e0; color: #999; cursor: not-allowed; opacity: 0.7; 
   }
-  .cart {
-    padding: 2rem;
-    border-radius: 12px 0 0 12px;
-    background: #fff;
+  .quantity { font-weight: bold; min-width: 50px; text-align: center; padding: 0 0.5rem; }
+  .max-stock-warning { 
+    color: #f39c12; font-size: 0.9rem; font-weight: 700; margin-top: 8px; 
   }
-  .summary {
-    background: #e8ecef;
-    padding: 2rem;
-    border-radius: 0 12px 12px 0;
-    color: #333;
-  }
-  .title {
-    margin-bottom: 2rem;
-  }
-  .title h4 {
-    color: rgb(255, 63, 108);
-    font-size: 1.5rem;
-    font-weight: 700;
-  }
-  .row {
-    margin: 0;
-  }
-  .main {
-    padding: 1.5rem 0;
-    align-items: center;
-    border-bottom: 1px solid #eee;
-  }
-  .cart-item img {
-    width: 120px;
-    height: 120px;
-    object-fit: cover;
-    border-radius: 8px;
-  }
-  .quantity-button {
-    background: #f5f5f5;
-    border: 1px solid #ddd;
-    padding: 0.5rem 1rem;
-    font-size: 0.9rem;
-    border-radius: 4px;
-    transition: background 0.3s ease;
-    min-width: 40px;
-  }
-  .quantity-button:hover:not(:disabled) {
-    background: rgb(255, 63, 108);
-    color: white;
-    border-color: rgb(255, 63, 108);
-  }
-  .quantity-button:disabled {
-    background: #ccc;
-    cursor: not-allowed;
-  }
-  .quantity {
-    padding: 0 1rem;
-    font-size: 1rem;
-    min-width: 50px;
-    text-align: center;
-    display: inline-block;
-  }
-  .remove-button {
-    background: #f8d7da;
-    border: 1px solid #f5c6cb;
-    color: #721c24;
-    padding: 0.25rem 0.75rem;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    font-size: 0.9rem;
-    font-weight: 600;
-    margin-left: 0.5rem;
-  }
-  .remove-button:hover {
-    background: #dc3545;
-    color: white;
-    border-color: #dc3545;
-  }
-  .text-muted {
-    color: #666 !important;
-  }
-  .summary h5 {
-    font-size: 1.25rem;
-    font-weight: 600;
-    margin-bottom: 1.5rem;
-  }
-  .summary .row {
-    margin-bottom: 1rem;
-  }
-  .btn {
-    background: #000;
-    color: white;
-    font-size: 0.9rem;
-    font-weight: 600;
-    padding: 0.75rem;
-    border-radius: 6px;
-    transition: background 0.3s ease, transform 0.2s ease;
-  }
-  .btn:hover:not(:disabled) {
-    background: rgb(255, 63, 108);
-    color: white;
-    transform: translateY(-2px);
-  }
-  .btn:disabled {
-    background: #ccc;
-    cursor: not-allowed;
-  }
-  .empty-cart {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 300px;
-  }
-  .empty-cart img {
-    width: 100%;
-    max-width: 300px;
-    height: auto;
-    margin-bottom: 1rem;
-  }
-  .back-to-shop a {
-    color: rgb(255, 63, 108);
-    font-weight: 600;
-    text-decoration: none;
-    transition: color 0.3s ease;
-  }
-  .back-to-shop a:hover {
-    color: #000;
-  }
-  .stock-message {
-    color:  rgb(255, 63, 108);
-    font-size: 0.85rem;
-    display: none;
-    margin-top: 0.5rem;
-  }
-  .stock-message.show {
-    display: block;
-  }
-  .offer-details {
-    font-size: 0.85rem;
-    color: #666;
-  }
-  .size-select {
-    padding: 0.5rem;
-    border-radius: 4px;
-    border: 1px solid #ddd;
-    font-size: 0.9rem;
-    width: 100%;
-    max-width: 120px;
-  }
-  .label {
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: #333;
-    margin-bottom: 0.5rem;
-    display: block;
-  }
-  .product-info-col {
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
-  }
-  .product-name {
-    font-size: 1rem;
-    font-weight: 600;
-    margin-bottom: 0.5rem;
-    color: #333;
-  }
-  .controls-section {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-    justify-content: center;
-    min-height: 120px;
-  }
-  .control-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-  .control-row {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-  .price-section {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    justify-content: center;
-    min-height: 120px;
-    text-align: right;
-  }
-  .current-price {
-    font-size: 1.1rem;
-    font-weight: 700;
-    color: #333;
-    margin-bottom: 0.25rem;
-  }
-  .original-price {
-    font-size: 0.9rem;
-    color: #999;
-    text-decoration: line-through;
-    margin-bottom: 0.5rem;
-  }
-  .remove-section {
-    display: flex;
-    justify-content: flex-end;
-  }
-  .unavailable-items {
-    background: #f8d7da;
-    border: 1px solid #f5c6cb;
-    padding: 1rem;
-    border-radius: 4px;
-    margin-bottom: 1rem;
-    color: #721c24;
-  }
-  .unavailable-items ul {
-    margin: 0;
-    padding-left: 1.5rem;
-  }
-  .unavailable-items li {
-    margin-bottom: 0.5rem;
-  }
-  @media (max-width: 767px) {
-    .card {
-      margin: 1rem;
-    }
-    .cart {
-      border-radius: 12px 12px 0 0;
-      padding: 1.5rem;
-    }
-    .summary {
-      border-radius: 0 0 12px 12px;
-      padding: 1.5rem;
-    }
-    .cart-item img {
-      width: 100px;
-      height: 100px;
-    }
-    .title h4 {
-      font-size: 1.25rem;
-    }
-    .summary h5 {
-      font-size: 1.1rem;
-    }
-    .size-select {
-      max-width: 100px;
-    }
-    .controls-section {
-      min-height: auto;
-      gap: 0.75rem;
-    }
-    .price-section {
-      min-height: auto;
-      margin-top: 1rem;
-      align-items: flex-start;
-      text-align: left;
-    }
-  }
-  @media (max-width: 576px) {
-    .container {
-      padding-top: 90px;
-    }
-    .cart-item img {
-      width: 80px;
-      height: 80px;
-    }
-    .quantity-button {
-      padding: 0.3rem 0.8rem;
-      min-width: 35px;
-    }
-    .quantity-select {
-      width: 70px;
-    }
-    .size-select {
-      max-width: 90px;
-    }
-    .main {
-      padding: 1rem 0;
-    }
-  }
+  .reserved-for-you { color: #27ae60; font-size: 0.85rem; font-weight: 600; margin-top: 8px; }
+  .low-stock { color: #e74c3c; font-size: 0.85rem; font-weight: 600; margin-top: 8px; }
+  .offer-details { font-size: 0.85rem; color: #666; }
+  .size-select { padding: 0.5rem; border-radius: 4px; border: 1px solid #ddd; font-size: 0.9rem; max-width: 120px; }
+  .label { font-size: 0.9rem; font-weight: 600; color: #333; margin-bottom: 0.5rem; display: block; }
+  .current-price { font-size: 1.2rem; font-weight: 700; color: #333; }
+  .original-price { font-size: 0.9rem; color: #999; text-decoration: line-through; margin-left: 8px; }
+  .unavailable-items { background: #f8d7da; border: 1px solid #f5c6cb; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; color: #721c24; }
 </style>
 
 <div class="container">
@@ -308,13 +40,14 @@
           <div class="row">
             <div class="col"><h4><b>Shopping Cart</b></h4></div>
             <div class="col align-self-center text-right text-muted">
-              <%= cart && cart.items ? cart.items.length + ' items' : '0 items' %>
+              <%= cart?.items?.length || 0 %> items
             </div>
           </div>
         </div>
+
         <% if (unavailableItems && unavailableItems.length > 0) { %>
           <div class="unavailable-items">
-            <strong>Some items are unavailable:</strong>
+            <strong>Warning: Some items need attention:</strong>
             <ul>
               <% unavailableItems.forEach(item => { %>
                 <li><%= item.name %> (Size: <%= item.size %>) - <%= item.reason %></li>
@@ -322,421 +55,245 @@
             </ul>
           </div>
         <% } %>
-        <% if (cart && cart.items && cart.items.length > 0) { %>
+
+        <% if (cart && cart.items.length > 0) { %>
           <% cart.items.forEach(item => { %>
-            <div class="row main cart-item">
-              <!-- Product Image -->
+            <% 
+              const variant = item.product.variants.find(v => v.size === item.size);
+              if (!variant) return;
+
+              const userReserved = item.quantity;
+              const othersReserved = Math.max(0, (variant.reserved || 0) - userReserved);
+              const stockAfterOthers = variant.stock - othersReserved;
+              const maxAllowed = stockAfterOthers + userReserved;
+              const isAtMax = item.quantity >= maxAllowed;
+            %>
+
+            <div class="row main cart-item border-bottom pb-4 mb-4">
               <div class="col-2">
-                <% if (item.product && item.product._id) { %>
-                  <a href="/products/<%= item.product._id %>">
-                    <img class="img-fluid" src="<%= item.product.images[0] %>" alt="<%= item.product.name %>">
-                  </a>
+                <a href="/products/<%= item.product._id %>">
+                  <img class="img-fluid rounded" src="<%= item.product.images[0] %>" alt="<%= item.product.name %>">
+                </a>
+              </div>
+
+              <div class="col-3">
+                <div class="fw-bold"><%= item.product.name %></div>
+                <% if (item.product.categoryofferprice < item.product.price) { %>
+                  <small class="text-success">Category offer applied</small>
                 <% } %>
               </div>
-              
-              <!-- Product Info -->
-              <div class="col-3 product-info-col">
-                <div class="product-name"><%= item.product.name %></div>
-                <% 
-                  let displayPrice = item.product.price;
-                  let offerDescription = '';
-                  const productOffer = productOffers.find(offer => offer.product.toString() === item.product._id.toString() && new Date() >= offer.startDate && new Date() <= offer.expiryDate);
-                  if (productOffer) {
-                    displayPrice = productOffer.newPrice;
-                    offerDescription = `Flat ${productOffer.discountPercentage}% discount`;
-                  } else if (item.product.categoryofferprice && item.product.categoryofferprice < item.product.price) {
-                    displayPrice = item.product.categoryofferprice;
-                    offerDescription = 'Category offer applied';
-                  }
-                %>
-                <div class="offer-details"><%= offerDescription %></div>
-              </div>
-              
-              <!-- Controls Section -->
-              <div class="col-4 controls-section">
-                <!-- Size Control -->
-                <div class="control-group">
+
+              <div class="col-4">
+                <!-- Size -->
+                <div class="mb-3">
                   <label class="label">Size:</label>
-                  <div class="control-row">
-                    <select class="size-select" id="size_<%= item.product._id %>" onchange="updateSize('<%= item.product._id %>', this.value)">
-                      <% item.product.variants.forEach(variant => { %>
-                        <option value="<%= variant.size %>" <%= variant.size === item.size ? 'selected' : '' %> data-max-quantity="<%= variant.stock - (variant.reserved || 0) %>">
-                          <%= variant.size %> <%= (variant.stock - (variant.reserved || 0)) === 0 ? '(Out of Stock)' : '' %>
-                        </option>
-                      <% }) %>
-                    </select>
-                  </div>
+                  <select class="size-select form-control form-control-sm" onchange="updateSize('<%= item.product._id %>', this.value)">
+                    <% item.product.variants.forEach(v => { %>
+                      <% 
+                        const availForOthers = v.stock - Math.max(0, (v.reserved || 0));
+                        const disabled = availForOthers <= 0 && v.size !== item.size;
+                      %>
+                      <option value="<%= v.size %>" <%= v.size === item.size ? 'selected' : '' %> <%= disabled ? 'disabled' : '' %>>
+                        <%= v.size %> <%= disabled ? '(Out of Stock)' : '' %>
+                      </option>
+                    <% }) %>
+                  </select>
                 </div>
-                
-                <!-- Quantity Control -->
-                <div class="control-group">
+
+                <!-- Quantity -->
+                <div>
                   <label class="label">Quantity:</label>
-                  <div class="control-row">
-                    <button type="button" class="quantity-button" onclick="updateQuantity('<%= item.product._id %>', -1)" <%= item.quantity <= 1 ? 'disabled' : '' %>>-</button>
-                    <span id="quantity_<%= item.product._id %>" class="quantity" data-current-size="<%= item.size %>" max="<%= item.product.variants.find(v => v.size === item.size)?.stock - (item.product.variants.find(v => v.size === item.size)?.reserved || 0) || 0 %>">
+                  <div class="d-flex align-items-center">
+                    <button type="button" class="quantity-button me-3"
+                      id="minus_<%= item.product._id %>"
+                      onclick="updateQuantity('<%= item.product._id %>', -1)"
+                      <%= item.quantity <= 1 ? 'disabled' : '' %>>−</button>
+
+                    <span id="quantity_<%= item.product._id %>"
+                          class="quantity fw-bold mx-3"
+                          data-max="<%= maxAllowed %>">
                       <%= item.quantity %>
                     </span>
-                    <button type="button" class="quantity-button" onclick="updateQuantity('<%= item.product._id %>', 1)" <%= item.quantity >= (item.product.variants.find(v => v.size === item.size)?.stock - (item.product.variants.find(v => v.size === item.size)?.reserved || 0) || 0) ? 'disabled' : '' %>>+</button>
+
+                    <button type="button" class="quantity-button ms-3"
+                      id="plus_<%= item.product._id %>"
+                      onclick="updateQuantity('<%= item.product._id %>', 1)"
+                      <%= isAtMax ? 'disabled' : '' %>>+</button>
                   </div>
-                  <div id="stock-message_<%= item.product._id %>" class="stock-message">
-                    (Max stock reached)
+
+                  <!-- Stock Message (Always visible when at max) -->
+                  <div id="stockMsg_<%= item.product._id %>" class="mt-2">
+                    <% if (isAtMax) { %>
+                      <div class="max-stock-warning">
+                        Maximum stock reached! This is all we have.
+                      </div>
+                    <% } else if (stockAfterOthers <= 0 && item.quantity > 0) { %>
+                      <div class="reserved-for-you">
+                        Reserved just for you!
+                      </div>
+                    <% } else if (stockAfterOthers < 3 && stockAfterOthers > 0) { %>
+                      <div class="low-stock">
+                        Only <%= stockAfterOthers %> left — Hurry!
+                      </div>
+                    <% } %>
                   </div>
                 </div>
               </div>
-              
-              <!-- Price Section -->
-              <div class="col-3 price-section">
-                <div id="price_<%= item.product._id %>">
-                  <div class="current-price">₹<%= (displayPrice * item.quantity).toFixed(2) %></div>
-                  <% if (displayPrice < item.product.price) { %>
-                    <div class="original-price">₹<%= (item.product.price * item.quantity).toFixed(2) %></div>
+
+              <div class="col-3 text-end">
+                <div id="price_<%= item.product._id %>" class="mb-2">
+                  <div class="current-price fw-bold">
+                    ₹<%= ((item.price || item.product.price) * item.quantity).toLocaleString('en-IN') %>
+                  </div>
+                  <% if ((item.price || item.product.price) < item.product.price) { %>
+                    <del class="text-muted small">
+                      ₹<%= (item.product.price * item.quantity).toLocaleString('en-IN') %>
+                    </del>
                   <% } %>
                 </div>
-                <div class="remove-section">
-                  <button type="button" class="remove-button" onclick="confirmRemoveItem('<%= item.product._id %>')">Remove</button>
-                </div>
+                <button type="button" class="btn btn-sm btn-outline-danger mt-2"
+                        onclick="confirmRemoveItem('<%= item.product._id %>')">
+                  Remove
+                </button>
               </div>
             </div>
-          <% }); %>
+          <% }) %>
         <% } else { %>
-          <div class="empty-cart">
-            <img src="/images/emptycart.png" alt="Empty Cart Image">
-            <div class="back-to-shop">
-              <a href="/home">← Back to shop</a>
-            </div>
+          <div class="empty-cart text-center py-5">
+            <img src="/images/emptycart.png" alt="Empty Cart" style="max-width: 250px;">
+            <h5 class="mt-3">Your cart is empty</h5>
+            <a href="/home" class="btn btn-dark mt-3">Continue Shopping</a>
           </div>
         <% } %>
       </div>
-      <% if (cart && cart.items && cart.items.length > 0) { %>
+
+      <% if (cart && cart.items.length > 0) { %>
         <div class="col-md-4 summary">
-          <div><h5><b>Cart Summary</b></h5></div>
+          <h5><b>Order Summary</b></h5>
           <hr>
-          <div class="row">
-            <div class="col" style="padding-left:0;">PRICE (<%= cart && cart.items ? cart.items.length : 0 %> ITEMS)</div>
-            <div id="totalPrice" class="col text-right">₹<%= data.total.toFixed(2) %></div>
+          <div class="row mb-2">
+            <div class="col">Subtotal</div>
+            <div class="col text-end fw-bold" id="totalPrice">₹<%= data.total.toFixed(2) %></div>
           </div>
-          <div class="row" style="border-top: 1px solid rgba(0,0,0,.1); padding: 2vh 0;">
-            <div class="col">TOTAL PRICE</div>
-            <div class="col text-right">₹<%= data.total.toFixed(2) %></div>
+          <div class="row fw-bold fs-5" style="border-top: 1px solid #ddd; padding-top: 15px;">
+            <div class="col">Total</div>
+            <div class="col text-end">₹<%= data.total.toFixed(2) %></div>
           </div>
-          <button id="proceedToCheckoutButton" class="btn" <%= !canProceedToCheckout ? 'disabled' : '' %> onclick="proceedToCheckout()">PROCEED TO CHECKOUT</button>
+          <button class="btn btn-dark w-100 mt-4 py-3 fw-bold"
+                  <%= !canProceedToCheckout ? 'disabled' : '' %>
+                  onclick="proceedToCheckout()">
+            PROCEED TO CHECKOUT
+          </button>
         </div>
       <% } %>
     </div>
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@10"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
 let isFetching = false;
-
-function proceedToCheckout() {
-  if (isFetching) return;
-  isFetching = true;
-
-  fetch('/validateStockBeforeCheckout', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  })
-    .then(response => {
-      if (!response.ok) {
-        return response.json().then(err => { throw new Error(err.error); });
-      }
-      return response.json();
-    })
-    .then(data => {
-      if (data.success) {
-        window.location.href = '/proceedtocheckout';
-      } else {
-        Swal.fire({
-          icon: 'error',
-          title: 'Cannot Proceed to Checkout',
-          html: 'Some items are unavailable:<ul>' + 
-                data.unavailableItems.map(item => `<li>${item.name} (Size: ${item.size}) - ${item.reason}</li>`).join('') + 
-                '</ul>',
-        });
-        window.location.reload();
-      }
-    })
-    .catch(error => {
-      Swal.fire({
-        icon: 'error',
-        title: 'Oops...',
-        text: error.message || 'Failed to validate stock. Please try again.',
-      });
-    })
-    .finally(() => {
-      isFetching = false;
-    });
-}
 
 function updateQuantity(productId, change) {
   if (isFetching) return;
   isFetching = true;
 
-  const quantityElement = document.getElementById(`quantity_${productId}`);
-  const stockMessageElement = document.getElementById(`stock-message_${productId}`);
-  const totalPriceElement = document.getElementById('totalPrice');
-  const plusButton = document.querySelector(`button[onclick="updateQuantity('${productId}', 1)"]`);
-  const minusButton = document.querySelector(`button[onclick="updateQuantity('${productId}', -1)"]`);
-  const checkoutButton = document.getElementById('proceedToCheckoutButton');
+  const qtySpan = document.getElementById(`quantity_${productId}`);
+  const minusBtn = document.getElementById(`minus_${productId}`);
+  const plusBtn = document.getElementById(`plus_${productId}`);
+  const stockMsg = document.getElementById(`stockMsg_${productId}`);
+  const currentQty = parseInt(qtySpan.innerText);
+  const maxAllowed = parseInt(qtySpan.dataset.max);
 
-  const currentQuantity = parseInt(quantityElement.innerText);
-  const maxStock = parseInt(quantityElement.getAttribute('max'));
+  // Block + instantly if at max
+  if (change === 1 && currentQty >= maxAllowed) {
+    isFetching = false;
+    return; // No request, no error
+  }
 
-  if (change === 1 && currentQuantity >= maxStock) {
-    stockMessageElement.classList.add('show');
-    Swal.fire({
-      icon: 'warning',
-      text: `Only ${maxStock} items available for this size`,
-      timer: 1500,
-      showConfirmButton: false,
-    });
+  if (change === -1 && currentQty <= 1) {
     isFetching = false;
     return;
   }
 
-  if (change === -1 && currentQuantity === 1) {
-    Swal.fire({
-      text: 'Do you want to remove this item from the cart?',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#3085d6',
-      cancelButtonColor: '#d33',
-      confirmButtonText: 'Yes, remove it!',
-    }).then((result) => {
-      if (result.isConfirmed) {
-        removeItem(productId);
-      }
-      isFetching = false;
-    });
-  } else {
-    fetch(`/updateQuantity/${productId}/${change}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    })
-      .then(response => {
-        if (!response.ok) {
-          return response.json().then(err => { throw new Error(err.error); });
+  fetch(`/updateQuantity/${productId}/${change}`, { method: 'POST' })
+    .then(r => r.ok ? r.json() : r.json().then(err => { throw err }))
+    .then(data => {
+      qtySpan.innerText = data.quantity;
+
+      // Update buttons
+      minusBtn.disabled = data.quantity <= 1;
+      plusBtn.disabled = data.quantity >= data.maxAvailable;
+
+      // Update price
+      document.getElementById(`price_${productId}`).innerHTML = `
+        <div class="current-price fw-bold">₹${data.itemPrice.toLocaleString('en-IN')}</div>
+      `;
+
+      // Update total
+      document.getElementById('totalPrice').innerText = `₹${data.total.toFixed(2)}`;
+      document.querySelectorAll('.summary .row').forEach(row => {
+        const el = row.querySelector('.col.text-end');
+        if (el && row.innerText.includes('Total')) {
+          el.innerText = `₹${data.total.toFixed(2)}`;
         }
-        return response.json();
-      })
-      .then(data => {
-        if (data.message === 'Item removed') {
-          Swal.fire({
-            icon: 'success',
-            text: 'Item removed successfully',
-            timer: 1500,
-            showConfirmButton: false,
-          });
-          window.location.reload();
-        } else {
-          quantityElement.innerText = data.quantity;
-          totalPriceElement.innerText = `₹${data.total.toFixed(2)}`;
-          const totalSummaryRow = document.querySelectorAll('.summary .row');
-          totalSummaryRow.forEach(row => {
-            if (row.innerText.includes('TOTAL PRICE')) {
-              row.querySelector('.col.text-right').innerText = `₹${data.total.toFixed(2)}`;
-            }
-          });
-
-          const priceElement = document.getElementById(`price_${productId}`);
-          priceElement.innerHTML = `<div class="current-price">₹${data.itemPrice.toFixed(2)}</div>`;
-
-          stockMessageElement.classList.toggle('show', data.quantity >= maxStock);
-          plusButton.disabled = data.quantity >= maxStock;
-          minusButton.disabled = data.quantity <= 1;
-
-          // Re-validate stock after quantity update
-          fetch('/validateStockBeforeCheckout', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-          })
-            .then(response => response.json())
-            .then(validationData => {
-              checkoutButton.disabled = !validationData.success;
-              if (!validationData.success) {
-                Swal.fire({
-                  icon: 'error',
-                  title: 'Stock Issue',
-                  html: 'Some items are unavailable:<ul>' + 
-                        validationData.unavailableItems.map(item => `<li>${item.name} (Size: ${item.size}) - ${item.reason}</li>`).join('') + 
-                        '</ul>',
-                  timer: 3000,
-                  showConfirmButton: false,
-                });
-              }
-            });
-
-          Swal.fire({
-            icon: 'success',
-            text: `Quantity updated to ${data.quantity}`,
-            timer: 1500,
-            showConfirmButton: false,
-          });
-        }
-      })
-      .catch(error => {
-        stockMessageElement.classList.toggle('show', currentQuantity >= maxStock);
-        plusButton.disabled = currentQuantity >= maxStock;
-        minusButton.disabled = currentQuantity <= 1;
-        Swal.fire({
-          icon: 'error',
-          text: error.message || 'An error occurred while updating quantity. Please try again.',
-        });
-      })
-      .finally(() => {
-        isFetching = false;
       });
-  }
+
+      // Show max message instantly if at limit
+      if (data.quantity >= data.maxAvailable) {
+        stockMsg.innerHTML = `<div class="max-stock-warning">Maximum stock reached! This is all we have.</div>`;
+      }
+    })
+    .catch(err => {
+      // Silently ignore — user already at max
+      console.log("Max stock reached, blocked:", err.error);
+    })
+    .finally(() => isFetching = false);
+}
+
+function proceedToCheckout() {
+  if (isFetching) return;
+  isFetching = true;
+  fetch('/validateStockBeforeCheckout', { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        window.location.href = '/proceedtocheckout';
+      } else {
+        Swal.fire('Cannot Proceed', 'Some items are no longer available', 'error')
+          .then(() => location.reload());
+      }
+    })
+    .finally(() => isFetching = false);
 }
 
 function confirmRemoveItem(productId) {
-  if (isFetching) return;
-  isFetching = true;
-
   Swal.fire({
     title: 'Remove Item?',
-    text: 'Are you sure you want to remove this item from your cart?',
+    text: "This will release your reservation",
     icon: 'warning',
     showCancelButton: true,
     confirmButtonColor: '#dc3545',
-    cancelButtonColor: '#6c757d',
-    confirmButtonText: 'Yes, remove it!',
-    cancelButtonText: 'Cancel',
-  }).then((result) => {
+    confirmButtonText: 'Yes, remove'
+  }).then(result => {
     if (result.isConfirmed) {
-      removeItem(productId);
-    } else {
-      isFetching = false;
+      fetch(`/removeItem/${productId}`, { method: 'POST' })
+        .then(() => location.reload())
+        .catch(() => Swal.fire('Error', 'Failed to remove', 'error'));
     }
   });
-}
-
-function removeItem(productId) {
-  fetch(`/removeItem/${productId}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  })
-    .then(response => {
-      if (!response.ok) {
-        throw new Error(`Failed to remove item ${productId}`);
-      }
-      return response.json();
-    })
-    .then(data => {
-      Swal.fire({
-        icon: 'success',
-        text: 'Item removed successfully',
-        timer: 1500,
-        showConfirmButton: false,
-      });
-      window.location.reload();
-    })
-    .catch(error => {
-      Swal.fire({
-        icon: 'error',
-        title: 'Oops...',
-        text: 'Failed to remove item. Please try again.',
-      });
-    })
-    .finally(() => {
-      isFetching = false;
-    });
 }
 
 function updateSize(productId, newSize) {
   if (isFetching) return;
   isFetching = true;
-
-  const quantityElement = document.getElementById(`quantity_${productId}`);
-  const stockMessageElement = document.getElementById(`stock-message_${productId}`);
-  const totalPriceElement = document.getElementById('totalPrice');
-  const sizeSelect = document.getElementById(`size_${productId}`);
-  const maxStock = parseInt(sizeSelect.querySelector(`option[value="${newSize}"]`).dataset.maxQuantity);
-  const plusButton = document.querySelector(`button[onclick="updateQuantity('${productId}', 1)"]`);
-  const minusButton = document.querySelector(`button[onclick="updateQuantity('${productId}', -1)"]`);
-  const checkoutButton = document.getElementById('proceedToCheckoutButton');
-
-  fetch(`/updateSize/${productId}/${newSize}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  })
-    .then(response => {
-      if (!response.ok) {
-        return response.json().then(err => { throw new Error(err.error); });
-      }
-      return response.json();
+  fetch(`/updateSize/${productId}/${newSize}`, { method: 'POST' })
+    .then(r => r.ok ? r.json() : r.json().then(err => { throw err }))
+    .then(() => location.reload())
+    .catch(err => {
+      Swal.fire('Not Available', err.error || 'This size is out of stock', 'error');
     })
-    .then(data => {
-      quantityElement.innerText = data.quantity;
-      quantityElement.setAttribute('max', maxStock);
-      quantityElement.setAttribute('data-current-size', newSize);
-      stockMessageElement.classList.toggle('show', data.quantity >= maxStock);
-      plusButton.disabled = data.quantity >= maxStock;
-      minusButton.disabled = data.quantity <= 1;
-
-      totalPriceElement.innerText = `₹${data.total.toFixed(2)}`;
-      const totalSummaryRow = document.querySelectorAll('.summary .row');
-      totalSummaryRow.forEach(row => {
-        if (row.innerText.includes('TOTAL PRICE')) {
-          row.querySelector('.col.text-right').innerText = `₹${data.total.toFixed(2)}`;
-        }
-      });
-
-      const priceElement = document.getElementById(`price_${productId}`);
-      priceElement.innerHTML = `<div class="current-price">₹${data.itemPrice.toFixed(2)}</div>`;
-
-      // Re-validate stock after size update
-      fetch('/validateStockBeforeCheckout', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      })
-        .then(response => response.json())
-        .then(validationData => {
-          checkoutButton.disabled = !validationData.success;
-          if (!validationData.success) {
-            Swal.fire({
-              icon: 'error',
-              title: 'Stock Issue',
-              html: 'Some items are unavailable:<ul>' + 
-                    validationData.unavailableItems.map(item => `<li>${item.name} (Size: ${item.size}) - ${item.reason}</li>`).join('') + 
-                    '</ul>',
-              timer: 3000,
-              showConfirmButton: false,
-            });
-          }
-        });
-
-      Swal.fire({
-        icon: 'success',
-        text: `Size updated to ${newSize}`,
-        timer: 1500,
-        showConfirmButton: false,
-      });
-    })
-    .catch(error => {
-      sizeSelect.value = quantityElement.getAttribute('data-current-size') || sizeSelect.value;
-      Swal.fire({
-        icon: 'error',
-        text: error.message || 'Failed to update size. Please try again.',
-      });
-    })
-    .finally(() => {
-      isFetching = false;
-    });
+    .finally(() => isFetching = false);
 }
 </script>
 

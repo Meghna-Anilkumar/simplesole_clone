@@ -105,429 +105,282 @@ module.exports = {
     }
   },
 
-  createRazorpayOrder: async (req, res) => {
-    const session = await mongoose.startSession();
-    session.startTransaction();
+createRazorpayOrder: async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
-    try {
-      const { amount } = req.body;
-      const user = req.session.user;
-      const cart = await Cart.findOne({ user })
-        .populate("items.product")
-        .session(session);
+  try {
+    const { amount } = req.body;
+    const user = req.session.user;
+    const cart = await Cart.findOne({ user })
+      .populate("items.product")
+      .session(session);
 
-      if (!cart || !cart.items.length) {
-        await session.abortTransaction();
-        session.endSession();
-        return res.status(400).json({ success: false, error: "Cart is empty" });
-      }
-
-      const unavailableItems = [];
-      for (const item of cart.items) {
-        const product = await Product.findOne({
-          _id: item.product._id,
-          version: { $exists: true },
-        }).session(session);
-        if (!product) {
-          unavailableItems.push({
-            productId: item.product._id,
-            name: item.product.name,
-            size: item.size,
-            reason: "Product not found",
-          });
-          continue;
-        }
-
-        const variant = product.variants.find((v) => v.size === item.size);
-        if (!variant) {
-          unavailableItems.push({
-            productId: item.product._id,
-            name: item.product.name,
-            size: item.size,
-            reason: `Size ${item.size} not available`,
-          });
-          continue;
-        }
-
-        const availableStock = variant.stock - (variant.reserved || 0);
-        if (availableStock < item.quantity) {
-          unavailableItems.push({
-            productId: item.product._id,
-            name: item.product.name,
-            size: item.size,
-            reason: `Only ${availableStock} item${
-              availableStock !== 1 ? "s" : ""
-            } available for size ${item.size}`,
-          });
-        }
-
-        if (item.reservedAt < new Date(Date.now() - 10 * 60 * 1000)) {
-          unavailableItems.push({
-            productId: item.product._id,
-            name: item.product.name,
-            size: item.size,
-            reason: `Reservation expired for size ${item.size}`,
-          });
-          variant.reserved = (variant.reserved || 0) - item.quantity;
-          product.reserved = (product.reserved || 0) - item.quantity;
-          product.version += 1;
-          await product.save({ session });
-          cart.items = cart.items.filter(
-            (i) =>
-              !(
-                i.product._id.toString() === item.product._id.toString() &&
-                i.size === item.size
-              )
-          );
-        }
-      }
-
-      if (unavailableItems.length > 0) {
-        await cart.save({ session });
-        await session.commitTransaction();
-        session.endSession();
-        return res.status(400).json({
-          success: false,
-          error: "Some items are unavailable",
-          unavailableItems,
-        });
-      }
-
-      const productOffers = await ProductOffer.find({
-        startDate: { $lte: new Date() },
-        expiryDate: { $gte: new Date() },
-      }).session(session);
-      const categoryOffers = await CategoryOffer.find({
-        startDate: { $lte: new Date() },
-        expiryDate: { $gte: new Date() },
-      }).session(session);
-      const calculatedTotal = await calculateTotalPrice(
-        cart.items,
-        productOffers,
-        categoryOffers
-      );
-
-      const expectedAmount = cart.newTotal || calculatedTotal;
-      console.log("Razorpay order validation:", {
-        providedAmount: amount,
-        expectedAmount,
-        cartTotal: cart.total,
-        cartNewTotal: cart.newTotal,
-      });
-
-      if (Math.abs(parseFloat(amount) - expectedAmount) > 0.01) {
-        await session.abortTransaction();
-        session.endSession();
-        return res.status(400).json({
-          success: false,
-          error: `Provided amount (₹${amount}) does not match cart total (₹${expectedAmount})`,
-        });
-      }
-
-      cart.items.forEach((item) => {
-        item.reservedAt = new Date();
-      });
-      await cart.save({ session });
-
-      const amountInPaise = Math.floor(parseFloat(amount) * 100);
-      const razorpayOptions = {
-        amount: amountInPaise,
-        currency: "INR",
-        receipt: `order_rcpt_${Math.random().toString(36).substring(7)}`,
-        notes: {
-          user_id: user._id.toString(),
-          cart_items: cart.items.length,
-        },
-      };
-
-      const razorpayOrder = await new Promise((resolve, reject) => {
-        instance.orders.create(razorpayOptions, (err, order) => {
-          if (err) {
-            console.error("Razorpay order creation error:", err);
-            reject(err);
-          } else {
-            resolve(order);
-          }
-        });
-      });
-
-      req.session.razorpayOrderId = razorpayOrder.id;
-
-      cart.items.forEach((item) => {
-        item.reservedAt = new Date();
-      });
-      await cart.save({ session });
-
-      await session.commitTransaction();
-      session.endSession();
-
-      res.json({
-        success: true,
-        orderId: razorpayOrder.id,
-        amount: razorpayOrder.amount,
-        currency: razorpayOrder.currency,
-      });
-    } catch (error) {
-      if (session.transaction.isActive) {
-        await session.abortTransaction();
-      }
-      session.endSession();
-
-      console.error("Error creating Razorpay order:", error);
-      res.status(500).json({
-        success: false,
-        error: "Failed to create payment order. Please try again.",
-      });
-    }
-  },
-
-  processPayment: async (req, res) => {
-    const session = await mongoose.startSession();
-    session.startTransaction();
-
-    try {
-      const {
-        payment_id,
-        order_id,
-        signature,
-        paymentMethod,
-        selectedAddress,
-        appliedCouponCode,
-      } = req.body;
-      const user = req.session.user;
-      const cart = await Cart.findOne({ user })
-        .populate("items.product")
-        .session(session);
-
-      if (!cart || !cart.items.length) {
-        await session.abortTransaction();
-        session.endSession();
-        return res.status(400).json({ success: false, error: "Cart is empty" });
-      }
-
-      const generatedSignature = crypto
-        .createHmac("sha256", process.env.key_secret)
-        .update(order_id + "|" + payment_id)
-        .digest("hex");
-
-      if (generatedSignature !== signature) {
-        const failedOrder = new Order({
-          user: user._id,
-          items: cart.items.map((i) => ({
-            product: i.product._id,
-            quantity: i.quantity,
-            price: i.price,
-            size: i.size,
-          })),
-          shippingAddress: selectedAddress,
-          totalAmount: cart.newTotal || cart.total,
-          paymentMethod,
-          orderStatus: "PAYMENT_FAILED",
-          paymentError: "Invalid Razorpay signature",
-          couponCode: appliedCouponCode || null,
-          discountAmount: cart.couponApplied ? cart.total - cart.newTotal : 0,
-        });
-        await failedOrder.save({ session });
-
-        for (const item of cart.items) {
-          const product = await Product.findOne({
-            _id: item.product._id,
-          }).session(session);
-          if (product) {
-            const variant = product.variants.find((v) => v.size === item.size);
-            if (variant) {
-              variant.reserved = (variant.reserved || 0) - item.quantity;
-              product.reserved = (product.reserved || 0) - item.quantity;
-              product.version += 1;
-              await product.save({ session });
-            }
-          }
-        }
-
-        await session.abortTransaction();
-        session.endSession();
-        return res.status(400).json({
-          success: false,
-          error: "Payment verification failed – order recorded as failed",
-        });
-      }
-
-      const unavailableItems = [];
-      for (const item of cart.items) {
-        const product = await Product.findOne({
-          _id: item.product._id,
-          version: { $exists: true },
-        }).session(session);
-        if (!product) {
-          unavailableItems.push({
-            productId: item.product._id,
-            name: item.product.name,
-            size: item.size,
-            reason: "Product not found",
-          });
-          continue;
-        }
-
-        const variant = product.variants.find((v) => v.size === item.size);
-        if (!variant) {
-          unavailableItems.push({
-            productId: item.product._id,
-            name: item.product.name,
-            size: item.size,
-            reason: `Size ${item.size} not available`,
-          });
-          continue;
-        }
-
-        const availableStock = variant.stock - (variant.reserved || 0);
-        if (availableStock < item.quantity) {
-          unavailableItems.push({
-            productId: item.product._id,
-            name: item.product.name,
-            size: item.size,
-            reason: `Only ${availableStock} item${
-              availableStock !== 1 ? "s" : ""
-            } available for size ${item.size}`,
-          });
-        }
-      }
-
-      if (unavailableItems.length > 0) {
-        for (const item of cart.items) {
-          const product = await Product.findOne({
-            _id: item.product._id,
-            version: { $exists: true },
-          }).session(session);
-          if (product) {
-            const variant = product.variants.find((v) => v.size === item.size);
-            if (variant) {
-              variant.reserved = (variant.reserved || 0) - item.quantity;
-              product.reserved = (product.reserved || 0) - item.quantity;
-              product.version += 1;
-              await product.save({ session });
-            }
-          }
-        }
-        await cart.save({ session });
-        await session.commitTransaction();
-        session.endSession();
-        return res.status(400).json({
-          success: false,
-          error: "Some items are unavailable. Reservations have been released.",
-          unavailableItems,
-        });
-      }
-
-      let coupon = null;
-      if (appliedCouponCode) {
-        coupon = await Coupon.findOne({
-          couponCode: appliedCouponCode,
-        }).session(session);
-        if (!coupon) {
-          await session.abortTransaction();
-          session.endSession();
-          return res
-            .status(400)
-            .json({ success: false, error: "Invalid or expired coupon code" });
-        }
-        const userDoc = await User.findById(user._id).session(session);
-        if (userDoc.usedCoupons && userDoc.usedCoupons.includes(coupon._id)) {
-          await session.abortTransaction();
-          session.endSession();
-          return res
-            .status(400)
-            .json({ success: false, error: "Coupon already used" });
-        }
-      }
-
-      const totalAmount = cart.newTotal || cart.total;
-
-      const orderItems = cart.items.map((item) => ({
-        product: item.product._id,
-        quantity: item.quantity,
-        price: item.price,
-        size: item.size,
-      }));
-
-      const order = new Order({
-        user: user._id,
-        items: orderItems,
-        totalAmount: totalAmount,
-        shippingAddress: selectedAddress,
-        paymentMethod,
-        couponCode: appliedCouponCode || null,
-        discountAmount: cart.couponApplied ? cart.total - cart.newTotal : 0,
-        paymentStatus: "Completed",
-      });
-
-      await order.save({ session });
-
-      for (const item of cart.items) {
-        const product = await Product.findOne({
-          _id: item.product._id,
-          version: { $exists: true },
-        }).session(session);
-        const variant = product.variants.find((v) => v.size === item.size);
-        variant.stock -= item.quantity;
-        variant.reserved = (variant.reserved || 0) - item.quantity;
-        product.reserved = (product.reserved || 0) - item.quantity;
-        product.version += 1;
-        await product.save({ session });
-      }
-
-      if (coupon) {
-        const userDoc = await User.findById(user._id).session(session);
-        if (!userDoc.usedCoupons) {
-          userDoc.usedCoupons = [];
-        }
-        userDoc.usedCoupons.push(coupon._id);
-        await userDoc.save({ session });
-      }
-
-      cart.items = [];
-      cart.total = 0;
-      cart.newTotal = 0;
-      cart.couponApplied = null;
-      await cart.save({ session });
-
-      req.session.couponCode = null;
-      req.session.discount = 0;
-      req.session.totalpay = 0;
-
-      await session.commitTransaction();
-      session.endSession();
-
-      res.json({ success: true, message: "Payment processed successfully" });
-    } catch (error) {
+    if (!cart || !cart.items.length) {
       await session.abortTransaction();
       session.endSession();
-      console.error("Error processing payment:", error);
+      return res.status(400).json({ success: false, error: "Cart is empty" });
+    }
 
-      const cart = await Cart.findOne({ user: req.session.user }).populate(
-        "items.product"
-      );
-      if (cart) {
-        for (const item of cart.items) {
-          const product = await Product.findOne({ _id: item.product._id });
-          if (product) {
-            const variant = product.variants.find((v) => v.size === item.size);
-            if (variant) {
-              variant.reserved = (variant.reserved || 0) - item.quantity;
-              product.reserved = (product.reserved || 0) - item.quantity;
-              product.version += 1;
-              await product.save();
-            }
-          }
-        }
-        await cart.save();
+    const unavailableItems = [];
+
+    for (const item of cart.items) {
+      const product = await Product.findById(item.product._id).session(session);
+      if (!product || product.blocked) {
+        unavailableItems.push({
+          productId: item.product._id,
+          name: item.product.name,
+          size: item.size,
+          reason: "Product unavailable",
+        });
+        continue;
       }
 
-      res.status(500).json({
+      const variant = product.variants.find(v => v.size === item.size);
+      if (!variant) {
+        unavailableItems.push({
+          productId: item.product._id,
+          name: item.product.name,
+          size: item.size,
+          reason: "Size not available",
+        });
+        continue;
+      }
+
+      // CORRECT: Don't count user's own reservation
+      const userReservedQty = item.quantity;
+      const othersReserved = Math.max(0, (variant.reserved || 0) - userReservedQty);
+      const trulyAvailable = variant.stock - othersReserved;
+
+      if (trulyAvailable < item.quantity) {
+        unavailableItems.push({
+          productId: item.product._id,
+          name: item.product.name,
+          size: item.size,
+          reason: `Only ${trulyAvailable} available`,
+        });
+      }
+
+      // Expire old reservations
+      if (!item.reservedAt || item.reservedAt < new Date(Date.now() - 10 * 60 * 1000)) {
+        unavailableItems.push({
+          productId: item.product._id,
+          name: item.product.name,
+          size: item.size,
+          reason: "Reservation expired",
+        });
+
+        await Product.findOneAndUpdate(
+          { _id: product._id, "variants.size": item.size },
+          {
+            $inc: {
+              "variants.$.reserved": -item.quantity,
+              reserved: -item.quantity,
+              version: 1,
+            },
+          },
+          { session }
+        );
+
+        cart.items = cart.items.filter(
+          i => !(i.product.equals(product._id) && i.size === item.size)
+        );
+      }
+    }
+
+    if (unavailableItems.length > 0) {
+      await cart.save({ session });
+      await session.commitTransaction();
+      session.endSession();
+      return res.status(400).json({
         success: false,
-        error: error.message || "Failed to process payment",
+        error: "Some items are no longer available",
+        unavailableItems,
       });
     }
-  },
+
+    // Renew all reservations
+    cart.items.forEach(i => i.reservedAt = new Date());
+    await cart.save({ session });
+
+    const totalPrice = cart.newTotal || cart.total;
+    if (Math.abs(parseFloat(amount) - totalPrice) > 0.01) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(400).json({
+        success: false,
+        error: "Amount mismatch",
+      });
+    }
+
+    const razorpayOrder = await instance.orders.create({
+      amount: Math.round(totalPrice * 100),
+      currency: "INR",
+      receipt: `order_${Date.now()}_${user._id.toString().slice(-6)}`,
+    });
+
+    req.session.razorpayOrderId = razorpayOrder.id;
+
+    await session.commitTransaction();
+    session.endSession();
+
+    res.json({
+      success: true,
+      orderId: razorpayOrder.id,
+      amount: razorpayOrder.amount,
+      currency: razorpayOrder.currency,
+    });
+
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    console.error("createRazorpayOrder error:", error);
+    res.status(500).json({ success: false, error: "Failed to create order" });
+  }
+},
+
+  processPayment: async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const {
+      payment_id,
+      order_id,
+      signature,
+      paymentMethod,
+      selectedAddress,
+      appliedCouponCode,
+    } = req.body;
+
+    const user = req.session.user;
+    const cart = await Cart.findOne({ user })
+      .populate("items.product")
+      .session(session);
+
+    if (!cart || !cart.items.length) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(400).json({ success: false, error: "Cart is empty" });
+    }
+
+    // Verify Razorpay signature
+    const expectedSignature = crypto
+      .createHmac("sha256", process.env.key_secret)
+      .update(order_id + "|" + payment_id)
+      .digest("hex");
+
+    if (expectedSignature !== signature) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(400).json({ success: false, error: "Invalid payment signature" });
+    }
+
+    // FINAL STOCK CHECK (same correct logic)
+    const unavailableItems = [];
+    for (const item of cart.items) {
+      const product = await Product.findById(item.product._id).session(session);
+      if (!product) {
+        unavailableItems.push({ name: item.product.name, size: item.size, reason: "Product missing" });
+        continue;
+      }
+
+      const variant = product.variants.find(v => v.size === item.size);
+      if (!variant) {
+        unavailableItems.push({ name: item.product.name, size: item.size, reason: "Size missing" });
+        continue;
+      }
+
+      const userReserved = item.quantity;
+      const othersReserved = Math.max(0, (variant.reserved || 0) - userReserved);
+      const trulyAvailable = variant.stock - othersReserved;
+
+      if (trulyAvailable < item.quantity) {
+        unavailableItems.push({
+          name: item.product.name,
+          size: item.size,
+          reason: `Only ${trulyAvailable} available`,
+        });
+      }
+    }
+
+    if (unavailableItems.length > 0) {
+      // Release reservations
+      for (const item of cart.items) {
+        await Product.findOneAndUpdate(
+          { _id: item.product._id, "variants.size": item.size },
+          { $inc: { "variants.$.reserved": -item.quantity, reserved: -item.quantity, version: 1 } },
+          { session }
+        );
+      }
+      await cart.save({ session });
+      await session.commitTransaction();
+      session.endSession();
+      return res.status(400).json({
+        success: false,
+        error: "Some items are no longer available",
+        unavailableItems,
+      });
+    }
+
+    const totalAmount = cart.newTotal || cart.total;
+
+    const order = new Order({
+      user: user._id,
+      items: cart.items.map(i => ({
+        product: i.product._id,
+        quantity: i.quantity,
+        price: i.price,
+        size: i.size,
+      })),
+      totalAmount,
+      shippingAddress: selectedAddress,
+      paymentMethod,
+      couponCode: appliedCouponCode || null,
+      discountAmount: cart.couponApplied ? cart.total - cart.newTotal : 0,
+      paymentStatus: "Completed",
+      orderStatus: "PROCESSING",
+    });
+
+    await order.save({ session });
+
+    // Deduct stock
+    for (const item of cart.items) {
+      await Product.findOneAndUpdate(
+        { _id: item.product._id, "variants.size": item.size },
+        {
+          $inc: {
+            "variants.$.stock": -item.quantity,
+            "variants.$.reserved": -item.quantity,
+            reserved: -item.quantity,
+            version: 1,
+          },
+        },
+        { session }
+      );
+    }
+
+    // Clear cart
+    cart.items = [];
+    cart.total = cart.newTotal = 0;
+    cart.couponApplied = null;
+    await cart.save({ session });
+
+    req.session.couponCode = null;
+    req.session.totalpay = 0;
+
+    await session.commitTransaction();
+    session.endSession();
+
+    res.json({ success: true, message: "Payment successful", redirectUrl: "/successpage" });
+
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    console.error("processPayment error:", error);
+    res.status(500).json({ success: false, error: "Payment failed" });
+  }
+},
 
   razorpayFailure: async (req, res) => {
     const session = await mongoose.startSession();
@@ -613,453 +466,200 @@ module.exports = {
     }
   },
 
-  placeorder: async (req, res) => {
-    try {
-      const { paymentMethod, selectedAddress, appliedCouponCode } = req.body;
-      const user = req.session.user;
+placeorder: async (req, res) => {
+  const mainSession = await mongoose.startSession();
+  mainSession.startTransaction();
 
-      console.log("Place order request:", {
-        paymentMethod,
-        selectedAddress,
-        appliedCouponCode,
-        userId: user?._id,
-      });
+  try {
+    const { paymentMethod, selectedAddress, appliedCouponCode } = req.body;
+    const user = req.session.user;
 
-      if (!user) {
-        return res.redirect("/login");
+    console.log("=== PLACE ORDER START ===", { paymentMethod, userId: user?._id });
+
+    // === BASIC VALIDATION ===
+    if (!user) return res.redirect("/login");
+    if (!selectedAddress || !paymentMethod) {
+      const err = "Please select address and payment method";
+      return req.xhr 
+        ? res.status(400).json({ success: false, error: err })
+        : res.status(400).send(`<script>alert("${err}"); window.history.back();</script>`);
+    }
+
+    const cart = await Cart.findOne({ user: user._id })
+      .populate("items.product")
+      .session(mainSession);
+
+    if (!cart || cart.items.length === 0) {
+      const err = "Your cart is empty";
+      return req.xhr 
+        ? res.status(400).json({ success: false, error: err })
+        : res.status(400).send(`<script>alert("${err}"); window.location="/cart";</script>`);
+    }
+
+    // === CORRECT STOCK VALIDATION (DO NOT COUNT USER'S OWN RESERVATION) ===
+    const unavailableItems = [];
+
+    for (const item of cart.items) {
+      const product = await Product.findById(item.product._id).session(mainSession);
+      if (!product || product.blocked) {
+        unavailableItems.push({ name: item.product.name, size: item.size, reason: "Product unavailable" });
+        continue;
       }
 
-      if (!selectedAddress) {
-        console.log("No address selected");
-        return res.status(400).json({
-          success: false,
-          error: "Please select a shipping address",
+      const variant = product.variants.find(v => v.size === item.size);
+      if (!variant) {
+        unavailableItems.push({ name: item.product.name, size: item.size, reason: "Size not available" });
+        continue;
+      }
+
+      const userReserved = item.quantity;
+      const othersReserved = Math.max(0, (variant.reserved || 0) - userReserved);
+      const trulyAvailable = variant.stock - othersReserved;
+
+      if (trulyAvailable < item.quantity) {
+        unavailableItems.push({
+          name: item.product.name,
+          size: item.size,
+          reason: `Only ${trulyAvailable} left`,
         });
       }
 
-      if (!paymentMethod) {
-        console.log("No payment method selected");
-        return res.status(400).json({
-          success: false,
-          error: "Please select a payment method",
-        });
-      }
-
-      // Start main transaction
-      const mainSession = await mongoose.startSession();
-      mainSession.startTransaction();
-
-      try {
-        // Get cart with populated products
-        const cart = await Cart.findOne({ user: user._id })
-          .populate("items.product")
-          .session(mainSession);
-
-        if (!cart || !cart.items || cart.items.length === 0) {
-          await mainSession.abortTransaction();
-          mainSession.endSession();
-          console.log("Cart is empty");
-          return res.status(400).json({
-            success: false,
-            error: "Cart is empty",
-          });
-        }
-
-        console.log("Cart found with items:", cart.items.length);
-
-        // Validate stock for each item
-        const unavailableItems = [];
-
-        for (const item of cart.items) {
-          const product = await Product.findOne({
-            _id: item.product._id,
-            version: { $exists: true },
-          }).session(mainSession);
-
-          if (!product) {
-            unavailableItems.push({
-              productId: item.product._id,
-              name: item.product.name,
-              size: item.size,
-              reason: "Product not found",
-            });
-            continue;
-          }
-
-          const variant = product.variants.find((v) => v.size === item.size);
-          if (!variant) {
-            unavailableItems.push({
-              productId: item.product._id,
-              name: item.product.name,
-              size: item.size,
-              reason: `Size ${item.size} not available`,
-            });
-            continue;
-          }
-
-          const availableStock = variant.stock - (variant.reserved || 0);
-          if (availableStock < item.quantity) {
-            unavailableItems.push({
-              productId: item.product._id,
-              name: item.product.name,
-              size: item.size,
-              reason: `Only ${availableStock} item${
-                availableStock !== 1 ? "s" : ""
-              } available for size ${item.size}`,
-            });
-            continue;
-          }
-          if (item.reservedAt < new Date(Date.now() - 10 * 60 * 1000)) {
-            unavailableItems.push({
-              productId: item.product._id,
-              name: item.product.name,
-              size: item.size,
-              reason: `Reservation expired for size ${item.size}`,
-            });
-
-            variant.reserved = Math.max(
-              0,
-              (variant.reserved || 0) - item.quantity
-            );
-            product.reserved = Math.max(
-              0,
-              (product.reserved || 0) - item.quantity
-            );
-            product.version += 1;
-            await product.save({ session: mainSession });
-
-            cart.items = cart.items.filter(
-              (i) =>
-                !(
-                  i.product._id.toString() === item.product._id.toString() &&
-                  i.size === item.size
-                )
-            );
-          }
-        }
-
-        if (unavailableItems.length > 0) {
-          await cart.save({ session: mainSession });
-          await mainSession.commitTransaction();
-          mainSession.endSession();
-
-          console.log("Stock validation failed:", unavailableItems);
-          return res.status(400).json({
-            success: false,
-            error: "Some items are unavailable",
-            unavailableItems,
-          });
-        }
-        cart.items.forEach((item) => {
-          item.reservedAt = new Date();
-        });
-        await cart.save({ session: mainSession });
-
-        console.log("Stock validation passed");
-
-        const addressExists = await Address.findById(selectedAddress).session(
-          mainSession
-        );
-        if (!addressExists) {
-          await mainSession.abortTransaction();
-          mainSession.endSession();
-          console.log("Address not found");
-          return res.status(400).json({
-            success: false,
-            error: "Invalid address selected",
-          });
-        }
-
-        const productOffers = await ProductOffer.find({
-          startDate: { $lte: new Date() },
-          expiryDate: { $gte: new Date() },
-        }).session(mainSession);
-
-        const categoryOffers = await CategoryOffer.find({
-          startDate: { $lte: new Date() },
-          expiryDate: { $gte: new Date() },
-        }).session(mainSession);
-
-        const cartTotal = await calculateTotalPrice(
-          cart.items,
-          productOffers,
-          categoryOffers
-        );
-        let finalTotal = cart.newTotal || cartTotal;
-        let couponDiscount = cart.couponApplied
-          ? cart.total - cart.newTotal
-          : 0;
-
-        // Validate coupon if applied
-        if (appliedCouponCode && cart.couponApplied === appliedCouponCode) {
-          const coupon = await Coupon.findOne({
-            couponCode: appliedCouponCode,
-            expiryDate: { $gte: new Date() },
-          }).session(mainSession);
-
-          if (coupon) {
-            const userDoc = await User.findById(user._id).session(mainSession);
-            if (
-              userDoc.usedCoupons &&
-              userDoc.usedCoupons.includes(coupon._id)
-            ) {
-              await mainSession.abortTransaction();
-              mainSession.endSession();
-              console.log("Coupon already used:", appliedCouponCode);
-              return res.status(400).json({
-                success: false,
-                error: "Coupon already used",
-              });
-            }
-
-            if (cartTotal >= coupon.minimumPurchaseAmount) {
-              couponDiscount = Math.min(
-                (cartTotal * coupon.discountRate) / 100,
-                coupon.maxDiscountAmount || Infinity
-              );
-              finalTotal = cartTotal - couponDiscount;
-              console.log("Coupon applied:", {
-                couponCode: appliedCouponCode,
-                discount: couponDiscount,
-                finalTotal,
-              });
-            } else {
-              console.log(
-                "Coupon minimum purchase not met:",
-                appliedCouponCode
-              );
-              couponDiscount = 0;
-              finalTotal = cartTotal;
-              cart.couponApplied = null;
-              cart.newTotal = cartTotal;
-              await cart.save({ session: mainSession });
-            }
-          } else {
-            console.log("Coupon not found or expired:", appliedCouponCode);
-            couponDiscount = 0;
-            finalTotal = cartTotal;
-            cart.couponApplied = null;
-            cart.newTotal = cartTotal;
-            await cart.save({ session: mainSession });
-          }
-        } else if (appliedCouponCode) {
-          console.log(
-            "Mismatch between appliedCouponCode and cart.couponApplied:",
-            {
-              appliedCouponCode,
-              cartCouponApplied: cart.couponApplied,
-            }
-          );
-          couponDiscount = 0;
-          finalTotal = cartTotal;
-          cart.couponApplied = null;
-          cart.newTotal = cartTotal;
-          await cart.save({ session: mainSession });
-        }
-
-        if (paymentMethod === "WALLET") {
-          const userDoc = await User.findById(user._id).session(mainSession);
-          if (!userDoc || userDoc.walletBalance < finalTotal) {
-            await mainSession.abortTransaction();
-            mainSession.endSession();
-            console.log("Insufficient wallet balance:", {
-              required: finalTotal,
-              available: userDoc?.walletBalance || 0,
-            });
-            return res.status(400).json({
-              success: false,
-              error: "Insufficient wallet balance",
-            });
-          }
-        }
-
-        if (paymentMethod === "CASH_ON_DELIVERY" && finalTotal > 1000) {
-          await mainSession.abortTransaction();
-          mainSession.endSession();
-          console.log("COD not available for amount:", finalTotal);
-          return res.status(400).json({
-            success: false,
-            error: "Cash on Delivery is not available for orders above ₹1000",
-          });
-        }
-
-        const newOrder = new Order({
-          user: user._id,
-          items: cart.items.map((item) => ({
-            product: item.product._id,
-            quantity: item.quantity,
-            price: item.price,
-            size: item.size,
-            itemstatus: "PENDING",
-          })),
-          shippingAddress: selectedAddress,
-          totalAmount: finalTotal,
-          discountAmount: couponDiscount,
-          couponCode: cart.couponApplied || null,
-          paymentMethod,
-          orderStatus: "PENDING",
-          orderdate: new Date(),
-          transactiontype:
-            paymentMethod === "CASH_ON_DELIVERY" ? "COD" : paymentMethod,
-        });
-
-        await newOrder.save({ session: mainSession });
-        console.log("Order created:", {
-          orderId: newOrder._id,
-          totalAmount: newOrder.totalAmount,
-          discountAmount: newOrder.discountAmount,
-          couponCode: newOrder.couponCode,
-        });
-
-        if (cart.couponApplied) {
-          const coupon = await Coupon.findOne({
-            couponCode: cart.couponApplied,
-          }).session(mainSession);
-          if (coupon) {
-            const userDoc = await User.findById(user._id).session(mainSession);
-            if (!userDoc.usedCoupons) {
-              userDoc.usedCoupons = [];
-            }
-            userDoc.usedCoupons.push(coupon._id);
-            await userDoc.save({ session: mainSession });
-          }
-        }
-
-        if (paymentMethod === "WALLET") {
-          let userWallet = await Wallet.findOne({ user: user._id }).session(
-            mainSession
-          );
-
-          if (!userWallet) {
-            userWallet = new Wallet({
-              user: user._id,
-              balance: 0,
-              walletTransactions: [],
-            });
-          }
-          if (!userWallet.walletTransactions) {
-            userWallet.walletTransactions = [];
-          }
-
-          userWallet.balance -= finalTotal;
-          userWallet.walletTransactions.push({
-            type: "debit",
-            amount: finalTotal,
-            description: `Order payment - Order ${newOrder.orderId}`,
-            date: new Date(),
-            orderId: newOrder._id,
-          });
-          await userWallet.save({ session: mainSession });
-
-          newOrder.orderStatus = "PROCESSING";
-          await newOrder.save({ session: mainSession });
-          console.log("Wallet payment processed:", finalTotal);
-        } else if (paymentMethod === "CASH_ON_DELIVERY") {
-          newOrder.orderStatus = "PROCESSING";
-          await newOrder.save({ session: mainSession });
-          console.log("COD order confirmed");
-        }
-
-        // Update product stock
-        for (const item of cart.items) {
-          const product = await Product.findById(item.product._id).session(
-            mainSession
-          );
-          if (product) {
-            const variant = product.variants.find((v) => v.size === item.size);
-            if (variant) {
-              variant.stock = Math.max(0, variant.stock - item.quantity);
-              variant.reserved = Math.max(
-                0,
-                (variant.reserved || 0) - item.quantity
-              );
-              product.reserved = Math.max(
-                0,
-                (product.reserved || 0) - item.quantity
-              );
-              product.version += 1;
-              await product.save({ session: mainSession });
-              console.log(
-                `Stock updated for ${product.name} size ${item.size}:`,
-                {
-                  newStock: variant.stock,
-                  reserved: variant.reserved,
-                }
-              );
-            }
-          }
-        }
-
-        await Cart.findOneAndUpdate(
-          { user: user._id },
-          {
-            $set: {
-              items: [],
-              total: 0,
-              newTotal: 0,
-              couponApplied: null,
-            },
-          },
+      // Expire old reservations
+      if (!item.reservedAt || item.reservedAt < new Date(Date.now() - 10 * 60 * 1000)) {
+        unavailableItems.push({ name: item.product.name, size: item.size, reason: "Reservation expired" });
+        await Product.findOneAndUpdate(
+          { _id: product._id, "variants.size": item.size },
+          { $inc: { "variants.$.reserved": -item.quantity, reserved: -item.quantity, version: 1 } },
           { session: mainSession }
         );
-
-        if (req.session.couponCode) {
-          delete req.session.couponCode;
-        }
-        req.session.discount = 0;
-        req.session.totalpay = 0;
-
-        await mainSession.commitTransaction();
-        mainSession.endSession();
-
-        console.log("Order placed successfully:", newOrder._id);
-
-        req.session.lastOrderId = newOrder._id;
-
-        if (req.xhr || req.headers.accept.indexOf("json") > -1) {
-          return res.json({
-            success: true,
-            message: "Order placed successfully",
-            orderId: newOrder._id,
-            orderNumber: newOrder.orderId,
-            redirectUrl: "/successpage",
-          });
-        } else {
-          return res.redirect("/successpage");
-        }
-      } catch (error) {
-        await mainSession.abortTransaction();
-        mainSession.endSession();
-        console.error("Error in order processing transaction:", {
-          error: error.message,
-          stack: error.stack,
-        });
-        throw error;
-      }
-    } catch (error) {
-      console.error("Error in placeorder:", {
-        error: error.message,
-        stack: error.stack,
-        paymentMethod: req.body?.paymentMethod,
-        selectedAddress: req.body?.selectedAddress,
-      });
-
-      if (req.xhr || req.headers.accept.indexOf("json") > -1) {
-        return res.status(400).json({
-          success: false,
-          error:
-            error.message ||
-            "An error occurred while placing your order. Please try again.",
-        });
-      } else {
-        return res.status(500).render("userviews/error", {
-          error:
-            error.message ||
-            "An error occurred while placing your order. Please try again.",
-        });
+        cart.items = cart.items.filter(i => !(i.product._id.equals(product._id) && i.size === item.size));
       }
     }
-  },
+
+    if (unavailableItems.length > 0) {
+      await cart.save({ session: mainSession });
+      await mainSession.commitTransaction();
+      mainSession.endSession();
+
+      return req.xhr
+        ? res.status(400).json({ success: false, error: "Items unavailable", unavailableItems })
+        : res.send(`
+          <script>
+            alert("Some items are no longer available. Please review your cart.");
+            window.location = "/cart";
+          </script>
+        `);
+    }
+
+    // Renew all reservations
+    cart.items.forEach(i => i.reservedAt = new Date());
+    await cart.save({ session: mainSession });
+
+    // === CREATE ORDER ===
+    const totalPrice = cart.newTotal || cart.total;
+
+    const order = new Order({
+      user: user._id,
+      items: cart.items.map(i => ({
+        product: i.product._id,
+        quantity: i.quantity,
+        price: i.price,
+        size: i.size,
+      })),
+      totalAmount: totalPrice,
+      shippingAddress: selectedAddress,
+      paymentMethod,
+      orderStatus: paymentMethod === "CASH_ON_DELIVERY" ? "PROCESSING" : "PENDING",
+      couponCode: cart.couponApplied || null,
+      discountAmount: cart.couponApplied ? cart.total - cart.newTotal : 0,
+    });
+
+    await order.save({ session: mainSession });
+
+    // Deduct stock & release reservation
+    for (const item of cart.items) {
+      await Product.findOneAndUpdate(
+        { _id: item.product._id, "variants.size": item.size },
+        {
+          $inc: {
+            "variants.$.stock": -item.quantity,
+            "variants.$.reserved": -item.quantity,
+            reserved: -item.quantity,
+            version: 1,
+          },
+        },
+        { session: mainSession }
+      );
+    }
+
+    // Wallet payment
+    if (paymentMethod === "WALLET") {
+      const wallet = await Wallet.findOne({ user: user._id }).session(mainSession);
+      if (!wallet || wallet.balance < totalPrice) {
+        throw new Error("Insufficient wallet balance");
+      }
+      wallet.balance -= totalPrice;
+      wallet.walletTransactions.push({
+        type: "debit",
+        amount: totalPrice,
+        description: `Order #${order.orderId}`,
+        date: new Date(),
+        orderId: order._id,
+      });
+      await wallet.save({ session: mainSession });
+      order.orderStatus = "PROCESSING";
+      await order.save({ session: mainSession });
+    }
+
+    // Clear cart
+    cart.items = [];
+    cart.total = cart.newTotal = 0;
+    cart.couponApplied = null;
+    await cart.save({ session: mainSession });
+
+    req.session.couponCode = null;
+    req.session.totalpay = 0;
+
+    await mainSession.commitTransaction();
+    mainSession.endSession();
+
+    console.log("ORDER SUCCESS:", order._id);
+
+    // === AUTO DETECT & RESPOND CORRECTLY ===
+    if (req.xhr || req.headers.accept?.indexOf("json") > -1) {
+      // Razorpay or AJAX call → return JSON
+      return res.json({
+        success: true,
+        message: "Order placed successfully!",
+        orderId: order._id,
+        redirectUrl: "/successpage"
+      });
+    } else {
+      // Normal form submit (COD / Wallet) → redirect to success page
+      req.session.lastOrderId = order._id;
+      return res.redirect("/successpage");
+    }
+
+  } catch (error) {
+    await mainSession.abortTransaction();
+    mainSession.endSession();
+    console.error("PLACE ORDER ERROR:", error.message);
+
+    if (req.xhr || req.headers.accept?.indexOf("json") > -1) {
+      return res.status(400).json({
+        success: false,
+        error: error.message || "Order failed",
+      });
+    } else {
+      return res.send(`
+        <script>
+          alert("${error.message || "Order failed. Please try again."}");
+          window.history.back();
+        </script>
+      `);
+    }
+  }
+},
 
   paymentFailure: async (req, res) => {
     const session = await mongoose.startSession();

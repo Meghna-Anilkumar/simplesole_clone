@@ -1,806 +1,776 @@
-const mongoose = require('mongoose');
-const Cart = require('../models/cartSchema');
-const Product = require('../models/product');
-const ProductOffer = require('../models/productoffermodel');
-const CategoryOffer = require('../models/categoryoffer');
-const Wishlist = require('../models/wishlist');
-const { calculateTotalPrice } = require('../utils/cartfunctions');
-const Category = require('../models/category');
-const messages = require('../constants/messages');
-const STATUS_CODES=require('../enums/statusCodes')
-
+// controllers/cartController.js
+const mongoose = require("mongoose");
+const Cart = require("../models/cartSchema");
+const Product = require("../models/product");
+const ProductOffer = require("../models/productoffermodel");
+const CategoryOffer = require("../models/categoryoffer");
+const Wishlist = require("../models/wishlist");
+const { calculateTotalPrice } = require("../utils/cartfunctions");
+const Category = require("../models/category");
+const messages = require("../constants/messages");
+const STATUS_CODES = require("../enums/statusCodes");
 
 module.exports = {
   getcart: async (req, res) => {
     try {
       const user = req.session.user;
-      const cart = await Cart.findOne({ user })
-        .populate('items.product')
-        .exec();
-      const wishlist = await Wishlist.findOne({ user: user._id })
-        .populate('items.product')
-        .exec();
+      if (!user) return res.redirect("/login");
+
+      const cart = await Cart.findOne({ user }).populate({
+        path: "items.product",
+        populate: { path: "variants" },
+      });
+
+      const wishlist = await Wishlist.findOne({ user: user._id }).populate(
+        "items.product"
+      );
 
       let unavailableItems = [];
       let canProceedToCheckout = true;
 
-      if (cart && cart.items && cart.items.length > 0) {
+      if (cart && cart.items.length > 0) {
         const session = await mongoose.startSession();
         session.startTransaction();
+
         try {
           for (const item of cart.items) {
-            const product = await Product.findOne({ _id: item.product._id, version: { $exists: true } })
-              .session(session);
-            if (!product) {
+            const product = item.product;
+            if (!product || product.blocked) {
               unavailableItems.push({
-                productId: item.product._id,
-                name: item.product.name,
+                name: product?.name || "Unknown Product",
                 size: item.size,
-                reason: 'Product not found',
+                reason: "Product no longer available",
               });
+              canProceedToCheckout = false;
               continue;
             }
 
             const variant = product.variants.find((v) => v.size === item.size);
             if (!variant) {
               unavailableItems.push({
-                productId: item.product._id,
-                name: item.product.name,
+                name: product.name,
                 size: item.size,
-                reason: `Size ${item.size} not available`,
+                reason: "Selected size no longer exists",
               });
+              canProceedToCheckout = false;
               continue;
             }
 
-            const availableStock = variant.stock - (variant.reserved || 0);
-            if (availableStock < item.quantity) {
+            // CORRECT STOCK CALCULATION FOR CURRENT USER
+            const userReservedQty = item.quantity;
+            const othersReserved = Math.max(
+              0,
+              (variant.reserved || 0) - userReservedQty
+            );
+            const stockAvailableExcludingUser = variant.stock - othersReserved;
+            const totalAvailableForThisUser =
+              stockAvailableExcludingUser + userReservedQty;
+
+            // Only block if someone else took the stock
+            if (stockAvailableExcludingUser < 0) {
               unavailableItems.push({
-                productId: item.product._id,
-                name: item.product.name,
+                name: product.name,
                 size: item.size,
-                reason: `Only ${availableStock} item${availableStock !== 1 ? 's' : ''} available for size ${item.size}`,
+                reason: `Only ${
+                  variant.stock - othersReserved + userReservedQty
+                } left (over-reserved)`,
               });
+              canProceedToCheckout = false;
             }
 
-            if (item.reservedAt < new Date(Date.now() - 10 * 60 * 1000)) {
-              unavailableItems.push({
-                productId: item.product._id,
-                name: item.product.name,
-                size: item.size,
-                reason: `Reservation expired for size ${item.size}`,
-              });
-              variant.reserved = (variant.reserved || 0) - item.quantity;
-              product.reserved = (product.reserved || 0) - item.quantity;
-              product.version += 1;
-              await product.save({ session });
-              cart.items = cart.items.filter(
-                (i) => !(i.product._id.toString() === item.product._id.toString() && i.size === item.size)
+            // Expire old reservations (10 minutes)
+            if (
+              item.reservedAt &&
+              item.reservedAt < new Date(Date.now() - 10 * 60 * 1000)
+            ) {
+              await Product.findOneAndUpdate(
+                { _id: product._id, "variants.size": item.size },
+                {
+                  $inc: {
+                    "variants.$.reserved": -item.quantity,
+                    reserved: -item.quantity,
+                    version: 1,
+                  },
+                },
+                { session }
               );
+
+              cart.items = cart.items.filter(
+                (i) =>
+                  !(
+                    i.product.toString() === product._id.toString() &&
+                    i.size === item.size
+                  )
+              );
+
+              unavailableItems.push({
+                name: product.name,
+                size: item.size,
+                reason: "Reservation expired (10 mins)",
+              });
+              canProceedToCheckout = false;
             }
           }
 
-          if (unavailableItems.length > 0) {
-            canProceedToCheckout = false;
-            await cart.save({ session });
-          }
-
+          await cart.save({ session });
           await session.commitTransaction();
-          session.endSession();
-        } catch (error) {
+        } catch (err) {
           await session.abortTransaction();
+          throw err;
+        } finally {
           session.endSession();
-          console.error('Error validating stock in getcart:', {
-            error: error.message,
-            stack: error.stack,
-          });
-          throw error;
         }
       }
 
-      if (!cart) {
-        return res.render('userviews/cart', {
-          title: 'Cart',
-          category: [],
-          data: { total: 0 },
-          cart,
-          wishlist,
-          productOffers: [],
-          unavailableItems,
-          canProceedToCheckout: false,
-        });
+      const totalPrice =
+        cart?.items.length > 0
+          ? await calculateTotalPrice(
+              cart.items,
+              await ProductOffer.find({
+                startDate: { $lte: new Date() },
+                expiryDate: { $gte: new Date() },
+              }),
+              await CategoryOffer.find({
+                startDate: { $lte: new Date() },
+                expiryDate: { $gte: new Date() },
+              })
+            )
+          : 0;
+
+      if (cart) {
+        cart.total = totalPrice;
+        if (!req.session.couponCode) cart.newTotal = totalPrice;
+        await cart.save();
       }
 
-      const categories = await Category.find();
-      const productOffers = await ProductOffer.find({
-        startDate: { $lte: new Date() },
-        expiryDate: { $gte: new Date() },
-      });
-      const categoryOffers = await CategoryOffer.find({
-        startDate: { $lte: new Date() },
-        expiryDate: { $gte: new Date() },
-      });
-      const totalPrice = await calculateTotalPrice(cart.items, productOffers, categoryOffers);
-
-      if (isNaN(totalPrice)) {
-        console.error('Total price is not a number:', totalPrice);
-        return res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({ error: messages.INTERNAL_SERVER_ERROR });
-      }
-
-      cart.total = totalPrice;
-      if (!req.session.couponCode) {
-        cart.newTotal = totalPrice;
-      }
-      await cart.save();
-
-      console.log('Cart state:', { total: cart.total, newTotal: cart.newTotal });
-
-      res.render('userviews/cart', {
-        title: 'Cart',
-        category: categories,
+      res.render("userviews/cart", {
+        title: "Cart",
+        category: await Category.find(),
         cart,
         data: { total: totalPrice },
-        productOffers,
+        productOffers: await ProductOffer.find({
+          startDate: { $lte: new Date() },
+          expiryDate: { $gte: new Date() },
+        }),
         wishlist,
         unavailableItems,
         canProceedToCheckout,
       });
     } catch (error) {
-      console.error('Error fetching cart:', {
-        error: error.message,
-        stack: error.stack,
-      });
-      res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({ error:messages.INTERNAL_SERVER_ERROR });
+      console.error("getcart error:", error);
+      res.status(500).render("error", { message: "Something went wrong" });
     }
   },
 
   addtocart: async (req, res) => {
-    const { productId, quantity, size } = req.body;
     const session = await mongoose.startSession();
     session.startTransaction();
-
     try {
-      if (!mongoose.Types.ObjectId.isValid(productId) || !size || !quantity || isNaN(quantity) || quantity < 1) {
-        await session.abortTransaction();
-        session.endSession();
-        return res.status(400).json({
-          success: false,
-          error: 'Invalid product ID, size, or quantity',
-        });
+      const { productId, quantity, size } = req.body;
+      const qty = parseInt(quantity);
+      const userId = req.session.user._id;
+
+      console.log("\n========== ADD TO CART DEBUG ==========");
+      console.log("Product ID:", productId);
+      console.log("Requested Quantity:", qty);
+      console.log("Size:", size);
+      console.log("User ID:", userId);
+
+      // Validate input
+      if (!mongoose.Types.ObjectId.isValid(productId) || !size || qty < 1) {
+        console.log("❌ Invalid request parameters");
+        return res
+          .status(400)
+          .json({ success: false, error: "Invalid request" });
       }
 
-      const product = await Product.findOne({ _id: productId, version: { $exists: true } })
-        .session(session);
-      if (!product) {
-        await session.abortTransaction();
-        session.endSession();
-        return res.status(400).json({
-          success: false,
-          error: 'Product not found',
-        });
+      // Get product with session lock
+      const product = await Product.findById(productId).session(session);
+      if (!product || product.blocked) {
+        console.log("❌ Product unavailable or blocked");
+        throw new Error("Product unavailable");
       }
 
+      console.log("Product Name:", product.name);
+
+      // Find the variant for requested size
       const variant = product.variants.find((v) => v.size === size);
       if (!variant) {
-        await session.abortTransaction();
-        session.endSession();
-        return res.status(400).json({
-          success: false,
-          error: `Size ${size} not available`,
-        });
+        console.log("❌ Size not available");
+        throw new Error("Size not available");
       }
 
-      const availableStock = variant.stock - (variant.reserved || 0);
-      const requestedQuantity = parseInt(quantity);
+      console.log("\n--- VARIANT STOCK INFO ---");
+      console.log("Variant stock (total physical):", variant.stock);
+      console.log("Variant reserved (all users):", variant.reserved || 0);
 
-      if (availableStock < 1) {
-        await session.abortTransaction();
-        session.endSession();
-        return res.status(400).json({
-          success: false,
-          error: `Size ${size} is currently out of stock`,
-        });
-      }
-
-      if (availableStock < requestedQuantity) {
-        await session.abortTransaction();
-        session.endSession();
-        return res.status(400).json({
-          success: false,
-          error: `Only ${availableStock} item${availableStock > 1 ? 's' : ''} available for size ${size}`,
-        });
-      }
-
-      const user = req.session.user;
-      if (!user) {
-        await session.abortTransaction();
-        session.endSession();
-        return res.redirect('/login');
-      }
-
-      let cart = await Cart.findOne({ user }).session(session);
+      // Get or create cart
+      let cart = await Cart.findOne({ user: userId }).session(session);
       if (!cart) {
-        cart = new Cart({ user, items: [] });
+        console.log("Creating new cart for user");
+        cart = new Cart({ user: userId, items: [] });
       }
 
-      const productOffers = await ProductOffer.find({
-        product: productId,
-        startDate: { $lte: new Date() },
-        expiryDate: { $gte: new Date() },
-      }).session(session);
-
+      // Check if item already exists in cart
       const existingItem = cart.items.find(
-        (item) => item.product.equals(productId) && item.size === size
+        (i) => i.product.toString() === productId && i.size === size
       );
+
+      const currentQtyInCart = existingItem ? existingItem.quantity : 0;
+      const newTotalQty = currentQtyInCart + qty;
+
+      console.log("\n--- CART STATUS ---");
+      console.log("Current quantity in cart:", currentQtyInCart);
+      console.log("Adding quantity:", qty);
+      console.log("New total quantity:", newTotalQty);
+
+      // ========== CORRECTED STOCK CALCULATION ==========
+      // Available stock = Total stock - Reserved by OTHER users
+      const currentlyReservedByThisUser = currentQtyInCart;
+      const totalReserved = variant.reserved || 0;
+      const reservedByOthers = Math.max(
+        0,
+        totalReserved - currentlyReservedByThisUser
+      );
+      const realAvailableStock = variant.stock - reservedByOthers;
+
+      console.log("\n--- AVAILABILITY CALCULATION ---");
+      console.log(
+        "Currently reserved by THIS user:",
+        currentlyReservedByThisUser
+      );
+      console.log("Reserved by OTHERS:", reservedByOthers);
+      console.log("Real available stock:", realAvailableStock);
+
+      // Validate if we can add the requested quantity
+      if (newTotalQty > realAvailableStock) {
+        const canAdd = realAvailableStock - currentQtyInCart;
+        console.log("\n❌ VALIDATION FAILED");
+        console.log(
+          `User wants total of ${newTotalQty} but only ${realAvailableStock} available`
+        );
+        console.log(`Can only add ${canAdd} more items`);
+        throw new Error(
+          canAdd > 0
+            ? `Only ${canAdd} more available (you have ${currentQtyInCart} in cart)`
+            : `No more available (you have ${currentQtyInCart} in cart)`
+        );
+      }
+
+      console.log("✅ VALIDATION PASSED");
+      console.log(
+        `Can add ${qty} items (total will be ${newTotalQty}/${realAvailableStock})`
+      );
+
+      // Update or add item to cart
       if (existingItem) {
-        const totalQuantityAfterAdd = existingItem.quantity + requestedQuantity;
-        if (totalQuantityAfterAdd > availableStock) {
-          await session.abortTransaction();
-          session.endSession();
-          return res.status(400).json({
-            success: false,
-            error: `You already have ${existingItem.quantity} in cart for size ${size}. You can add maximum ${availableStock - existingItem.quantity} more item${availableStock - existingItem.quantity !== 1 ? 's' : ''}`,
-          });
-        }
-        existingItem.quantity = totalQuantityAfterAdd;
+        console.log("\n--- UPDATING EXISTING ITEM ---");
+        existingItem.quantity = newTotalQty;
         existingItem.reservedAt = new Date();
-        let price = product.price;
-        if (productOffers.length > 0) {
-          price = productOffers[0].newPrice;
-        } else if (product.categoryofferprice && product.categoryofferprice < product.price) {
-          price = product.categoryofferprice;
-        }
-        existingItem.price = price;
+        console.log(
+          "Updated quantity from",
+          currentQtyInCart,
+          "to",
+          newTotalQty
+        );
       } else {
-        let price = product.price;
-        if (productOffers.length > 0) {
-          price = productOffers[0].newPrice;
-        } else if (product.categoryofferprice && product.categoryofferprice < product.price) {
-          price = product.categoryofferprice;
-        }
+        console.log("\n--- ADDING NEW ITEM ---");
+        const price =
+          product.categoryofferprice < product.price
+            ? product.categoryofferprice
+            : product.price;
 
         cart.items.push({
           product: productId,
-          quantity: requestedQuantity,
+          quantity: qty,
           size,
-          price,
+          price: price,
           reservedAt: new Date(),
         });
+        console.log("Added new item with quantity:", qty, "at price:", price);
       }
 
-      variant.reserved = (variant.reserved || 0) + requestedQuantity;
-      product.reserved = (product.reserved || 0) + requestedQuantity;
-      product.version += 1;
-      await product.save({ session });
-
-      const totalPrice = await calculateTotalPrice(
-        cart.items,
-        productOffers,
-        await CategoryOffer.find({
-          startDate: { $lte: new Date() },
-          expiryDate: { $gte: new Date() },
-        }).session(session)
+      // Reserve the additional quantity in product
+      await Product.findOneAndUpdate(
+        { _id: productId, "variants.size": size },
+        {
+          $inc: {
+            "variants.$.reserved": qty,
+            reserved: qty,
+            version: 1,
+          },
+        },
+        { session }
       );
-      cart.total = totalPrice;
-      if (!req.session.couponCode) {
-        cart.newTotal = totalPrice;
-      }
+
+      console.log("\n--- RESERVATION UPDATE ---");
+      console.log("Increased variant.reserved by:", qty);
+      console.log(
+        "New variant.reserved will be:",
+        (variant.reserved || 0) + qty
+      );
+
+      // Calculate and save cart total
+      const total = await calculateTotalPrice(cart.items, [], []);
+      cart.total = cart.newTotal = total;
       await cart.save({ session });
-
-      console.log('Cart updated (addtocart):', {
-        total: cart.total,
-        newTotal: cart.newTotal,
-      });
-
       await session.commitTransaction();
-      session.endSession();
+
+      console.log("\n--- RESPONSE ---");
+      console.log("Cart total:", total);
+      console.log("Items in cart:", cart.items.length);
+      console.log("==========================================\n");
 
       res.json({
         success: true,
-        message: 'Product added to cart successfully',
+        cartTotal: total,
+        itemCount: cart.items.length,
       });
     } catch (error) {
+      console.log("\n❌ ADD TO CART ERROR:", error.message);
+      console.log("==========================================\n");
       await session.abortTransaction();
+      res.status(400).json({ success: false, error: error.message });
+    } finally {
       session.endSession();
-      console.error('Error adding to cart:', {
-        error: error.message,
-        stack: error.stack,
-        productId,
-        quantity,
-        size,
-      });
-      res.status(500).json({
-        success: false,
-        error: error.message || Messages.INTERNAL_SERVER_ERROR,
-      });
     }
   },
 
   updatequantity: async (req, res) => {
-    const { productId, change } = req.params;
     const session = await mongoose.startSession();
     session.startTransaction();
-
     try {
-      if (!mongoose.Types.ObjectId.isValid(productId) || isNaN(parseInt(change))) {
-        await session.abortTransaction();
-        session.endSession();
-        return res.status(400).json({ error: 'Invalid product ID or change value' });
+      const { productId, change } = req.params;
+      const changeAmt = parseInt(change);
+      const user = req.session.user._id;
+
+      console.log("\n========== UPDATE QUANTITY DEBUG ==========");
+      console.log("Product ID:", productId);
+      console.log("Change Amount:", changeAmt);
+      console.log("User ID:", user);
+
+      const cart = await Cart.findOne({ user: user }).populate({
+        path: "items.product",
+        populate: { path: "variants" },
+      });
+
+      const item = cart.items.find(
+        (i) => i.product && i.product._id.toString() === productId
+      );
+
+      if (!item) throw new Error("Item not found");
+
+      console.log("\n--- BEFORE UPDATE ---");
+      console.log("Product Name:", item.product.name);
+      console.log("Size:", item.size);
+      console.log("Current cart quantity:", item.quantity);
+      console.log("Requested new quantity:", item.quantity + changeAmt);
+
+      const variant = item.product.variants.find((v) => v.size === item.size);
+      if (!variant) throw new Error("Size not found");
+
+      console.log("\n--- VARIANT STOCK INFO ---");
+      console.log("Variant stock (total physical):", variant.stock);
+      console.log("Variant reserved (all users):", variant.reserved || 0);
+
+      const newQty = item.quantity + changeAmt;
+      if (newQty < 1) throw new Error("Minimum quantity is 1");
+
+      // ========== CORRECTED STOCK CALCULATION ==========
+      // The actual available stock is:
+      // Total stock MINUS reservations by OTHER users
+      // This user's current reservation doesn't count as "taken"
+
+      const currentlyReservedByThisUser = item.quantity;
+      const totalReserved = variant.reserved || 0;
+      const reservedByOthers = Math.max(
+        0,
+        totalReserved - currentlyReservedByThisUser
+      );
+
+      // Real available stock (excluding what others have reserved)
+      const realAvailableStock = variant.stock - reservedByOthers;
+
+      console.log("\n--- AVAILABILITY CALCULATION ---");
+      console.log(
+        "Currently reserved by THIS user:",
+        currentlyReservedByThisUser
+      );
+      console.log("Reserved by OTHERS:", reservedByOthers);
+      console.log("Real available stock (for this user):", realAvailableStock);
+      console.log("Attempting to set quantity to:", newQty);
+
+      // Check if new quantity exceeds available stock
+      if (newQty > realAvailableStock) {
+        console.log("\n❌ VALIDATION FAILED");
+        console.log(
+          `User wants ${newQty} but only ${realAvailableStock} available`
+        );
+        throw new Error(`Only ${realAvailableStock} available`);
       }
 
-      const product = await Product.findOne({ _id: productId, version: { $exists: true } })
-        .session(session);
-      if (!product) {
-        await session.abortTransaction();
-        session.endSession();
-        return res.status(404).json({ error: 'Product not found' });
-      }
+      console.log("\n✅ VALIDATION PASSED");
+      console.log(
+        `User can have ${newQty} items (${realAvailableStock} available)`
+      );
 
-      const cart = await Cart.findOne({ 'items.product': productId })
-        .populate('items.product')
-        .session(session);
-      if (!cart) {
-        await session.abortTransaction();
-        session.endSession();
-        return res.status(404).json({ error: 'Item not found in the cart' });
-      }
-
-      const item = cart.items.find((item) => item.product._id.toString() === productId);
-      if (!item) {
-        await session.abortTransaction();
-        session.endSession();
-        return res.status(404).json({ error: 'Item not found in the cart' });
-      }
-
-      const variant = product.variants.find((v) => v.size === item.size);
-      if (!variant) {
-        await session.abortTransaction();
-        session.endSession();
-        return res.status(400).json({ error: `Size ${item.size} not available` });
-      }
-
-      const currentQuantity = item.quantity;
-      const changeAmount = parseInt(change, 10);
-      const newQuantity = currentQuantity + changeAmount;
-
-      if (newQuantity < 1) {
-        await session.abortTransaction();
-        session.endSession();
-        return res.status(400).json({ error: 'Quantity cannot be less than 1' });
-      }
-
-      const availableStock = variant.stock - (variant.reserved - currentQuantity);
-      if (newQuantity > availableStock) {
-        await session.abortTransaction();
-        session.endSession();
-        return res.status(400).json({
-          error: `Only ${availableStock} item${availableStock !== 1 ? 's' : ''} available for size ${item.size}`,
-        });
-      }
-
-      let itemPrice = product.price;
-      const productOffers = await ProductOffer.find({
-        product: productId,
-        startDate: { $lte: new Date() },
-        expiryDate: { $gte: new Date() },
-      }).session(session);
-      if (productOffers.length > 0) {
-        itemPrice = productOffers[0].newPrice;
-      } else if (product.categoryofferprice && product.categoryofferprice < product.price) {
-        itemPrice = product.categoryofferprice;
-      }
-
-      variant.reserved += changeAmount;
-      product.reserved += changeAmount;
-      product.version += 1;
-      await product.save({ session });
-
-      const updatedCart = await Cart.findOneAndUpdate(
-        { 'items.product': productId, 'items.size': item.size },
+      // Update the product's reserved count
+      // If increasing: reserve more (+changeAmt)
+      // If decreasing: release some (-changeAmt)
+      await Product.findOneAndUpdate(
+        { _id: productId, "variants.size": item.size },
         {
-          $set: {
-            'items.$.quantity': newQuantity,
-            'items.$.price': itemPrice,
-            'items.$.reservedAt': new Date(),
+          $inc: {
+            "variants.$.reserved": changeAmt,
+            reserved: changeAmt,
+            version: 1,
           },
         },
-        { new: true }
-      ).populate('items.product').session(session);
-
-      if (!updatedCart) {
-        await session.abortTransaction();
-        session.endSession();
-        return res.status(500).json({ error: 'Failed to update cart' });
-      }
-
-      const cartTotal = await calculateTotalPrice(
-        updatedCart.items,
-        productOffers,
-        await CategoryOffer.find({
-          startDate: { $lte: new Date() },
-          expiryDate: { $gte: new Date() },
-        }).session(session)
+        { session }
       );
-      updatedCart.total = cartTotal;
-      if (!req.session.couponCode) {
-        updatedCart.newTotal = cartTotal;
-      }
-      await updatedCart.save({ session });
 
-      console.log('Cart updated (updatequantity):', {
-        total: updatedCart.total,
-        newTotal: updatedCart.newTotal,
-      });
+      console.log("\n--- AFTER UPDATE ---");
+      console.log("Updated variant.reserved by:", changeAmt);
+      console.log(
+        "New variant.reserved will be:",
+        (variant.reserved || 0) + changeAmt
+      );
 
+      item.quantity = newQty;
+      item.reservedAt = new Date();
+
+      const total = await calculateTotalPrice(cart.items, [], []);
+      cart.total = cart.newTotal = total;
+      await cart.save({ session });
       await session.commitTransaction();
-      session.endSession();
+
+      console.log("\n--- RESPONSE ---");
+      console.log("New quantity:", newQty);
+      console.log("Cart total:", total);
+      console.log("Max available for this user:", realAvailableStock);
+      console.log("==========================================\n");
 
       res.json({
-        quantity: newQuantity,
-        itemPrice: itemPrice * newQuantity,
-        total: cartTotal,
+        success: true,
+        quantity: newQty,
+        total,
+        itemPrice: item.price * newQty,
+        maxAvailable: realAvailableStock,
+        isAtMax: newQty >= realAvailableStock,
       });
     } catch (error) {
+      console.log("\n❌ ERROR:", error.message);
+      console.log("==========================================\n");
       await session.abortTransaction();
+      res.status(400).json({ success: false, error: error.message });
+    } finally {
       session.endSession();
-      console.error('Error updating quantity:', {
-        error: error.message,
-        stack: error.stack,
-        productId,
-        change,
-      });
-      res.status(500).json({ error: error.message || Messages.INTERNAL_SERVER_ERROR});
     }
   },
 
   deleteitem: async (req, res) => {
-    const { productId } = req.params;
     const session = await mongoose.startSession();
     session.startTransaction();
-
     try {
-      if (!mongoose.Types.ObjectId.isValid(productId)) {
-        await session.abortTransaction();
-        session.endSession();
-        return res.status(400).json({ error: 'Invalid product ID' });
-      }
+      const { productId } = req.params;
+      const user = req.session.user;
 
-      const cart = await Cart.findOne({ 'items.product': productId }).session(session);
-      if (!cart) {
-        await session.abortTransaction();
-        session.endSession();
-        return res.status(404).json({ error: 'Item not found in the cart' });
-      }
-
-      const item = cart.items.find((item) => item.product.toString() === productId);
-      if (!item) {
-        await session.abortTransaction();
-        session.endSession();
-        return res.status(404).json({ error: 'Item not found in the cart' });
-      }
-
-      const product = await Product.findOne({ _id: productId, version: { $exists: true } })
-        .session(session);
-      if (product) {
-        const variant = product.variants.find((v) => v.size === item.size);
-        if (variant) {
-          variant.reserved = (variant.reserved || 0) - item.quantity;
-          product.reserved = (product.reserved || 0) - item.quantity;
-          product.version += 1;
-          await product.save({ session });
-        }
-      }
-
-      const updatedCart = await Cart.findOneAndUpdate(
-        { 'items.product': productId, 'items.size': item.size },
-        { $pull: { items: { product: productId, size: item.size } } },
-        { new: true }
-      ).session(session);
-
-      const totalPrice = await calculateTotalPrice(
-        updatedCart.items,
-        await ProductOffer.find({
-          startDate: { $lte: new Date() },
-          expiryDate: { $gte: new Date() },
-        }).session(session),
-        await CategoryOffer.find({
-          startDate: { $lte: new Date() },
-          expiryDate: { $gte: new Date() },
-        }).session(session)
-      );
-      updatedCart.total = totalPrice;
-      if (!req.session.couponCode) {
-        updatedCart.newTotal = totalPrice;
-      }
-      await updatedCart.save({ session });
-
-      console.log('Cart updated (deleteitem):', {
-        total: updatedCart.total,
-        newTotal: updatedCart.newTotal,
+      const cart = await Cart.findOne({ user }).populate({
+        path: "items.product",
+        populate: { path: "variants" },
       });
 
-      await session.commitTransaction();
-      session.endSession();
+      const item = cart.items.find(
+        (i) =>
+          i.product && i.product._id && i.product._id.toString() === productId
+      );
 
-      res.json({ message: 'Item removed successfully' });
+      if (!item) throw new Error("Item not found");
+
+      await Product.findOneAndUpdate(
+        { _id: productId, "variants.size": item.size },
+        {
+          $inc: {
+            "variants.$.reserved": -item.quantity,
+            reserved: -item.quantity,
+            version: 1,
+          },
+        },
+        { session }
+      );
+
+      cart.items = cart.items.filter(
+        (i) =>
+          !(
+            i.product &&
+            i.product._id &&
+            i.product._id.toString() === productId &&
+            i.size === item.size
+          )
+      );
+
+      const total = await calculateTotalPrice(
+        cart.items,
+        await ProductOffer.find().session(session),
+        await CategoryOffer.find().session(session)
+      );
+      cart.total = cart.newTotal = total;
+      await cart.save({ session });
+      await session.commitTransaction();
+
+      res.json({ success: true });
     } catch (error) {
       await session.abortTransaction();
+      res.status(400).json({ error: error.message });
+    } finally {
       session.endSession();
-      console.error('Error removing item:', {
-        error: error.message,
-        stack: error.stack,
-        productId,
+    }
+  },
+
+  updateSize: async (req, res) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    try {
+      const { productId, newSize } = req.params;
+      const user = req.session.user;
+
+      const cart = await Cart.findOne({ user }).populate({
+        path: "items.product",
+        populate: { path: "variants" },
       });
-      res.status(500).json({ error: Messages.INTERNAL_SERVER_ERROR});
+
+      const item = cart.items.find((i) => i.product.toString() === productId);
+      if (!item) throw new Error("Item not found");
+
+      const product = item.product;
+      const newVariant = product.variants.find((v) => v.size === newSize);
+
+      if (!newVariant) throw new Error(`Size ${newSize} not available`);
+      if (newVariant.stock - (newVariant.reserved || 0) < item.quantity)
+        throw new Error(
+          `Only ${newVariant.stock - (newVariant.reserved || 0)} left`
+        );
+
+      // Release old
+      await Product.findOneAndUpdate(
+        { _id: productId, "variants.size": item.size },
+        {
+          $inc: {
+            "variants.$.reserved": -item.quantity,
+            reserved: -item.quantity,
+            version: 1,
+          },
+        },
+        { session }
+      );
+
+      // Reserve new
+      await Product.findOneAndUpdate(
+        { _id: productId, "variants.size": newSize },
+        {
+          $inc: {
+            "variants.$.reserved": item.quantity,
+            reserved: item.quantity,
+            version: 1,
+          },
+        },
+        { session }
+      );
+
+      item.size = newSize;
+      item.reservedAt = new Date();
+
+      const total = await calculateTotalPrice(
+        cart.items,
+        await ProductOffer.find().session(session),
+        await CategoryOffer.find().session(session)
+      );
+      cart.total = cart.newTotal = total;
+      await cart.save({ session });
+      await session.commitTransaction();
+
+      res.json({ success: true, total });
+    } catch (error) {
+      await session.abortTransaction();
+      res.status(400).json({ error: error.message });
+    } finally {
+      session.endSession();
     }
   },
 
   getCartTotal: async (req, res) => {
     try {
       const user = req.session.user;
-      const cart = await Cart.findOne({ user }).populate('items.product').exec();
+      if (!user) {
+        return res.status(401).json({ success: false, error: "Unauthorized" });
+      }
 
-      if (!cart) {
-        return res.status(404).json({ success: false, error: 'Cart not found' });
+      // Properly populate product + variants to get real-time reserved count
+      const cart = await Cart.findOne({ user }).populate({
+        path: "items.product",
+        populate: { path: "variants" },
+      });
+
+      if (!cart || cart.items.length === 0) {
+        return res.json({ success: true, total: 0, newTotal: 0 });
       }
 
       const productOffers = await ProductOffer.find({
         startDate: { $lte: new Date() },
         expiryDate: { $gte: new Date() },
       });
+
       const categoryOffers = await CategoryOffer.find({
         startDate: { $lte: new Date() },
         expiryDate: { $gte: new Date() },
       });
-      const total = await calculateTotalPrice(cart.items, productOffers, categoryOffers);
 
+      const total = await calculateTotalPrice(
+        cart.items,
+        productOffers,
+        categoryOffers
+      );
+
+      // Update cart totals
       cart.total = total;
       if (!req.session.couponCode) {
         cart.newTotal = total;
       }
       await cart.save();
 
-      console.log('Cart state (getCartTotal):', {
-        total: cart.total,
-        newTotal: cart.newTotal,
-      });
-
       res.json({
         success: true,
         total,
-        newTotal: cart.newTotal,
+        newTotal: cart.newTotal || total,
       });
     } catch (error) {
-      console.error('Error fetching cart total:', {
-        error: error.message,
-        stack: error.stack,
-      });
-      res.status(500).json({ success: false, error:  Messages.INTERNAL_SERVER_ERROR});
-    }
-  },
-
-  updateSize: async (req, res) => {
-    const { productId, newSize } = req.params;
-    const session = await mongoose.startSession();
-    session.startTransaction();
-
-    try {
-      if (!mongoose.Types.ObjectId.isValid(productId) || !newSize) {
-        await session.abortTransaction();
-        session.endSession();
-        return res.status(400).json({ error: 'Invalid product ID or size' });
-      }
-
-      const product = await Product.findOne({ _id: productId, version: { $exists: true } })
-        .session(session);
-      if (!product) {
-        await session.abortTransaction();
-        session.endSession();
-        return res.status(404).json({ error: 'Product not found' });
-      }
-
-      const cart = await Cart.findOne({ 'items.product': productId })
-        .populate('items.product')
-        .session(session);
-      if (!cart) {
-        await session.abortTransaction();
-        session.endSession();
-        return res.status(404).json({ error: 'Item not found in the cart' });
-      }
-
-      const item = cart.items.find((item) => item.product._id.toString() === productId);
-      if (!item) {
-        await session.abortTransaction();
-        session.endSession();
-        return res.status(404).json({ error: 'Item not found in the cart' });
-      }
-
-      const oldVariant = product.variants.find((v) => v.size === item.size);
-      const newVariant = product.variants.find((v) => v.size === newSize);
-      if (!newVariant) {
-        await session.abortTransaction();
-        session.endSession();
-        return res.status(400).json({ error: `Size ${newSize} not available` });
-      }
-
-      const availableStock = newVariant.stock - (newVariant.reserved || 0);
-      if (availableStock < item.quantity) {
-        await session.abortTransaction();
-        session.endSession();
-        return res.status(400).json({
-          error: `Only ${availableStock} item${availableStock !== 1 ? 's' : ''} available for size ${newSize}`,
-        });
-      }
-
-      let itemPrice = product.price;
-      const productOffers = await ProductOffer.find({
-        product: productId,
-        startDate: { $lte: new Date() },
-        expiryDate: { $gte: new Date() },
-      }).session(session);
-      if (productOffers.length > 0) {
-        itemPrice = productOffers[0].newPrice;
-      } else if (product.categoryofferprice && product.categoryofferprice < product.price) {
-        itemPrice = product.categoryofferprice;
-      }
-
-      if (oldVariant) {
-        oldVariant.reserved = (oldVariant.reserved || 0) - item.quantity;
-        product.reserved = (product.reserved || 0) - item.quantity;
-      }
-      newVariant.reserved = (newVariant.reserved || 0) + item.quantity;
-      product.reserved = (product.reserved || 0) + item.quantity;
-      product.version += 1;
-      await product.save({ session });
-
-      const updatedCart = await Cart.findOneAndUpdate(
-        { 'items.product': productId, 'items.size': item.size },
-        {
-          $set: {
-            'items.$.size': newSize,
-            'items.$.price': itemPrice,
-            'items.$.reservedAt': new Date(),
-          },
-        },
-        { new: true }
-      ).populate('items.product').session(session);
-
-      const cartTotal = await calculateTotalPrice(
-        updatedCart.items,
-        productOffers,
-        await CategoryOffer.find({
-          startDate: { $lte: new Date() },
-          expiryDate: { $gte: new Date() },
-        }).session(session)
-      );
-      updatedCart.total = cartTotal;
-      if (!req.session.couponCode) {
-        updatedCart.newTotal = cartTotal;
-      }
-      await updatedCart.save({ session });
-
-      console.log('Cart updated (updateSize):', {
-        total: updatedCart.total,
-        newTotal: updatedCart.newTotal,
-      });
-
-      await session.commitTransaction();
-      session.endSession();
-
-      res.json({
-        quantity: item.quantity,
-        itemPrice: itemPrice * item.quantity,
-        total: cartTotal,
-      });
-    } catch (error) {
-      await session.abortTransaction();
-      session.endSession();
-      console.error('Error updating size:', {
-        error: error.message,
-        stack: error.stack,
-        productId,
-        newSize,
-      });
-      res.status(500).json({ error: error.message || 'Internal Server Error' });
+      console.error("getCartTotal error:", error);
+      res
+        .status(500)
+        .json({ success: false, error: "Failed to fetch cart total" });
     }
   },
 
   validateStockBeforeCheckout: async (req, res) => {
     const session = await mongoose.startSession();
     session.startTransaction();
-
     try {
       const user = req.session.user;
+
+      console.log("\n========== VALIDATE STOCK BEFORE CHECKOUT ==========");
+      console.log("User ID:", user._id);
+
       const cart = await Cart.findOne({ user })
-        .populate('items.product')
+        .populate({
+          path: "items.product",
+          populate: { path: "variants" },
+        })
         .session(session);
 
-      if (!cart || !cart.items.length) {
-        await session.abortTransaction();
-        session.endSession();
-        return res.status(400).json({ success: false, error: 'Cart is empty' });
+      if (!cart || cart.items.length === 0) {
+        console.log("Cart is empty - validation passed");
+        await session.commitTransaction();
+        return res.json({ success: true });
       }
 
-      const unavailableItems = [];
+      console.log("Cart items count:", cart.items.length);
+
+      const unavailable = [];
 
       for (const item of cart.items) {
-        const product = await Product.findOne({ _id: item.product._id, version: { $exists: true } })
-          .session(session);
-        if (!product) {
-          unavailableItems.push({
-            productId: item.product._id,
-            name: item.product.name,
-            size: item.size,
-            reason: 'Product not found',
-          });
-          continue;
-        }
+        console.log(
+          "\n--- Validating item:",
+          item.product.name,
+          "size:",
+          item.size
+        );
+        console.log("User wants quantity:", item.quantity);
 
-        const variant = product.variants.find((v) => v.size === item.size);
+        const variant = item.product.variants.find((v) => v.size === item.size);
+
         if (!variant) {
-          unavailableItems.push({
+          console.log("❌ Variant not found");
+          unavailable.push({
             productId: item.product._id,
             name: item.product.name,
             size: item.size,
-            reason: `Size ${item.size} not available`,
+            reason: "Size not found",
           });
           continue;
         }
 
-        const availableStock = variant.stock - (variant.reserved || 0);
-        if (availableStock < item.quantity) {
-          unavailableItems.push({
+        console.log("Variant info:", {
+          stock: variant.stock,
+          totalReserved: variant.reserved || 0,
+        });
+
+        // CRITICAL: Check if this user's reservation is still valid
+        const userReservedQty = item.quantity;
+        const othersReserved = Math.max(
+          0,
+          (variant.reserved || 0) - userReservedQty
+        );
+        const realAvailable = variant.stock - othersReserved;
+
+        console.log("Availability calculation:", {
+          userReservedQty,
+          othersReserved,
+          realAvailable,
+        });
+
+        // Check if user's cart quantity can be fulfilled
+        if (realAvailable < item.quantity) {
+          console.log("❌ INSUFFICIENT STOCK");
+          console.log(
+            `User wants ${item.quantity} but only ${realAvailable} available`
+          );
+
+          unavailable.push({
             productId: item.product._id,
             name: item.product.name,
             size: item.size,
-            reason: `Only ${availableStock} item${availableStock !== 1 ? 's' : ''} available for size ${item.size}`,
+            available: realAvailable,
+            needed: item.quantity,
+            reason: `Only ${realAvailable} items available for size ${item.size}`,
           });
+        } else {
+          console.log("✅ Stock available for this item");
         }
 
-        if (item.reservedAt < new Date(Date.now() - 10 * 60 * 1000)) {
-          unavailableItems.push({
-            productId: item.product._id,
-            name: item.product.name,
-            size: item.size,
-            reason: `Reservation expired for size ${item.size}`,
-          });
-          variant.reserved = (variant.reserved || 0) - item.quantity;
-          product.reserved = (product.reserved || 0) - item.quantity;
-          product.version += 1;
-          await product.save({ session });
-          cart.items = cart.items.filter(
-            (i) => !(i.product._id.toString() === item.product._id.toString() && i.size === item.size)
-          );
-        }
+        // Renew reservation timestamp
+        item.reservedAt = new Date();
       }
 
-      if (unavailableItems.length > 0) {
-        await cart.save({ session });
+      await cart.save({ session });
+
+      if (unavailable.length > 0) {
+        console.log(
+          "\n❌ VALIDATION FAILED - Unavailable items:",
+          unavailable.length
+        );
+        console.log("Unavailable items:", JSON.stringify(unavailable, null, 2));
+        console.log("=================================================\n");
+
         await session.commitTransaction();
-        session.endSession();
         return res.status(400).json({
           success: false,
-          error: 'Some items are unavailable',
-          unavailableItems,
+          error: "Some items are unavailable",
+          unavailableItems: unavailable,
         });
       }
 
-      cart.items.forEach((item) => {
-        item.reservedAt = new Date();
-      });
-      await cart.save({ session });
+      console.log("\n✅ VALIDATION PASSED - All items available");
+      console.log("=================================================\n");
 
       await session.commitTransaction();
-      session.endSession();
-
-      res.json({ success: true, message: 'Stock validated successfully' });
+      res.json({ success: true });
     } catch (error) {
+      console.log("\n❌ VALIDATION ERROR:", error.message);
+      console.log("=================================================\n");
       await session.abortTransaction();
+      res.status(500).json({ success: false, error: "Server error" });
+    } finally {
       session.endSession();
-      console.error('Error validating stock:', {
-        error: error.message,
-        stack: error.stack,
-      });
-      res.status(500).json({ success: false, error: 'Internal Server Error' });
     }
   },
 };
