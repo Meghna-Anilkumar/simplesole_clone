@@ -7,12 +7,55 @@ const Cart = require("../models/cartSchema");
 const cloudinary = require("cloudinary").v2;
 const HttpStatusCode = require("../enums/statusCodes");
 const { calculateCategoryOfferPrice } = require("../utils/cartfunctions");
+const mongoose = require("mongoose");
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
+
+const getEffectivePrice = (
+  product,
+  productOffers = [],
+  categoryOffers = []
+) => {
+  const now = new Date();
+
+  const activeProductOffer = productOffers.find((offer) => {
+    const offerProductId = offer.product._id
+      ? offer.product._id.toString()
+      : offer.product.toString();
+    return (
+      offerProductId === product._id.toString() &&
+      now >= new Date(offer.startDate) &&
+      now <= new Date(offer.expiryDate)
+    );
+  });
+
+  if (activeProductOffer) {
+    return activeProductOffer.newPrice;
+  }
+
+  const activeCategoryOffer = categoryOffers.find((offer) => {
+    const offerCatId = offer.category._id
+      ? offer.category._id.toString()
+      : offer.category.toString();
+    const productCatId = product.category._id
+      ? product.category._id.toString()
+      : product.category.toString();
+    return (
+      offerCatId === productCatId &&
+      now >= new Date(offer.startDate) &&
+      now <= new Date(offer.expiryDate)
+    );
+  });
+
+  if (activeCategoryOffer) {
+    return product.price * (1 - activeCategoryOffer.discountPercentage / 100);
+  }
+  return product.price;
+};
 
 const updateCategoryOfferPrice = async (categoryId) => {
   try {
@@ -175,7 +218,6 @@ module.exports = {
         description: req.body.description.trim(),
         category: req.body.category,
         price: parseFloat(req.body.price),
-        // stock: totalStock,  // REMOVE THIS LINE - field doesn't exist in schema
         variants: variants,
         images: croppedImages,
       });
@@ -378,7 +420,6 @@ module.exports = {
         description: req.body.description.trim(),
         category: req.body.category,
         price: parseFloat(req.body.price),
-        // stock: totalStock,  // REMOVE THIS LINE - field doesn't exist in schema
         variants: variants,
         images: updatedImages,
       };
@@ -458,152 +499,113 @@ module.exports = {
     }
   },
 
-  // Fixed version of the getproductdetails function
   getproductdetails: async (req, res) => {
     try {
       const productId = req.params.id;
       console.log(`[getproductdetails] Fetching product with ID: ${productId}`);
 
-      const productDoc = await Product.findById(productId).populate({
-        path: "category",
-        select: "name",
-      });
-
-      if (!productDoc) {
-        console.log(
-          `[getproductdetails] Product not found for ID: ${productId}`
-        );
+      // Validate ObjectId early
+      if (!mongoose.Types.ObjectId.isValid(productId)) {
         return res
           .status(404)
           .render("error", { message: "Product not found" });
       }
 
-      // Convert to plain object to allow modifications
-      const product = productDoc.toObject();
+      const productDoc = await Product.findById(productId)
+        .populate({ path: "category", select: "name _id" })
+        .lean(); // Use lean() for performance
 
-      console.log(
-        `[getproductdetails] Raw product data: ${JSON.stringify(
-          product,
-          null,
-          2
-        )}`
-      );
-
-      // Filter valid variants (must have size and valid stock)
-      const validVariants = product.variants.filter(
-        (variant) =>
-          variant.size &&
-          typeof variant.stock === "number" &&
-          !isNaN(variant.stock)
-      );
-      console.log(
-        `[getproductdetails] Valid variants after filtering: ${JSON.stringify(
-          validVariants,
-          null,
-          2
-        )}`
-      );
-
-      // FIXED: Process variants with correct availability calculation
-      const processedVariants = validVariants.map((variant) => {
-        const availableQuantity = Math.max(
-          0,
-          variant.stock - (product.reserved || 0)
-        );
-        const isAvailable = availableQuantity > 0;
-        console.log(
-          `[DEBUG] Processing variant ${variant.size}: stock=${
-            variant.stock
-          }, reserved=${
-            product.reserved || 0
-          }, availableQuantity=${availableQuantity}, isAvailable=${isAvailable}`
-        );
-        return {
-          size: variant.size,
-          stock: variant.stock,
-          _id: variant._id.toString(),
-          isAvailable,
-          availableQuantity,
-        };
-      });
-
-      // Replace the product variants with processed ones
-      product.variants = processedVariants;
-
-      console.log(
-        `[getproductdetails] Processed variants: ${JSON.stringify(
-          product.variants,
-          null,
-          2
-        )}`
-      );
-
-      // Check if all variants are out of stock
-      const allVariantsOutOfStock = product.variants.every(
-        (variant) => !variant.isAvailable
-      );
-      product.allVariantsOutOfStock = allVariantsOutOfStock;
+      if (!productDoc) {
+        return res
+          .status(404)
+          .render("error", { message: "Product not found" });
+      }
 
       const user = req.session.user;
-      let productInWishlist = false;
-      const cart = await Cart.findOne({ user })
-        .populate("items.product")
-        .exec();
-      let wishlist = await Wishlist.findOne({ user });
 
-      if (user) {
-        wishlist = await Wishlist.findOne({ user: user._id });
-        if (wishlist) {
-          productInWishlist = wishlist.items.some(
-            (item) => item.product.toString() === productId
+      // Fetch cart and wishlist in parallel
+      const [cart, wishlist, allCategories] = await Promise.all([
+        user ? Cart.findOne({ user: user._id }).lean() : null,
+        user ? Wishlist.findOne({ user: user._id }).lean() : null,
+        Category.find().lean(), // Fetch all categories for header
+      ]);
+
+      // Helper: Get how many of this variant this user has in cart
+      const getUserCartQty = (size) => {
+        if (!cart || !cart.items) return 0;
+        const item = cart.items.find(
+          (i) =>
+            i.product && i.product.toString() === productId && i.size === size
+        );
+        return item ? item.quantity : 0;
+      };
+
+      // Process variants with correct available stock
+      const processedVariants = (productDoc.variants || [])
+        .filter((v) => v.size && typeof v.stock === "number")
+        .map((variant) => {
+          const totalReserved = variant.reserved || 0;
+          const userHasQty = getUserCartQty(variant.size);
+          const reservedByOthers = Math.max(0, totalReserved - userHasQty);
+          const availableQuantity = Math.max(
+            0,
+            variant.stock - reservedByOthers
           );
-        }
-      }
-      console.log(
-        `[getproductdetails] productInWishlist: ${productInWishlist}`
-      );
+          const isAvailable = availableQuantity > 0;
 
+          return {
+            size: variant.size,
+            stock: variant.stock,
+            _id: variant._id.toString(),
+            isAvailable,
+            availableQuantity,
+            userHasInCart: userHasQty,
+          };
+        });
+
+      const product = {
+        ...productDoc,
+        variants: processedVariants,
+        allVariantsOutOfStock: processedVariants.every((v) => !v.isAvailable),
+      };
+
+      // Wishlist check
+      const productInWishlist =
+        wishlist?.items?.some(
+          (item) => item.product && item.product.toString() === productId
+        ) || false;
+
+      // Similar products
       const similarProducts = await Product.find({
-        category: product.category,
+        category: productDoc.category._id,
         _id: { $ne: productId },
         blocked: false,
       })
         .limit(4)
-        .exec();
-      console.log(
-        `[getproductdetails] Similar products count: ${similarProducts.length}`
-      );
+        .lean();
 
+      // Offers
       const productOffers = await ProductOffer.find({
         product: productId,
         startDate: { $lte: new Date() },
         expiryDate: { $gte: new Date() },
-      });
-      console.log(
-        `[getproductdetails] Product offers: ${JSON.stringify(
-          productOffers,
-          null,
-          2
-        )}`
-      );
+      }).lean();
 
+      // FIX: Pass both category and selectedCategory
       res.render("userviews/productdetails", {
-        title: "Product Details",
-        category: product.category,
-        selectedCategory: product.category,
-        product: product,
-        productInWishlist: productInWishlist,
-        productOffers: productOffers,
-        wishlist: wishlist,
+        title: product.name,
+        product,
+        productInWishlist,
+        productOffers,
+        wishlist,
         cart,
-        similarProducts: similarProducts,
+        similarProducts,
+        category: allCategories, // For header navigation
+        selectedCategory: productDoc.category, // Current product category
       });
-      console.log(
-        `[getproductdetails] Rendering productdetails.ejs for product ID: ${productId}`
-      );
     } catch (error) {
-      console.error(`[getproductdetails] Error: ${error.stack}`);
-      res.status(500).send("Internal Server Error");
+      console.error(`[getproductdetails] Error:`, error);
+      res.status(500).render("error", { message: "Something went wrong" });
     }
   },
 
@@ -627,144 +629,90 @@ module.exports = {
     }
   },
 
-  // Update these two functions in your productcontroller.js with debug logs
-
   getAllProducts: async (req, res) => {
     try {
       console.log("\n========== getAllProducts START ==========");
-      console.log("Query params:", req.query);
-
       const perPage = 12;
       const page = parseInt(req.query.page) || 1;
       const skip = (page - 1) * perPage;
 
       let query = { blocked: false };
 
-      // Search query
       if (req.query.query) {
-        const searchQuery = req.query.query;
+        const searchQuery = req.query.query.trim();
         query.name = { $regex: new RegExp(searchQuery, "i") };
-        console.log("Search query applied:", searchQuery);
       }
 
-      console.log("MongoDB query:", JSON.stringify(query));
       let allProducts = await Product.find(query).populate("category").exec();
-      console.log(
-        `Products from DB (before any filtering): ${allProducts.length}`
-      );
 
-      // Filter by size BEFORE sorting
-      if (req.query.size) {
-        console.log(`Size filter requested: ${req.query.size}`);
-        const beforeSizeFilter = allProducts.length;
-        allProducts = allProducts.filter((product) => {
-          const hasSize = product.variants.some((variant) => {
-            console.log(
-              `  Product "${product.name}" - variant size: "${variant.size}", looking for: "${req.query.size}"`
-            );
-            return variant.size === req.query.size;
-          });
-          return hasSize;
-        });
-        console.log(
-          `Products after size filter: ${allProducts.length} (was ${beforeSizeFilter})`
-        );
-      }
-
-      // Apply sorting AFTER filtering
-      if (req.query.sortOption) {
-        console.log(`Sort option: ${req.query.sortOption}`);
-        if (req.query.sortOption === "priceLowToHigh") {
-          allProducts.sort((a, b) => {
-            console.log(
-              `  Comparing ${a.name}(${a.price}) vs ${b.name}(${b.price})`
-            );
-            return a.price - b.price;
-          });
-        } else if (req.query.sortOption === "priceHighToLow") {
-          allProducts.sort((a, b) => {
-            console.log(
-              `  Comparing ${a.name}(${a.price}) vs ${b.name}(${b.price})`
-            );
-            return b.price - a.price;
-          });
-        }
-        console.log(
-          "Products after sorting:",
-          allProducts.map((p) => `${p.name}(₹${p.price})`).join(", ")
-        );
-      }
-
-      const totalProducts = allProducts.length;
-      const totalPages = Math.ceil(totalProducts / perPage);
-      console.log(
-        `Total products: ${totalProducts}, Total pages: ${totalPages}, Current page: ${page}`
-      );
-
-      // Pagination AFTER filtering and sorting
-      const paginatedProducts = allProducts.slice(skip, skip + perPage);
-      console.log(
-        `Paginated products (${skip} to ${skip + perPage}): ${
-          paginatedProducts.length
-        }`
-      );
-
-      const category = await Category.find().exec();
-
-      // Get product offers
+      // Fetch active offers once
       const productOffers = await ProductOffer.find({
         startDate: { $lte: new Date() },
         expiryDate: { $gte: new Date() },
       })
         .populate("product")
         .exec();
-      console.log(`Product offers found: ${productOffers.length}`);
 
-      // Get category offers
       const categoryOffers = await CategoryOffer.find({
         startDate: { $lte: new Date() },
         expiryDate: { $gte: new Date() },
       })
         .populate("category")
         .exec();
-      console.log(`Category offers found: ${categoryOffers.length}`);
 
-      // Add offer information to each product
-      const productsWithOffers = paginatedProducts.map((product) => {
-        const productObj = product.toObject();
+      // Apply size filter BEFORE sorting
+      if (req.query.size) {
+        const size = req.query.size.toString().trim();
+        allProducts = allProducts.filter((product) =>
+          product.variants.some((v) => v.size.toString().trim() === size)
+        );
+      }
 
-        const productOffer = productOffers.find((offer) => {
-          const offerProductId = offer.product._id
-            ? offer.product._id.toString()
-            : offer.product.toString();
-          return offerProductId === product._id.toString();
+      // APPLY SORTING BY FINAL DISCOUNTED PRICE
+      if (req.query.sortOption) {
+        allProducts.sort((a, b) => {
+          const priceA = getEffectivePrice(a, productOffers, categoryOffers);
+          const priceB = getEffectivePrice(b, productOffers, categoryOffers);
+
+          return req.query.sortOption === "priceLowToHigh"
+            ? priceA - priceB
+            : priceB - priceA;
         });
+      }
 
-        const categoryOffer = categoryOffers.find((offer) => {
-          const offerCategoryId = offer.category._id
-            ? offer.category._id.toString()
-            : offer.category.toString();
-          return offerCategoryId === product.category._id.toString();
-        });
+      const totalProducts = allProducts.length;
+      const totalPages = Math.ceil(totalProducts / perPage);
+      const paginatedProducts = allProducts.slice(skip, skip + perPage);
 
-        productObj.hasProductOffer = !!productOffer;
-        productObj.hasCategoryOffer = !!categoryOffer;
-        productObj.productOffer = productOffer;
-        productObj.categoryOffer = categoryOffer;
-
-        return productObj;
-      });
-
+      const category = await Category.find().exec();
       const user = req.session.user;
       const cart = await Cart.findOne({ user })
         .populate("items.product")
         .exec();
 
-      console.log(
-        "Is AJAX request?",
-        req.headers["x-requested-with"] === "XMLHttpRequest" || req.query.json
-      );
-      console.log("========== getAllProducts END ==========\n");
+      // Attach offer info for EJS rendering
+      const productsWithOffers = paginatedProducts.map((product) => {
+        const productObj = product.toObject();
+
+        const prodOffer = productOffers.find(
+          (o) => o.product._id.toString() === product._id.toString()
+        );
+        const catOffer = categoryOffers.find(
+          (o) => o.category._id.toString() === product.category._id.toString()
+        );
+
+        productObj.effectivePrice = getEffectivePrice(
+          product,
+          productOffers,
+          categoryOffers
+        );
+        productObj.hasProductOffer = !!prodOffer;
+        productObj.hasCategoryOffer = !!catOffer;
+        productObj.productOffer = prodOffer || null;
+        productObj.categoryOffer = catOffer || null;
+
+        return productObj;
+      });
 
       if (
         req.headers["x-requested-with"] === "XMLHttpRequest" ||
@@ -782,12 +730,11 @@ module.exports = {
           totalPages: totalPages,
           wishlist: req.session.wishlist,
           cart: cart,
-          searchQuery: req.query.query,
+          searchQuery: req.query.query || "",
         });
       }
     } catch (error) {
-      console.error("Error in getAllProducts: " + error);
-      console.error(error.stack);
+      console.error("Error in getAllProducts:", error);
       res.status(500).json({ message: "Internal server error" });
     }
   },
@@ -795,90 +742,60 @@ module.exports = {
   filterproducts: async (req, res) => {
     try {
       console.log("\n========== filterproducts START ==========");
-      console.log("Query params:", req.query);
 
       let query = { blocked: false };
-
-      // Search query
       if (req.query.query) {
-        const searchQuery = req.query.query;
-        query.name = { $regex: new RegExp(searchQuery, "i") };
-        console.log("Search query applied:", searchQuery);
+        query.name = { $regex: new RegExp(req.query.query.trim(), "i") };
       }
 
-      console.log("MongoDB query:", JSON.stringify(query));
       let filteredProducts = await Product.find(query)
         .populate("category")
         .exec();
-      console.log(
-        `Products from DB (before filtering): ${filteredProducts.length}`
-      );
 
-      // Log all product variants for debugging
-      filteredProducts.forEach((product) => {
-        console.log(`Product: ${product.name}`);
-        console.log(
-          `  Variants:`,
-          product.variants.map((v) => `size=${v.size}, stock=${v.stock}`)
+      const productOffers = await ProductOffer.find({
+        startDate: { $lte: new Date() },
+        expiryDate: { $gte: new Date() },
+      })
+        .populate("product")
+        .exec();
+
+      const categoryOffers = await CategoryOffer.find({
+        startDate: { $lte: new Date() },
+        expiryDate: { $gte: new Date() },
+      })
+        .populate("category")
+        .exec();
+
+      if (req.query.size) {
+        const size = req.query.size.toString().trim();
+        filteredProducts = filteredProducts.filter((product) =>
+          product.variants.some((v) => v.size.toString().trim() === size)
         );
+      }
+      if (req.query.sortOption) {
+        filteredProducts.sort((a, b) => {
+          const priceA = getEffectivePrice(a, productOffers, categoryOffers);
+          const priceB = getEffectivePrice(b, productOffers, categoryOffers);
+
+          return req.query.sortOption === "priceLowToHigh"
+            ? priceA - priceB
+            : priceB - priceA;
+        });
+      }
+
+      const result = filteredProducts.map((product) => {
+        const p = product.toObject();
+        p.effectivePrice = getEffectivePrice(
+          product,
+          productOffers,
+          categoryOffers
+        );
+        return p;
       });
 
-      // Filter by size
-      if (req.query.size) {
-        console.log(
-          `Size filter requested: "${req.query.size}" (type: ${typeof req.query
-            .size})`
-        );
-        const beforeSizeFilter = filteredProducts.length;
-        filteredProducts = filteredProducts.filter((product) => {
-          const hasSize = product.variants.some((variant) => {
-            const variantSize = variant.size.toString().trim();
-            const requestedSize = req.query.size.toString().trim();
-            const matches = variantSize === requestedSize;
-            console.log(
-              `  Product "${product.name}" - variant size: "${variantSize}" vs requested: "${requestedSize}" = ${matches}`
-            );
-            return matches;
-          });
-          console.log(
-            `  Product "${product.name}" has requested size: ${hasSize}`
-          );
-          return hasSize;
-        });
-        console.log(
-          `Products after size filter: ${filteredProducts.length} (was ${beforeSizeFilter})`
-        );
-      }
-
-      // Apply sorting
-      if (req.query.sortOption) {
-        console.log(`Sort option: ${req.query.sortOption}`);
-        const beforeSort = filteredProducts.map(
-          (p) => `${p.name}(₹${p.price})`
-        );
-        console.log("Before sort:", beforeSort.join(", "));
-
-        if (req.query.sortOption === "priceLowToHigh") {
-          filteredProducts.sort((a, b) => a.price - b.price);
-        } else if (req.query.sortOption === "priceHighToLow") {
-          filteredProducts.sort((a, b) => b.price - a.price);
-        }
-
-        const afterSort = filteredProducts.map((p) => `${p.name}(₹${p.price})`);
-        console.log("After sort:", afterSort.join(", "));
-      }
-
-      console.log(`Final product count: ${filteredProducts.length}`);
-      console.log(
-        "Final products:",
-        filteredProducts.map((p) => p.name).join(", ")
-      );
-      console.log("========== filterproducts END ==========\n");
-
-      res.json(filteredProducts);
+      res.json(result);
     } catch (error) {
-      console.error("Error in filterproducts: " + error);
-      console.error(error.stack);
+      console.error("Error in filterproducts:", error);
       res.status(500).json({ message: "Internal server error" });
     }
   },

@@ -90,12 +90,12 @@
                   <select class="size-select form-control form-control-sm" onchange="updateSize('<%= item.product._id %>', this.value)">
                     <% item.product.variants.forEach(v => { %>
                       <% 
-                        const availForOthers = v.stock - Math.max(0, (v.reserved || 0));
-                        const disabled = availForOthers <= 0 && v.size !== item.size;
-                      %>
-                      <option value="<%= v.size %>" <%= v.size === item.size ? 'selected' : '' %> <%= disabled ? 'disabled' : '' %>>
-                        <%= v.size %> <%= disabled ? '(Out of Stock)' : '' %>
-                      </option>
+  const availForOthers = v.stock - Math.max(0, (v.reserved || 0) - (v.size === item.size ? item.quantity : 0));
+  const disabled = availForOthers <= 0 && v.size !== item.size;
+%>
+<option value="<%= v.size %>" <%= v.size === item.size ? 'selected' : '' %> <%= disabled ? 'disabled' : '' %>>
+  <%= v.size %> <%= disabled ? '(Out of Stock)' : '' %>
+</option>
                     <% }) %>
                   </select>
                 </div>

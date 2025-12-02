@@ -170,48 +170,23 @@ module.exports = {
       const qty = parseInt(quantity);
       const userId = req.session.user._id;
 
-      console.log("\n========== ADD TO CART DEBUG ==========");
-      console.log("Product ID:", productId);
-      console.log("Requested Quantity:", qty);
-      console.log("Size:", size);
-      console.log("User ID:", userId);
-
-      // Validate input
       if (!mongoose.Types.ObjectId.isValid(productId) || !size || qty < 1) {
-        console.log("❌ Invalid request parameters");
         return res
           .status(400)
           .json({ success: false, error: "Invalid request" });
       }
 
-      // Get product with session lock
       const product = await Product.findById(productId).session(session);
       if (!product || product.blocked) {
-        console.log("❌ Product unavailable or blocked");
         throw new Error("Product unavailable");
       }
 
-      console.log("Product Name:", product.name);
-
-      // Find the variant for requested size
       const variant = product.variants.find((v) => v.size === size);
-      if (!variant) {
-        console.log("❌ Size not available");
-        throw new Error("Size not available");
-      }
+      if (!variant) throw new Error("Size not available");
 
-      console.log("\n--- VARIANT STOCK INFO ---");
-      console.log("Variant stock (total physical):", variant.stock);
-      console.log("Variant reserved (all users):", variant.reserved || 0);
-
-      // Get or create cart
       let cart = await Cart.findOne({ user: userId }).session(session);
-      if (!cart) {
-        console.log("Creating new cart for user");
-        cart = new Cart({ user: userId, items: [] });
-      }
+      if (!cart) cart = new Cart({ user: userId, items: [] });
 
-      // Check if item already exists in cart
       const existingItem = cart.items.find(
         (i) => i.product.toString() === productId && i.size === size
       );
@@ -219,62 +194,34 @@ module.exports = {
       const currentQtyInCart = existingItem ? existingItem.quantity : 0;
       const newTotalQty = currentQtyInCart + qty;
 
-      console.log("\n--- CART STATUS ---");
-      console.log("Current quantity in cart:", currentQtyInCart);
-      console.log("Adding quantity:", qty);
-      console.log("New total quantity:", newTotalQty);
-
-      // ========== CORRECTED STOCK CALCULATION ==========
-      // Available stock = Total stock - Reserved by OTHER users
-      const currentlyReservedByThisUser = currentQtyInCart;
+      // CORRECTED & SIMPLIFIED LOGIC
       const totalReserved = variant.reserved || 0;
-      const reservedByOthers = Math.max(
-        0,
-        totalReserved - currentlyReservedByThisUser
-      );
-      const realAvailableStock = variant.stock - reservedByOthers;
+      const reservedByThisUser = currentQtyInCart; // This is what user already has reserved
+      const reservedByOthers = totalReserved - reservedByThisUser;
+      const availableForThisUser = variant.stock - reservedByOthers;
 
-      console.log("\n--- AVAILABILITY CALCULATION ---");
-      console.log(
-        "Currently reserved by THIS user:",
-        currentlyReservedByThisUser
-      );
-      console.log("Reserved by OTHERS:", reservedByOthers);
-      console.log("Real available stock:", realAvailableStock);
+      console.log("\n--- STOCK DEBUG ---");
+      console.log("Total stock:", variant.stock);
+      console.log("Total reserved (all users):", totalReserved);
+      console.log("Reserved by this user:", reservedByThisUser);
+      console.log("Reserved by others:", reservedByOthers);
+      console.log("Available for this user:", availableForThisUser);
+      console.log("User wants total:", newTotalQty);
 
-      // Validate if we can add the requested quantity
-      if (newTotalQty > realAvailableStock) {
-        const canAdd = realAvailableStock - currentQtyInCart;
-        console.log("\n❌ VALIDATION FAILED");
-        console.log(
-          `User wants total of ${newTotalQty} but only ${realAvailableStock} available`
-        );
-        console.log(`Can only add ${canAdd} more items`);
+      if (newTotalQty > availableForThisUser) {
+        const canAdd = availableForThisUser - currentQtyInCart;
         throw new Error(
           canAdd > 0
-            ? `Only ${canAdd} more available (you have ${currentQtyInCart} in cart)`
-            : `No more available (you have ${currentQtyInCart} in cart)`
+            ? `Only ${canAdd} more can be added (total available: ${availableForThisUser})`
+            : `Out of stock for size ${size}`
         );
       }
 
-      console.log("✅ VALIDATION PASSED");
-      console.log(
-        `Can add ${qty} items (total will be ${newTotalQty}/${realAvailableStock})`
-      );
-
-      // Update or add item to cart
+      // SUCCESS: Reserve the stock
       if (existingItem) {
-        console.log("\n--- UPDATING EXISTING ITEM ---");
         existingItem.quantity = newTotalQty;
         existingItem.reservedAt = new Date();
-        console.log(
-          "Updated quantity from",
-          currentQtyInCart,
-          "to",
-          newTotalQty
-        );
       } else {
-        console.log("\n--- ADDING NEW ITEM ---");
         const price =
           product.categoryofferprice < product.price
             ? product.categoryofferprice
@@ -284,13 +231,12 @@ module.exports = {
           product: productId,
           quantity: qty,
           size,
-          price: price,
+          price,
           reservedAt: new Date(),
         });
-        console.log("Added new item with quantity:", qty, "at price:", price);
       }
 
-      // Reserve the additional quantity in product
+      // Reserve additional qty
       await Product.findOneAndUpdate(
         { _id: productId, "variants.size": size },
         {
@@ -303,33 +249,20 @@ module.exports = {
         { session }
       );
 
-      console.log("\n--- RESERVATION UPDATE ---");
-      console.log("Increased variant.reserved by:", qty);
-      console.log(
-        "New variant.reserved will be:",
-        (variant.reserved || 0) + qty
-      );
-
-      // Calculate and save cart total
       const total = await calculateTotalPrice(cart.items, [], []);
       cart.total = cart.newTotal = total;
       await cart.save({ session });
       await session.commitTransaction();
 
-      console.log("\n--- RESPONSE ---");
-      console.log("Cart total:", total);
-      console.log("Items in cart:", cart.items.length);
-      console.log("==========================================\n");
-
       res.json({
         success: true,
+        message: "Added to cart",
         cartTotal: total,
         itemCount: cart.items.length,
       });
     } catch (error) {
-      console.log("\n❌ ADD TO CART ERROR:", error.message);
-      console.log("==========================================\n");
       await session.abortTransaction();
+      console.log("ADD TO CART FAILED:", error.message);
       res.status(400).json({ success: false, error: error.message });
     } finally {
       session.endSession();
@@ -534,26 +467,47 @@ module.exports = {
       const { productId, newSize } = req.params;
       const user = req.session.user;
 
-      const cart = await Cart.findOne({ user }).populate({
-        path: "items.product",
-        populate: { path: "variants" },
-      });
+      if (!mongoose.Types.ObjectId.isValid(productId)) {
+        throw new Error("Invalid product ID");
+      }
 
-      const item = cart.items.find((i) => i.product.toString() === productId);
-      if (!item) throw new Error("Item not found");
+      const cart = await Cart.findOne({ user: user._id })
+        .populate({
+          path: "items.product",
+          populate: { path: "variants" },
+        })
+        .session(session);
+
+      if (!cart || cart.items.length === 0) {
+        throw new Error("Cart is empty");
+      }
+
+      const item = cart.items.find(
+        (i) => i.product && i.product._id.toString() === productId
+      );
+
+      if (!item) throw new Error("Item not found in cart");
 
       const product = item.product;
+      const oldSize = item.size;
+
+      // Find new variant
       const newVariant = product.variants.find((v) => v.size === newSize);
-
       if (!newVariant) throw new Error(`Size ${newSize} not available`);
-      if (newVariant.stock - (newVariant.reserved || 0) < item.quantity)
-        throw new Error(
-          `Only ${newVariant.stock - (newVariant.reserved || 0)} left`
-        );
 
-      // Release old
+      // CORRECT STOCK CHECK: Exclude THIS user's current reservation
+      const totalReserved = newVariant.reserved || 0;
+      const reservedByThisUser = oldSize === newSize ? item.quantity : 0;
+      const reservedByOthers = Math.max(0, totalReserved - reservedByThisUser);
+      const availableStock = newVariant.stock - reservedByOthers;
+
+      if (availableStock < item.quantity) {
+        throw new Error(`Only ${availableStock} available for size ${newSize}`);
+      }
+
+      // Release reservation from old size
       await Product.findOneAndUpdate(
-        { _id: productId, "variants.size": item.size },
+        { _id: productId, "variants.size": oldSize },
         {
           $inc: {
             "variants.$.reserved": -item.quantity,
@@ -564,7 +518,7 @@ module.exports = {
         { session }
       );
 
-      // Reserve new
+      // Reserve on new size
       await Product.findOneAndUpdate(
         { _id: productId, "variants.size": newSize },
         {
@@ -577,14 +531,23 @@ module.exports = {
         { session }
       );
 
+      // Update cart item
       item.size = newSize;
       item.reservedAt = new Date();
 
+      // Recalculate total
       const total = await calculateTotalPrice(
         cart.items,
-        await ProductOffer.find().session(session),
-        await CategoryOffer.find().session(session)
+        await ProductOffer.find({
+          startDate: { $lte: new Date() },
+          expiryDate: { $gte: new Date() },
+        }),
+        await CategoryOffer.find({
+          startDate: { $lte: new Date() },
+          expiryDate: { $gte: new Date() },
+        })
       );
+
       cart.total = cart.newTotal = total;
       await cart.save({ session });
       await session.commitTransaction();
@@ -592,12 +555,13 @@ module.exports = {
       res.json({ success: true, total });
     } catch (error) {
       await session.abortTransaction();
+      console.log("UPDATE SIZE FAILED:", error.message);
       res.status(400).json({ error: error.message });
     } finally {
       session.endSession();
     }
   },
-
+  
   getCartTotal: async (req, res) => {
     try {
       const user = req.session.user;
