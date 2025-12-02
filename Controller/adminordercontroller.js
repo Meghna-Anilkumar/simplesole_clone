@@ -162,8 +162,18 @@ module.exports = {
             if (product) {
               const variant = product.variants.find((v) => v.size === size);
               if (variant) {
+                variant.reserved = Math.max(
+                  0,
+                  (variant.reserved || 0) - quantity
+                );
                 variant.stock += quantity;
+
+                product.reserved = Math.max(
+                  0,
+                  (product.reserved || 0) - quantity
+                );
                 product.version = (product.version || 0) + 1;
+
                 await product.save({ session });
               } else {
                 console.warn(

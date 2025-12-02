@@ -105,75 +105,277 @@ module.exports = {
     }
   },
 
-createRazorpayOrder: async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
+  createRazorpayOrder: async (req, res) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
 
-  try {
-    const { amount } = req.body;
-    const user = req.session.user;
-    const cart = await Cart.findOne({ user })
-      .populate("items.product")
-      .session(session);
+    try {
+      const { amount } = req.body;
+      const user = req.session.user;
+      const cart = await Cart.findOne({ user })
+        .populate("items.product")
+        .session(session);
 
-    if (!cart || !cart.items.length) {
+      if (!cart || !cart.items.length) {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(400).json({ success: false, error: "Cart is empty" });
+      }
+
+      const unavailableItems = [];
+
+      for (const item of cart.items) {
+        const product = await Product.findById(item.product._id).session(
+          session
+        );
+        if (!product || product.blocked) {
+          unavailableItems.push({
+            productId: item.product._id,
+            name: item.product.name,
+            size: item.size,
+            reason: "Product unavailable",
+          });
+          continue;
+        }
+
+        const variant = product.variants.find((v) => v.size === item.size);
+        if (!variant) {
+          unavailableItems.push({
+            productId: item.product._id,
+            name: item.product.name,
+            size: item.size,
+            reason: "Size not available",
+          });
+          continue;
+        }
+
+        const userReservedQty = item.quantity;
+        const othersReserved = Math.max(
+          0,
+          (variant.reserved || 0) - userReservedQty
+        );
+        const trulyAvailable = variant.stock - othersReserved;
+
+        if (trulyAvailable < item.quantity) {
+          unavailableItems.push({
+            productId: item.product._id,
+            name: item.product.name,
+            size: item.size,
+            reason: `Only ${trulyAvailable} available`,
+          });
+        }
+
+        if (
+          !item.reservedAt ||
+          item.reservedAt < new Date(Date.now() - 10 * 60 * 1000)
+        ) {
+          unavailableItems.push({
+            productId: item.product._id,
+            name: item.product.name,
+            size: item.size,
+            reason: "Reservation expired",
+          });
+
+          await Product.findOneAndUpdate(
+            { _id: product._id, "variants.size": item.size },
+            {
+              $inc: {
+                "variants.$.reserved": -item.quantity,
+                reserved: -item.quantity,
+                version: 1,
+              },
+            },
+            { session }
+          );
+
+          cart.items = cart.items.filter(
+            (i) => !(i.product.equals(product._id) && i.size === item.size)
+          );
+        }
+      }
+
+      if (unavailableItems.length > 0) {
+        await cart.save({ session });
+        await session.commitTransaction();
+        session.endSession();
+        return res.status(400).json({
+          success: false,
+          error: "Some items are no longer available",
+          unavailableItems,
+        });
+      }
+
+      cart.items.forEach((i) => (i.reservedAt = new Date()));
+      await cart.save({ session });
+
+      const totalPrice = cart.newTotal || cart.total;
+      if (Math.abs(parseFloat(amount) - totalPrice) > 0.01) {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(400).json({
+          success: false,
+          error: "Amount mismatch",
+        });
+      }
+
+      const razorpayOrder = await instance.orders.create({
+        amount: Math.round(totalPrice * 100),
+        currency: "INR",
+        receipt: `order_${Date.now()}_${user._id.toString().slice(-6)}`,
+      });
+
+      req.session.razorpayOrderId = razorpayOrder.id;
+
+      await session.commitTransaction();
+      session.endSession();
+
+      res.json({
+        success: true,
+        orderId: razorpayOrder.id,
+        amount: razorpayOrder.amount,
+        currency: razorpayOrder.currency,
+      });
+    } catch (error) {
       await session.abortTransaction();
       session.endSession();
-      return res.status(400).json({ success: false, error: "Cart is empty" });
+      console.error("createRazorpayOrder error:", error);
+      res.status(500).json({ success: false, error: "Failed to create order" });
     }
+  },
 
-    const unavailableItems = [];
+  processPayment: async (req, res) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
 
-    for (const item of cart.items) {
-      const product = await Product.findById(item.product._id).session(session);
-      if (!product || product.blocked) {
-        unavailableItems.push({
-          productId: item.product._id,
-          name: item.product.name,
-          size: item.size,
-          reason: "Product unavailable",
-        });
-        continue;
+    try {
+      const {
+        payment_id,
+        order_id,
+        signature,
+        paymentMethod,
+        selectedAddress,
+        appliedCouponCode,
+      } = req.body;
+
+      const user = req.session.user;
+      if (!user) throw new Error("User not authenticated");
+
+      const cart = await Cart.findOne({ user: user._id })
+        .populate("items.product")
+        .session(session);
+
+      if (!cart || !cart.items.length) {
+        throw new Error("Cart is empty");
       }
 
-      const variant = product.variants.find(v => v.size === item.size);
-      if (!variant) {
-        unavailableItems.push({
-          productId: item.product._id,
-          name: item.product.name,
-          size: item.size,
-          reason: "Size not available",
-        });
-        continue;
+      const expectedSignature = crypto
+        .createHmac("sha256", process.env.key_secret)
+        .update(order_id + "|" + payment_id)
+        .digest("hex");
+
+      if (expectedSignature !== signature) {
+        throw new Error("Invalid payment signature");
       }
 
-      // CORRECT: Don't count user's own reservation
-      const userReservedQty = item.quantity;
-      const othersReserved = Math.max(0, (variant.reserved || 0) - userReservedQty);
-      const trulyAvailable = variant.stock - othersReserved;
+      const unavailableItems = [];
+      for (const item of cart.items) {
+        const product = await Product.findById(item.product._id).session(
+          session
+        );
+        if (!product || product.blocked) {
+          unavailableItems.push({
+            name: item.product.name,
+            size: item.size,
+            reason: "Product unavailable",
+          });
+          continue;
+        }
 
-      if (trulyAvailable < item.quantity) {
-        unavailableItems.push({
-          productId: item.product._id,
-          name: item.product.name,
-          size: item.size,
-          reason: `Only ${trulyAvailable} available`,
+        const variant = product.variants.find((v) => v.size === item.size);
+        if (!variant) {
+          unavailableItems.push({
+            name: item.product.name,
+            size: item.size,
+            reason: "Size not available",
+          });
+          continue;
+        }
+
+        const othersReserved = Math.max(
+          0,
+          (variant.reserved || 0) - item.quantity
+        );
+        const trulyAvailable = variant.stock - othersReserved;
+
+        if (trulyAvailable < item.quantity) {
+          unavailableItems.push({
+            name: item.product.name,
+            size: item.size,
+            reason: `Only ${trulyAvailable} left`,
+          });
+        }
+      }
+
+      if (unavailableItems.length > 0) {
+        for (const item of cart.items) {
+          await Product.findOneAndUpdate(
+            { _id: item.product._id, "variants.size": item.size },
+            {
+              $inc: {
+                "variants.$.reserved": -item.quantity,
+                reserved: -item.quantity,
+                version: 1,
+              },
+            },
+            { session }
+          );
+        }
+        await cart.save({ session });
+        await session.commitTransaction();
+        session.endSession();
+
+        return res.status(400).json({
+          success: false,
+          error: "Some items are no longer available",
+          unavailableItems,
         });
       }
 
-      // Expire old reservations
-      if (!item.reservedAt || item.reservedAt < new Date(Date.now() - 10 * 60 * 1000)) {
-        unavailableItems.push({
-          productId: item.product._id,
-          name: item.product.name,
-          size: item.size,
-          reason: "Reservation expired",
-        });
+      const totalAmount = cart.newTotal || cart.total;
+      const trimmedCouponCode = appliedCouponCode?.trim();
+      let couponDoc = null;
 
+      if (trimmedCouponCode) {
+        couponDoc = await Coupon.findOne({
+          couponCode: trimmedCouponCode,
+        }).session(session);
+      }
+
+      const order = new Order({
+        user: user._id,
+        items: cart.items.map((i) => ({
+          product: i.product._id,
+          quantity: i.quantity,
+          price: i.price,
+          size: i.size,
+        })),
+        totalAmount,
+        shippingAddress: selectedAddress,
+        paymentMethod: "RAZORPAY",
+        orderStatus: "PROCESSING",
+        paymentStatus: "Completed",
+        couponCode: trimmedCouponCode || null,
+        discountAmount: trimmedCouponCode ? cart.total - totalAmount : 0,
+      });
+
+      await order.save({ session });
+
+      for (const item of cart.items) {
         await Product.findOneAndUpdate(
-          { _id: product._id, "variants.size": item.size },
+          { _id: item.product._id, "variants.size": item.size },
           {
             $inc: {
+              "variants.$.stock": -item.quantity,
               "variants.$.reserved": -item.quantity,
               reserved: -item.quantity,
               version: 1,
@@ -181,206 +383,44 @@ createRazorpayOrder: async (req, res) => {
           },
           { session }
         );
-
-        cart.items = cart.items.filter(
-          i => !(i.product.equals(product._id) && i.size === item.size)
-        );
-      }
-    }
-
-    if (unavailableItems.length > 0) {
-      await cart.save({ session });
-      await session.commitTransaction();
-      session.endSession();
-      return res.status(400).json({
-        success: false,
-        error: "Some items are no longer available",
-        unavailableItems,
-      });
-    }
-
-    // Renew all reservations
-    cart.items.forEach(i => i.reservedAt = new Date());
-    await cart.save({ session });
-
-    const totalPrice = cart.newTotal || cart.total;
-    if (Math.abs(parseFloat(amount) - totalPrice) > 0.01) {
-      await session.abortTransaction();
-      session.endSession();
-      return res.status(400).json({
-        success: false,
-        error: "Amount mismatch",
-      });
-    }
-
-    const razorpayOrder = await instance.orders.create({
-      amount: Math.round(totalPrice * 100),
-      currency: "INR",
-      receipt: `order_${Date.now()}_${user._id.toString().slice(-6)}`,
-    });
-
-    req.session.razorpayOrderId = razorpayOrder.id;
-
-    await session.commitTransaction();
-    session.endSession();
-
-    res.json({
-      success: true,
-      orderId: razorpayOrder.id,
-      amount: razorpayOrder.amount,
-      currency: razorpayOrder.currency,
-    });
-
-  } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
-    console.error("createRazorpayOrder error:", error);
-    res.status(500).json({ success: false, error: "Failed to create order" });
-  }
-},
-
-  processPayment: async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
-  try {
-    const {
-      payment_id,
-      order_id,
-      signature,
-      paymentMethod,
-      selectedAddress,
-      appliedCouponCode,
-    } = req.body;
-
-    const user = req.session.user;
-    const cart = await Cart.findOne({ user })
-      .populate("items.product")
-      .session(session);
-
-    if (!cart || !cart.items.length) {
-      await session.abortTransaction();
-      session.endSession();
-      return res.status(400).json({ success: false, error: "Cart is empty" });
-    }
-
-    // Verify Razorpay signature
-    const expectedSignature = crypto
-      .createHmac("sha256", process.env.key_secret)
-      .update(order_id + "|" + payment_id)
-      .digest("hex");
-
-    if (expectedSignature !== signature) {
-      await session.abortTransaction();
-      session.endSession();
-      return res.status(400).json({ success: false, error: "Invalid payment signature" });
-    }
-
-    // FINAL STOCK CHECK (same correct logic)
-    const unavailableItems = [];
-    for (const item of cart.items) {
-      const product = await Product.findById(item.product._id).session(session);
-      if (!product) {
-        unavailableItems.push({ name: item.product.name, size: item.size, reason: "Product missing" });
-        continue;
       }
 
-      const variant = product.variants.find(v => v.size === item.size);
-      if (!variant) {
-        unavailableItems.push({ name: item.product.name, size: item.size, reason: "Size missing" });
-        continue;
-      }
-
-      const userReserved = item.quantity;
-      const othersReserved = Math.max(0, (variant.reserved || 0) - userReserved);
-      const trulyAvailable = variant.stock - othersReserved;
-
-      if (trulyAvailable < item.quantity) {
-        unavailableItems.push({
-          name: item.product.name,
-          size: item.size,
-          reason: `Only ${trulyAvailable} available`,
-        });
-      }
-    }
-
-    if (unavailableItems.length > 0) {
-      // Release reservations
-      for (const item of cart.items) {
-        await Product.findOneAndUpdate(
-          { _id: item.product._id, "variants.size": item.size },
-          { $inc: { "variants.$.reserved": -item.quantity, reserved: -item.quantity, version: 1 } },
+      if (couponDoc) {
+        await User.findByIdAndUpdate(
+          user._id,
+          { $addToSet: { usedCoupons: couponDoc._id } },
           { session }
         );
       }
+
+      cart.items = [];
+      cart.total = cart.newTotal = 0;
+      cart.couponApplied = null;
       await cart.save({ session });
+
+      req.session.couponCode = null;
+      req.session.discount = 0;
+      req.session.totalpay = 0;
+
       await session.commitTransaction();
       session.endSession();
+
+      return res.json({
+        success: true,
+        message: "Payment successful! Order placed.",
+        redirectUrl: "/successpage",
+      });
+    } catch (error) {
+      await session.abortTransaction();
+      session.endSession();
+      console.error("processPayment error:", error.message);
+
       return res.status(400).json({
         success: false,
-        error: "Some items are no longer available",
-        unavailableItems,
+        error: error.message || "Payment processing failed",
       });
     }
-
-    const totalAmount = cart.newTotal || cart.total;
-
-    const order = new Order({
-      user: user._id,
-      items: cart.items.map(i => ({
-        product: i.product._id,
-        quantity: i.quantity,
-        price: i.price,
-        size: i.size,
-      })),
-      totalAmount,
-      shippingAddress: selectedAddress,
-      paymentMethod,
-      couponCode: appliedCouponCode || null,
-      discountAmount: cart.couponApplied ? cart.total - cart.newTotal : 0,
-      paymentStatus: "Completed",
-      orderStatus: "PROCESSING",
-    });
-
-    await order.save({ session });
-
-    // Deduct stock
-    for (const item of cart.items) {
-      await Product.findOneAndUpdate(
-        { _id: item.product._id, "variants.size": item.size },
-        {
-          $inc: {
-            "variants.$.stock": -item.quantity,
-            "variants.$.reserved": -item.quantity,
-            reserved: -item.quantity,
-            version: 1,
-          },
-        },
-        { session }
-      );
-    }
-
-    // Clear cart
-    cart.items = [];
-    cart.total = cart.newTotal = 0;
-    cart.couponApplied = null;
-    await cart.save({ session });
-
-    req.session.couponCode = null;
-    req.session.totalpay = 0;
-
-    await session.commitTransaction();
-    session.endSession();
-
-    res.json({ success: true, message: "Payment successful", redirectUrl: "/successpage" });
-
-  } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
-    console.error("processPayment error:", error);
-    res.status(500).json({ success: false, error: "Payment failed" });
-  }
-},
+  },
 
   razorpayFailure: async (req, res) => {
     const session = await mongoose.startSession();
@@ -466,200 +506,247 @@ createRazorpayOrder: async (req, res) => {
     }
   },
 
-placeorder: async (req, res) => {
-  const mainSession = await mongoose.startSession();
-  mainSession.startTransaction();
+  placeorder: async (req, res) => {
+    const mainSession = await mongoose.startSession();
+    mainSession.startTransaction();
 
-  try {
-    const { paymentMethod, selectedAddress, appliedCouponCode } = req.body;
-    const user = req.session.user;
+    try {
+      const { paymentMethod, selectedAddress, appliedCouponCode } = req.body; 
+      const user = req.session.user;
 
-    console.log("=== PLACE ORDER START ===", { paymentMethod, userId: user?._id });
+      console.log("=== PLACE ORDER START ===", {
+        paymentMethod,
+        userId: user?._id,
+        appliedCouponCode,
+      });
 
-    // === BASIC VALIDATION ===
-    if (!user) return res.redirect("/login");
-    if (!selectedAddress || !paymentMethod) {
-      const err = "Please select address and payment method";
-      return req.xhr 
-        ? res.status(400).json({ success: false, error: err })
-        : res.status(400).send(`<script>alert("${err}"); window.history.back();</script>`);
-    }
-
-    const cart = await Cart.findOne({ user: user._id })
-      .populate("items.product")
-      .session(mainSession);
-
-    if (!cart || cart.items.length === 0) {
-      const err = "Your cart is empty";
-      return req.xhr 
-        ? res.status(400).json({ success: false, error: err })
-        : res.status(400).send(`<script>alert("${err}"); window.location="/cart";</script>`);
-    }
-
-    // === CORRECT STOCK VALIDATION (DO NOT COUNT USER'S OWN RESERVATION) ===
-    const unavailableItems = [];
-
-    for (const item of cart.items) {
-      const product = await Product.findById(item.product._id).session(mainSession);
-      if (!product || product.blocked) {
-        unavailableItems.push({ name: item.product.name, size: item.size, reason: "Product unavailable" });
-        continue;
+      if (!user) return res.redirect("/login");
+      if (!selectedAddress || !paymentMethod) {
+        const err = "Please select address and payment method";
+        return req.xhr
+          ? res.status(400).json({ success: false, error: err })
+          : res
+              .status(400)
+              .send(`<script>alert("${err}"); window.history.back();</script>`);
       }
 
-      const variant = product.variants.find(v => v.size === item.size);
-      if (!variant) {
-        unavailableItems.push({ name: item.product.name, size: item.size, reason: "Size not available" });
-        continue;
+      const cart = await Cart.findOne({ user: user._id })
+        .populate("items.product")
+        .session(mainSession);
+
+      if (!cart || cart.items.length === 0) {
+        const err = "Your cart is empty";
+        return req.xhr
+          ? res.status(400).json({ success: false, error: err })
+          : res
+              .status(400)
+              .send(
+                `<script>alert("${err}"); window.location="/cart";</script>`
+              );
       }
 
-      const userReserved = item.quantity;
-      const othersReserved = Math.max(0, (variant.reserved || 0) - userReserved);
-      const trulyAvailable = variant.stock - othersReserved;
+      const unavailableItems = [];
 
-      if (trulyAvailable < item.quantity) {
-        unavailableItems.push({
-          name: item.product.name,
-          size: item.size,
-          reason: `Only ${trulyAvailable} left`,
-        });
-      }
-
-      // Expire old reservations
-      if (!item.reservedAt || item.reservedAt < new Date(Date.now() - 10 * 60 * 1000)) {
-        unavailableItems.push({ name: item.product.name, size: item.size, reason: "Reservation expired" });
-        await Product.findOneAndUpdate(
-          { _id: product._id, "variants.size": item.size },
-          { $inc: { "variants.$.reserved": -item.quantity, reserved: -item.quantity, version: 1 } },
-          { session: mainSession }
+      for (const item of cart.items) {
+        const product = await Product.findById(item.product._id).session(
+          mainSession
         );
-        cart.items = cart.items.filter(i => !(i.product._id.equals(product._id) && i.size === item.size));
+        if (!product || product.blocked) {
+          unavailableItems.push({
+            name: item.product.name,
+            size: item.size,
+            reason: "Product unavailable",
+          });
+          continue;
+        }
+
+        const variant = product.variants.find((v) => v.size === item.size);
+        if (!variant) {
+          unavailableItems.push({
+            name: item.product.name,
+            size: item.size,
+            reason: "Size not available",
+          });
+          continue;
+        }
+
+        const userReserved = item.quantity;
+        const othersReserved = Math.max(
+          0,
+          (variant.reserved || 0) - userReserved
+        );
+        const trulyAvailable = variant.stock - othersReserved;
+
+        if (trulyAvailable < item.quantity) {
+          unavailableItems.push({
+            name: item.product.name,
+            size: item.size,
+            reason: `Only ${trulyAvailable} left`,
+          });
+        }
+
+        if (
+          !item.reservedAt ||
+          item.reservedAt < new Date(Date.now() - 10 * 60 * 1000)
+        ) {
+          unavailableItems.push({
+            name: item.product.name,
+            size: item.size,
+            reason: "Reservation expired",
+          });
+          await Product.findOneAndUpdate(
+            { _id: product._id, "variants.size": item.size },
+            {
+              $inc: {
+                "variants.$.reserved": -item.quantity,
+                reserved: -item.quantity,
+                version: 1,
+              },
+            },
+            { session: mainSession }
+          );
+          cart.items = cart.items.filter(
+            (i) => !(i.product._id.equals(product._id) && i.size === item.size)
+          );
+        }
       }
-    }
 
-    if (unavailableItems.length > 0) {
-      await cart.save({ session: mainSession });
-      await mainSession.commitTransaction();
-      mainSession.endSession();
+      if (unavailableItems.length > 0) {
+        await cart.save({ session: mainSession });
+        await mainSession.commitTransaction();
+        mainSession.endSession();
 
-      return req.xhr
-        ? res.status(400).json({ success: false, error: "Items unavailable", unavailableItems })
-        : res.send(`
+        return req.xhr
+          ? res.status(400).json({
+              success: false,
+              error: "Items unavailable",
+              unavailableItems,
+            })
+          : res.send(`
           <script>
             alert("Some items are no longer available. Please review your cart.");
             window.location = "/cart";
           </script>
         `);
-    }
-
-    // Renew all reservations
-    cart.items.forEach(i => i.reservedAt = new Date());
-    await cart.save({ session: mainSession });
-
-    // === CREATE ORDER ===
-    const totalPrice = cart.newTotal || cart.total;
-
-    const order = new Order({
-      user: user._id,
-      items: cart.items.map(i => ({
-        product: i.product._id,
-        quantity: i.quantity,
-        price: i.price,
-        size: i.size,
-      })),
-      totalAmount: totalPrice,
-      shippingAddress: selectedAddress,
-      paymentMethod,
-      orderStatus: paymentMethod === "CASH_ON_DELIVERY" ? "PROCESSING" : "PENDING",
-      couponCode: cart.couponApplied || null,
-      discountAmount: cart.couponApplied ? cart.total - cart.newTotal : 0,
-    });
-
-    await order.save({ session: mainSession });
-
-    // Deduct stock & release reservation
-    for (const item of cart.items) {
-      await Product.findOneAndUpdate(
-        { _id: item.product._id, "variants.size": item.size },
-        {
-          $inc: {
-            "variants.$.stock": -item.quantity,
-            "variants.$.reserved": -item.quantity,
-            reserved: -item.quantity,
-            version: 1,
-          },
-        },
-        { session: mainSession }
-      );
-    }
-
-    // Wallet payment
-    if (paymentMethod === "WALLET") {
-      const wallet = await Wallet.findOne({ user: user._id }).session(mainSession);
-      if (!wallet || wallet.balance < totalPrice) {
-        throw new Error("Insufficient wallet balance");
       }
-      wallet.balance -= totalPrice;
-      wallet.walletTransactions.push({
-        type: "debit",
-        amount: totalPrice,
-        description: `Order #${order.orderId}`,
-        date: new Date(),
-        orderId: order._id,
+
+      cart.items.forEach((i) => (i.reservedAt = new Date()));
+      await cart.save({ session: mainSession });
+
+      const totalPrice = cart.newTotal || cart.total;
+      const trimmedCouponCode = appliedCouponCode?.trim();
+      let couponDoc = null;
+
+      if (trimmedCouponCode) {
+        couponDoc = await Coupon.findOne({ couponCode: trimmedCouponCode });
+      }
+
+      const order = new Order({
+        user: user._id,
+        items: cart.items.map((i) => ({
+          product: i.product._id,
+          quantity: i.quantity,
+          price: i.price,
+          size: i.size,
+        })),
+        totalAmount: totalPrice,
+        shippingAddress: selectedAddress,
+        paymentMethod,
+        orderStatus:
+          paymentMethod === "CASH_ON_DELIVERY" || paymentMethod === "WALLET"
+            ? "PROCESSING"
+            : "PENDING",
+        couponCode: trimmedCouponCode || null,
+        discountAmount: trimmedCouponCode ? cart.total - totalPrice : 0,
       });
-      await wallet.save({ session: mainSession });
-      order.orderStatus = "PROCESSING";
+
       await order.save({ session: mainSession });
-    }
 
-    // Clear cart
-    cart.items = [];
-    cart.total = cart.newTotal = 0;
-    cart.couponApplied = null;
-    await cart.save({ session: mainSession });
+      for (const item of cart.items) {
+        await Product.findOneAndUpdate(
+          { _id: item.product._id, "variants.size": item.size },
+          {
+            $inc: {
+              "variants.$.stock": -item.quantity,
+              "variants.$.reserved": -item.quantity,
+              reserved: -item.quantity,
+              version: 1,
+            },
+          },
+          { session: mainSession }
+        );
+      }
 
-    req.session.couponCode = null;
-    req.session.totalpay = 0;
+      if (couponDoc) {
+        await User.findByIdAndUpdate(
+          user._id,
+          { $addToSet: { usedCoupons: couponDoc._id } }, 
+          { session: mainSession }
+        );
+      }
 
-    await mainSession.commitTransaction();
-    mainSession.endSession();
+      if (paymentMethod === "WALLET") {
+        const wallet = await Wallet.findOne({ user: user._id }).session(
+          mainSession
+        );
+        if (!wallet || wallet.balance < totalPrice) {
+          throw new Error("Insufficient wallet balance");
+        }
+        wallet.balance -= totalPrice;
+        wallet.walletTransactions.push({
+          type: "debit",
+          amount: totalPrice,
+          description: `Order #${order.orderId}`,
+          date: new Date(),
+          orderId: order._id,
+        });
+        await wallet.save({ session: mainSession });
+        order.orderStatus = "PROCESSING";
+        await order.save({ session: mainSession });
+      }
 
-    console.log("ORDER SUCCESS:", order._id);
+      cart.items = [];
+      cart.total = cart.newTotal = 0;
+      cart.couponApplied = null;
+      await cart.save({ session: mainSession });
 
-    // === AUTO DETECT & RESPOND CORRECTLY ===
-    if (req.xhr || req.headers.accept?.indexOf("json") > -1) {
-      // Razorpay or AJAX call → return JSON
-      return res.json({
-        success: true,
-        message: "Order placed successfully!",
-        orderId: order._id,
-        redirectUrl: "/successpage"
-      });
-    } else {
-      // Normal form submit (COD / Wallet) → redirect to success page
-      req.session.lastOrderId = order._id;
-      return res.redirect("/successpage");
-    }
+      req.session.couponCode = null;
+      req.session.discount = 0;
+      req.session.totalpay = 0;
 
-  } catch (error) {
-    await mainSession.abortTransaction();
-    mainSession.endSession();
-    console.error("PLACE ORDER ERROR:", error.message);
+      await mainSession.commitTransaction();
+      mainSession.endSession();
 
-    if (req.xhr || req.headers.accept?.indexOf("json") > -1) {
-      return res.status(400).json({
-        success: false,
-        error: error.message || "Order failed",
-      });
-    } else {
-      return res.send(`
+      console.log("ORDER SUCCESS:", order._id);
+
+      if (req.xhr || req.headers.accept?.includes("json")) {
+        return res.json({
+          success: true,
+          message: "Order placed successfully!",
+          orderId: order._id,
+          redirectUrl: "/successpage",
+        });
+      } else {
+        req.session.lastOrderId = order._id;
+        return res.redirect("/successpage");
+      }
+    } catch (error) {
+      await mainSession.abortTransaction();
+      mainSession.endSession();
+      console.error("PLACE ORDER ERROR:", error.message);
+
+      return req.xhr || req.headers.accept?.includes("json")
+        ? res
+            .status(400)
+            .json({ success: false, error: error.message || "Order failed" })
+        : res.send(`
         <script>
           alert("${error.message || "Order failed. Please try again."}");
           window.history.back();
         </script>
       `);
     }
-  }
-},
+  },
 
   paymentFailure: async (req, res) => {
     const session = await mongoose.startSession();
@@ -938,103 +1025,106 @@ placeorder: async (req, res) => {
       const order = await Order.findById(orderId)
         .populate("items.product")
         .session(session);
+
       if (!order) {
         await session.abortTransaction();
         session.endSession();
         return res.status(404).json({ error: "Order not found" });
       }
 
-      if (order.orderStatus !== "CANCELLED") {
-        const subtotal = order.items.reduce((sum, item) => {
-          if (item.itemstatus !== "CANCELLED") {
-            return sum + item.price * item.quantity;
-          }
-          return sum;
-        }, 0);
-
-        let effectiveTotal = subtotal;
-        if (order.couponCode && order.discountAmount > 0 && subtotal > 0) {
-          effectiveTotal -= order.discountAmount;
-        }
-
-        const remainingRefund = Math.max(
-          0,
-          effectiveTotal - (order.refundedAmount || 0)
-        );
-
-        await Promise.all(
-          order.items.map(async (item) => {
-            if (item.itemstatus !== "CANCELLED") {
-              item.itemstatus = "CANCELLED";
-              item.cancellationReason = cancellationReason || "Order cancelled";
-              const product = await Product.findById(item.product._id).session(
-                session
-              );
-              if (product && Array.isArray(product.variants)) {
-                const variant = product.variants.find(
-                  (v) => v.size === item.size
-                );
-                if (variant) {
-                  variant.stock += item.quantity;
-                } else {
-                  console.warn(
-                    `Variant not found for size ${item.size} in product ${product._id}`
-                  );
-                }
-                product.version += 1;
-                await product.save({ session });
-              }
-            }
-          })
-        );
-
-        if (
-          remainingRefund > 0 &&
-          (order.paymentMethod === "RAZORPAY" ||
-            order.paymentMethod === "WALLET")
-        ) {
-          let userWallet = await Wallet.findOne({ user: order.user }).session(
-            session
-          );
-
-          if (!userWallet) {
-            userWallet = new Wallet({ user: order.user });
-            await userWallet.save({ session });
-          }
-          if (!userWallet.walletTransactions) {
-            userWallet.walletTransactions = [];
-          }
-
-          userWallet.balance += remainingRefund;
-          userWallet.walletTransactions.push({
-            type: "credit",
-            amount: remainingRefund,
-            description: `Refund for cancelled Order ${order.orderId}`,
-            date: new Date(),
-            orderId: order._id,
-          });
-          await userWallet.save({ session });
-          order.refundedAmount = (order.refundedAmount || 0) + remainingRefund;
-          order.transactiontype = "CREDIT";
-        }
-
-        order.orderStatus = "CANCELLED";
-        order.cancellationReason = cancellationReason || "Order cancelled";
-        await order.save({ session });
-
-        await session.commitTransaction();
-        session.endSession();
-        return res.json({ message: "Order cancelled successfully" });
-      } else {
+      if (order.orderStatus === "CANCELLED") {
         await session.abortTransaction();
         session.endSession();
         return res.status(400).json({ error: "Order is already cancelled" });
       }
+      const subtotal = order.items.reduce((sum, item) => {
+        if (item.itemstatus !== "CANCELLED") {
+          return sum + item.price * item.quantity;
+        }
+        return sum;
+      }, 0);
+
+      let effectiveTotal = subtotal;
+      if (order.couponCode && order.discountAmount > 0 && subtotal > 0) {
+        effectiveTotal -= order.discountAmount;
+      }
+
+      const remainingRefund = Math.max(
+        0,
+        effectiveTotal - (order.refundedAmount || 0)
+      );
+
+      for (const item of order.items) {
+        if (item.itemstatus === "CANCELLED") continue;
+
+        item.itemstatus = "CANCELLED";
+        item.cancellationReason = cancellationReason || "Order cancelled";
+
+        const product = await Product.findById(item.product._id).session(
+          session
+        );
+        if (product && Array.isArray(product.variants)) {
+          const variant = product.variants.find((v) => v.size === item.size);
+          if (variant) {
+            variant.stock += item.quantity;
+            variant.reserved = Math.max(
+              0,
+              (variant.reserved || 0) - item.quantity
+            );
+          }
+          product.reserved = Math.max(
+            0,
+            (product.reserved || 0) - item.quantity
+          );
+          product.version += 1;
+          await product.save({ session });
+        }
+      }
+
+      if (
+        remainingRefund > 0 &&
+        (order.paymentMethod === "RAZORPAY" || order.paymentMethod === "WALLET")
+      ) {
+        let userWallet = await Wallet.findOne({ user: order.user }).session(
+          session
+        );
+        if (!userWallet) {
+          userWallet = new Wallet({
+            user: order.user,
+            balance: 0,
+            walletTransactions: [],
+          });
+        }
+
+        userWallet.balance += remainingRefund;
+        userWallet.walletTransactions.push({
+          type: "credit",
+          amount: remainingRefund,
+          description: `Refund for cancelled Order ${order.orderId}`,
+          date: new Date(),
+          orderId: order._id,
+        });
+        await userWallet.save({ session });
+
+        order.refundedAmount = (order.refundedAmount || 0) + remainingRefund;
+        order.transactiontype = "CREDIT";
+      }
+
+      order.orderStatus = "CANCELLED";
+      order.cancellationReason = cancellationReason || "Order cancelled";
+      await order.save({ session });
+
+      await session.commitTransaction();
+      session.endSession();
+
+      return res.json({
+        message: "Order cancelled successfully",
+      });
     } catch (error) {
       await session.abortTransaction();
       session.endSession();
       console.error("Error in confirmcancellation:", error);
-      res.status(500).json({ error: "Internal server error" });
+      return res.status(500).json({ error: "Failed to cancel order" });
     }
   },
 
@@ -1045,108 +1135,64 @@ placeorder: async (req, res) => {
     session.startTransaction();
 
     try {
-      const order = await Order.findById(orderId)
-        .populate("items.product")
-        .session(session);
-      if (!order) {
-        await session.abortTransaction();
-        session.endSession();
-        return res.status(404).json({ error: "Order not found" });
-      }
+      const order = await Order.findById(orderId).session(session);
+      if (!order) throw new Error("Order not found");
 
       const itemIndex = parseInt(index, 10);
       const item = order.items[itemIndex];
-
-      if (!item) {
-        await session.abortTransaction();
-        session.endSession();
-        return res.status(404).json({ error: "Item not found in the order" });
+      if (!item || item.itemstatus === "CANCELLED") {
+        throw new Error("Item already cancelled or not found");
       }
 
-      if (item.itemstatus !== "CANCELLED") {
-        item.itemstatus = "CANCELLED";
-        item.cancellationReason = itemCancellationReason;
+      const refundAmount = item.price * item.quantity;
 
-        if (item.product && item.product.price) {
-          const cancelledItemTotal = item.product.price * item.quantity;
 
-          const product = await Product.findById(item.product._id).session(
-            session
-          );
-          if (product && Array.isArray(product.variants)) {
-            const variant = product.variants.find((v) => v.size === item.size);
-            if (variant) {
-              variant.stock += item.quantity;
-            } else {
-              console.warn(
-                `Variant not found for size ${item.size} in product ${product._id}`
-              );
-            }
-            product.version += 1;
-            await product.save({ session });
-          }
-
-          if (
-            order.paymentMethod === "RAZORPAY" ||
-            order.paymentMethod === "WALLET"
-          ) {
-            let userWallet = await Wallet.findOne({
-              user: order.user,
-            }).session(session);
-
-            if (!userWallet) {
-              userWallet = new Wallet({ user: order.user });
-              await userWallet.save({ session });
-            }
-            if (!userWallet.walletTransactions) {
-              userWallet.walletTransactions = [];
-            }
-
-            userWallet.balance += cancelledItemTotal;
-            userWallet.walletTransactions.push({
-              type: "credit",
-              amount: cancelledItemTotal,
-              description: `Refund for cancelled item in Order ${order.orderId}`,
-              date: new Date(),
-              orderId: order._id,
-            });
-            await userWallet.save({ session });
-
-            order.refundedAmount =
-              (order.refundedAmount || 0) + cancelledItemTotal;
-            order.transactiontype = "CREDIT";
-          }
-
-          const allItemsCancelled = order.items.every(
-            (item) => item.itemstatus === "CANCELLED"
-          );
-          if (allItemsCancelled) {
-            order.orderStatus = "CANCELLED";
-            order.cancellationReason =
-              itemCancellationReason || "All items cancelled";
-            await order.save({ session });
-          }
-
-          await order.save({ session });
-
-          await session.commitTransaction();
-          session.endSession();
-          return res.json({ message: "Item cancelled successfully" });
-        } else {
-          await session.abortTransaction();
-          session.endSession();
-          return res.status(500).json({ error: "Product price is undefined" });
+      const product = await Product.findById(item.product).session(session);
+      if (product) {
+        const variant = product.variants.find((v) => v.size === item.size);
+        if (variant) {
+          variant.stock += item.quantity;
         }
-      } else {
-        await session.abortTransaction();
-        session.endSession();
-        return res.status(400).json({ error: "Item is already cancelled" });
+        product.reserved = Math.max(0, (product.reserved || 0) - item.quantity);
+        product.version += 1;
+        await product.save({ session });
       }
+
+      if (["RAZORPAY", "WALLET"].includes(order.paymentMethod)) {
+        let wallet =
+          (await Wallet.findOne({ user: order.user }).session(session)) ||
+          new Wallet({ user: order.user, balance: 0, walletTransactions: [] });
+
+        wallet.balance += refundAmount;
+        wallet.walletTransactions.push({
+          type: "credit",
+          amount: refundAmount,
+          description: `Refund for cancelled item (Order #${order.orderId})`,
+          date: new Date(),
+          orderId: order._id,
+        });
+        await wallet.save({ session });
+
+        order.refundedAmount = (order.refundedAmount || 0) + refundAmount;
+      }
+
+      item.itemstatus = "CANCELLED";
+      item.cancellationReason = itemCancellationReason;
+      await order.save({ session });
+
+      await session.commitTransaction();
+      session.endSession();
+
+      return res.json({
+        success: true,
+        message: "Item cancelled successfully",
+        refundAmount,
+      });
     } catch (error) {
       await session.abortTransaction();
       session.endSession();
-      console.error("Error in confirmItemCancellation:", error);
-      res.status(500).json({ error: "Internal server error" });
+      console.error("Item cancellation failed:", error.message);
+      return res.status(500).json({ error: error.message });
     }
   },
 
@@ -1273,19 +1319,16 @@ placeorder: async (req, res) => {
 
       doc.pipe(res);
 
-      // Helper function to add horizontal line
       const addHorizontalLine = (y, startX = 50, endX = 550) => {
         doc.moveTo(startX, y).lineTo(endX, y).stroke();
       };
 
-      // Header Section
       doc
         .fontSize(24)
         .font("Helvetica-Bold")
         .text("INVOICE", { align: "center" })
         .moveDown(0.5);
 
-      // Company/Store Details
       doc
         .fontSize(12)
         .font("Helvetica-Bold")
