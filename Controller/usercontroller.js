@@ -169,6 +169,7 @@ module.exports = {
           category: categories,
           data: data,
           user: user,
+          referral: user.referral, 
           wishlist,
           cart,
         });
@@ -203,11 +204,8 @@ module.exports = {
     try {
       const userId = req.session.user;
       const { firstName, lastName, mobileNumber } = req.body;
-
-      // Get current user details
       const currentDetails = await UserDetails.findOne({ user: userId });
 
-      // Build update object with only changed fields
       const updateFields = {};
       if (
         firstName !== undefined &&
@@ -228,7 +226,6 @@ module.exports = {
         updateFields.mobileNumber = mobileNumber;
       }
 
-      // Only update if there are changes
       if (Object.keys(updateFields).length === 0) {
         return res.status(200).json({
           success: true,
@@ -307,7 +304,6 @@ module.exports = {
     try {
       const email = req.session.email;
 
-      // Check if email exists in session (user verified OTP)
       if (!email) {
         return res.redirect("/forgotpassword");
       }
@@ -645,7 +641,7 @@ module.exports = {
         email: email,
         otp: otp,
         expiresAt: Date.now() + 60 * 1000,
-        purpose: "password_reset", // Add purpose field
+        purpose: "password_reset", 
       });
 
       await otpRecord.save();
@@ -668,8 +664,7 @@ module.exports = {
       await transporter.sendMail(mailOptions);
       req.session.email = email;
 
-      console.log("OTP sent:", otp); // For debugging - remove in production
-
+      console.log("OTP sent:", otp); 
       const categories = await Category.find();
       const wishlist = [];
       const cart = [];
@@ -766,7 +761,7 @@ module.exports = {
         console.log("Order ID:", order.id);
         console.log("Order amount:", order.amount);
 
-        // Add key_id to response for frontend
+
         const response = {
           ...order,
           key_id: process.env.key_id,
@@ -783,7 +778,7 @@ module.exports = {
     console.log("Session user:", req.session.user);
 
     try {
-      const { amount, razorpayOrderId } = req.body; // Use consistent key name
+      const { amount, razorpayOrderId } = req.body; 
       console.log("Amount to add:", amount, "Type:", typeof amount);
       console.log("Razorpay Order ID:", razorpayOrderId);
 
@@ -840,7 +835,7 @@ module.exports = {
       console.log("Current balance:", wallet.balance);
       console.log("Amount to add:", amount);
 
-      wallet.balance += Number(amount); // Ensure amount is a number
+      wallet.balance += Number(amount); 
       const newTransaction = {
         type: "credit",
         amount: Number(amount),

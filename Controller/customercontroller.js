@@ -82,7 +82,7 @@ module.exports = {
       req.session.name = name;
       req.session.password = password;
       req.session.referralCode = referralCode;
-      req.session.isSignup = true; // Flag to indicate signup flow
+      req.session.isSignup = true;
 
       await OTP.deleteOne({ email });
 

@@ -135,6 +135,93 @@
     color: #721c24;
     border: 1px solid #f5c6cb;
   }
+
+  .referral-card {
+  display: flex;
+  gap: 18px;
+  padding: 20px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #6a1b9a, #8e24aa);
+  color: #fff;
+  box-shadow: 0 12px 25px rgba(106, 27, 154, 0.35);
+  margin-bottom: 30px;
+  position: relative;
+  overflow: hidden;
+}
+
+.referral-card::after {
+  content: "";
+  position: absolute;
+  top: -40px;
+  right: -40px;
+  width: 120px;
+  height: 120px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 50%;
+}
+
+.referral-left {
+  display: flex;
+  align-items: center;
+}
+
+.referral-badge {
+  background: #ffd54f;
+  color: #4a148c;
+  font-weight: 700;
+  font-size: 18px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.3);
+}
+
+.referral-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.referral-code-box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.15);
+  padding: 10px 14px;
+  border-radius: 10px;
+  width: fit-content;
+  margin-bottom: 10px;
+}
+
+.referral-code {
+  font-family: "Courier New", monospace;
+  font-size: 16px;
+  letter-spacing: 2px;
+  font-weight: 600;
+}
+
+.copy-btn {
+  background: #fff;
+  color: #6a1b9a;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.copy-btn:hover {
+  background: #f3e5f5;
+  transform: translateY(-1px);
+}
+
+.referral-desc {
+  font-size: 13px;
+  opacity: 0.95;
+  line-height: 1.4;
+}
+
 </style>
 
 <div class="container-fluid">
@@ -144,6 +231,35 @@
     <div class="content-with-sidebar" style="margin-top: 80px; padding: 20px">
       <div class="col-md-8" style="max-width: 800px">
         <div class="p-3 py-5">
+            <div class="referral-card">
+  <div class="referral-left">
+    <div class="referral-badge">₹100</div>
+  </div>
+
+  <div class="referral-right">
+    <p class="referral-title">Invite & Earn</p>
+
+    <div class="referral-code-box">
+      <span class="referral-code">
+        <%= referral ? referral : "N/A" %>
+      </span>
+      <button
+        class="copy-btn"
+        onclick="copyReferralCode('<%= referral %>')"
+      >
+        Copy
+      </button>
+    </div>
+
+    <p class="referral-desc">
+      Share your referral code with friends and earn
+      <strong>₹100</strong> when they successfully sign up.
+    </p>
+  </div>
+</div>
+
+
+
           <!-- Alert Messages -->
           <div id="alertMessage" class="alert"></div>
 
@@ -460,5 +576,13 @@
     updateSubmitButton();
   })();
 </script>
+
+<script>
+  function copyReferralCode(code) {
+    if (!code) return;
+    navigator.clipboard.writeText(code);
+  }
+</script>
+
 
 <%- include('./footer') %>
