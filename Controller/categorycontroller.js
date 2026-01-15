@@ -40,7 +40,7 @@ module.exports = {
       res.redirect('/categories');
     } catch (error) {
       console.error(error);
-      res.status(STATUS_CODES.INTERNAL_SERVER_ERRORODES).json({ message:messages.INTERNAL_SERVER_ERROR, type: 'danger' });
+      res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({ message:messages.INTERNAL_SERVER_ERROR, type: 'danger' });
     }
   },
 
@@ -51,7 +51,6 @@ module.exports = {
       const limit = parseInt(req.query.limit) || 10;
       const search = req.query.search || '';
       
-      // Build query
       const query = search ? 
         { name: { $regex: search, $options: 'i' } } : 
         {};

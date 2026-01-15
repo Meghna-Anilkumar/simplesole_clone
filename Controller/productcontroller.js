@@ -8,6 +8,8 @@ const cloudinary = require("cloudinary").v2;
 const HttpStatusCode = require("../enums/statusCodes");
 const { calculateCategoryOfferPrice } = require("../utils/cartfunctions");
 const mongoose = require("mongoose");
+const messages = require('../constants/messages');
+const STATUS_CODES=require('../enums/statusCodes');
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -131,7 +133,7 @@ module.exports = {
       });
     } catch (err) {
       console.error("Error in getproducts: " + err);
-      res.status(500).json({ message: err.message, type: "danger" });
+      res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({ message: err.message, type: "danger" });
     }
   },
 
@@ -146,7 +148,7 @@ module.exports = {
           console.log("Parsed croppedImages: " + JSON.stringify(croppedImages));
         } catch (parseError) {
           console.error("Error parsing croppedImages: " + parseError);
-          return res.status(400).json({
+          return res.status(STATUS_CODES.BAD_REQUEST).json({
             message: "Invalid croppedImages format",
             type: "danger",
           });
@@ -154,7 +156,7 @@ module.exports = {
       }
 
       if (!Array.isArray(croppedImages) || croppedImages.length === 0) {
-        return res.status(400).json({
+        return res.status(STATUS_CODES.BAD_REQUEST).json({
           message: "Please upload and crop at least one image.",
           type: "danger",
         });
@@ -163,7 +165,7 @@ module.exports = {
       const requiredFields = ["name", "description", "category", "price"];
       for (const field of requiredFields) {
         if (!req.body[field] || req.body[field].toString().trim() === "") {
-          return res.status(400).json({
+          return res.status(STATUS_CODES.BAD_REQUEST).json({
             message:
               field.charAt(0).toUpperCase() + field.slice(1) + " is required",
             type: "danger",
@@ -180,7 +182,7 @@ module.exports = {
           }));
 
           if (variants.length === 0) {
-            return res.status(400).json({
+            return res.status(STATUS_CODES.BAD_REQUEST).json({
               message: "At least one variant is required",
               type: "danger",
             });
@@ -188,7 +190,7 @@ module.exports = {
 
           for (const variant of variants) {
             if (!variant.size || isNaN(variant.stock) || variant.stock < 0) {
-              return res.status(400).json({
+              return res.status(STATUS_CODES.BAD_REQUEST).json({
                 message: "Invalid variant data: size and stock are required",
                 type: "danger",
               });
@@ -196,13 +198,13 @@ module.exports = {
           }
         } catch (parseError) {
           console.error("Error parsing variants: " + parseError);
-          return res.status(400).json({
+          return res.status(STATUS_CODES.BAD_REQUEST).json({
             message: "Invalid variants format",
             type: "danger",
           });
         }
       } else {
-        return res.status(400).json({
+        return res.status(STATUS_CODES.BAD_REQUEST).json({
           message: "At least one variant is required",
           type: "danger",
         });
@@ -234,8 +236,8 @@ module.exports = {
       res.redirect("/products");
     } catch (error) {
       console.error("addnewproduct error: " + error);
-      res.status(500).json({
-        message: error.message || "Internal server error",
+      res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({
+        message: error.message ||messages.INTERNAL_SERVER_ERROR,
         type: "danger",
       });
     }
@@ -247,7 +249,7 @@ module.exports = {
       const product = await Product.findById(id).exec();
 
       if (!product) {
-        return res.status(404).json({ message: "Product not found" });
+        return res.status(STATUS_CODES.NOT_FOUND).json({ message: "Product not found" });
       }
 
       const category = await Category.find().exec();
@@ -260,7 +262,7 @@ module.exports = {
       });
     } catch (error) {
       console.error("Error in editproduct: " + error);
-      res.status(500).json({ message: "Internal server error" });
+      res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({ message: messages.INTERNAL_SERVER_ERROR });
     }
   },
 
@@ -289,7 +291,7 @@ module.exports = {
       console.error("Error uploading cropped image: " + error);
       res
         .status(HttpStatusCode.INTERNAL_SERVER_ERROR)
-        .json({ error: "Internal server error" });
+        .json({ error:messages.INTERNAL_SERVER_ERROR });
     }
   },
 
@@ -600,12 +602,12 @@ module.exports = {
         wishlist,
         cart,
         similarProducts,
-        category: allCategories, // For header navigation
-        selectedCategory: productDoc.category, // Current product category
+        category: allCategories, 
+        selectedCategory: productDoc.category,
       });
     } catch (error) {
       console.error(`[getproductdetails] Error:`, error);
-      res.status(500).render("error", { message: "Something went wrong" });
+      res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).render("error", { message: "Something went wrong" });
     }
   },
 
@@ -616,7 +618,7 @@ module.exports = {
       const product = await Product.findById(productId);
 
       if (!product) {
-        return res.status(404).json({ message: "Product not found" });
+        return res.status(STATUS_CODES.NOT_FOUND).json({ message: "Product not found" });
       }
 
       product.blocked = !product.blocked;
@@ -625,7 +627,7 @@ module.exports = {
       res.redirect("/products");
     } catch (error) {
       console.error("Error in blockProduct: " + error);
-      res.status(500).json({ message: "Internal server error" });
+      res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({ message: messages.INTERNAL_SERVER_ERROR});
     }
   },
 
@@ -735,7 +737,7 @@ module.exports = {
       }
     } catch (error) {
       console.error("Error in getAllProducts:", error);
-      res.status(500).json({ message: "Internal server error" });
+      res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({ message: messages.INTERNAL_SERVER_ERROR });
     }
   },
 

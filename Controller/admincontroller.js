@@ -36,13 +36,13 @@ module.exports = {
       }
 
       if (email !== "admin@gmail.com") {
-        return res.status(401).json({ message: "Invalid credentials" });
+        return res.status(STATUS_CODES.UNAUTHORIZED).json({ message: Messages.INVALID_CREDENTIALS});
       }
       const isMatch = await bcrypt.compare(password, admin.password);
       console.log("Password match:", isMatch);
 
       if (!isMatch) {
-        return res.status(401).json({ message: "Invalid credentials" });
+        return res.status(STATUS_CODES.UNAUTHORIZED).json({ message: Messages.INVALID_CREDENTIALS });
       }
 
       req.session.isadminlogged = true;
@@ -53,7 +53,7 @@ module.exports = {
         ...dashboardData,
       });
     } catch (err) {
-      console.error("Admin login error:", err);
+      console.error(err);
       res.status(500).json({ message: Messages.INTERNAL_SERVER_ERROR });
     }
   },

@@ -139,7 +139,7 @@ module.exports = {
       console.error("Error in register:", error);
       const categories = await Category.find();
       res.render("userviews/signup", {
-        error: "Internal Server Error",
+        error: messages.INTERNAL_SERVER_ERROR,
         title: "Signup",
         category: categories,
         wishlist: [],
@@ -341,7 +341,7 @@ module.exports = {
         console.error("Error in verifyotp:", error);
         const categories = await Category.find();
         if (req.headers["content-type"] === "application/json") {
-            return res.status(500).json({ error: "Internal Server Error" });
+            return res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({ error: "Internal Server Error" });
         }
         return res.render("userviews/otp", {
             email: req.body.email || "",
@@ -417,7 +417,7 @@ module.exports = {
       res.render("userviews/resetpassword", {
         email: req.body.email || "",
         category: categories,
-        error: "Internal Server Error",
+        error: messages.INTERNAL_SERVER_ERROR,
         wishlist: [],
         cart: [],
         title: "Reset Password",

@@ -6,6 +6,7 @@ const CategoryOffer = require("../models/categoryoffer");
 const Product = require("../models/product");
 const Wishlist = require("../models/wishlist");
 const HTTP_STATUS = require("../enums/statusCodes")
+const messages = require('../constants/messages');
 
 const now = new Date();
 
@@ -109,7 +110,7 @@ module.exports = {
       });
       res
         .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
-        .send("Internal Server Error");
+        .send(messages.INTERNAL_SERVER_ERROR);
     }
   },
 
@@ -121,7 +122,7 @@ module.exports = {
       if (!user) {
         return res
           .status(HTTP_STATUS.UNAUTHORIZED)
-          .json({ message: "User not authenticated" });
+          .json({ message: messages.USER_NOT_AUTHENTICATED });
       }
 
       if (!mongoose.Types.ObjectId.isValid(productId)) {
@@ -219,7 +220,7 @@ module.exports = {
       });
       res
         .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
-        .json({ message: "Internal Server Error" });
+        .json({ message: messages.INTERNAL_SERVER_ERROR });
     }
   },
 };

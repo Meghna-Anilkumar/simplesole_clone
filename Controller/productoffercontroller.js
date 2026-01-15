@@ -7,13 +7,15 @@ const Order = require("../models/orderSchema");
 const User = require("../models/user");
 const ProductOffer = require("../models/productoffermodel");
 const CategoryOffer = require("../models/categoryoffer");
+const messages = require('../constants/messages');
+const STATUS_CODES=require('../enums/statusCodes');
 
 module.exports = {
   // Get product offer page
   getproductofferpage: async (req, res) => {
     try {
       const page = parseInt(req.query.page) || 1;
-      const limit = parseInt(req.query.limit) || 6; // Show 6 offers per page
+      const limit = parseInt(req.query.limit) || 6; 
       const skip = (page - 1) * limit;
 
       const products = await Product.find({}, "name category")
@@ -44,7 +46,7 @@ module.exports = {
       });
     } catch (error) {
       console.error(error);
-      res.status(500).json({ message: "Internal Server Error" });
+      res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({ message: messages.INTERNAL_SERVER_ERROR });
     }
   },
 
@@ -52,21 +54,17 @@ module.exports = {
   saveProductOffer: async (req, res) => {
     try {
       const { productId, discountPercentage, startDate, expiryDate } = req.body;
-
-      // Validate inputs
       if (!productId || !discountPercentage || !startDate || !expiryDate) {
         return res.status(400).json({ message: "All fields are required" });
       }
 
-      // Validate discount percentage
       const discountPercentageValue = parseInt(discountPercentage);
       if (isNaN(discountPercentageValue) || discountPercentageValue < 1 || discountPercentageValue > 100) {
         return res.status(400).json({ message: "Discount percentage must be between 1 and 100" });
       }
 
-      // Validate dates
       const today = new Date();
-      today.setHours(0, 0, 0, 0); // Reset time to midnight
+      today.setHours(0, 0, 0, 0); 
       const start = new Date(startDate);
       const end = new Date(expiryDate);
 
@@ -93,7 +91,7 @@ module.exports = {
 
       const product = await Product.findById(productId);
       if (!product) {
-        return res.status(404).json({ message: "Product not found" });
+        return res.status(STATUS_CODES.NOT_FOUND).json({ message: "Product not found" });
       }
 
       const discountAmount = (product.price * discountPercentage) / 100;
@@ -109,13 +107,13 @@ module.exports = {
 
       const savedOffer = await productOffer.save();
 
-      res.status(200).json({
+      res.status(STATUS_CODES.CREATED).json({
         message: "Product offer added successfully",
         offer: savedOffer,
       });
     } catch (error) {
       console.error(error);
-      res.status(500).json({ message: "Internal Server Error" });
+      res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({ message: messages.INTERNAL_SERVER_ERROR });
     }
   },
 
@@ -131,7 +129,7 @@ module.exports = {
       });
     } catch (error) {
       console.error(error);
-      res.status(500).json({ message: "Internal Server Error" });
+      res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({ message:messages.INTERNAL_SERVER_ERROR });
     }
   },
 

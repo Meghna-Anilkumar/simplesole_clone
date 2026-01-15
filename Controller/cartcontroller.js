@@ -1,4 +1,3 @@
-// controllers/cartController.js
 const mongoose = require("mongoose");
 const Cart = require("../models/cartSchema");
 const Product = require("../models/product");
@@ -56,7 +55,6 @@ module.exports = {
               continue;
             }
 
-            // CORRECT STOCK CALCULATION FOR CURRENT USER
             const userReservedQty = item.quantity;
             const othersReserved = Math.max(
               0,
@@ -66,7 +64,6 @@ module.exports = {
             const totalAvailableForThisUser =
               stockAvailableExcludingUser + userReservedQty;
 
-            // Only block if someone else took the stock
             if (stockAvailableExcludingUser < 0) {
               unavailableItems.push({
                 name: product.name,
@@ -78,7 +75,6 @@ module.exports = {
               canProceedToCheckout = false;
             }
 
-            // Expire old reservations (10 minutes)
             if (
               item.reservedAt &&
               item.reservedAt < new Date(Date.now() - 10 * 60 * 1000)
@@ -158,7 +154,7 @@ module.exports = {
       });
     } catch (error) {
       console.error("getcart error:", error);
-      res.status(500).render("error", { message: "Something went wrong" });
+      res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).render("error", { message: messages.INTERNAL_SERVER_ERROR});
     }
   },
 
@@ -172,8 +168,8 @@ module.exports = {
 
       if (!mongoose.Types.ObjectId.isValid(productId) || !size || qty < 1) {
         return res
-          .status(400)
-          .json({ success: false, error: "Invalid request" });
+          .status(STATUS_CODES.BAD_REQUEST)
+          .json({ success: false, error: messages.BAD_REQUEST });
       }
 
       const product = await Product.findById(productId).session(session);
@@ -194,13 +190,12 @@ module.exports = {
       const currentQtyInCart = existingItem ? existingItem.quantity : 0;
       const newTotalQty = currentQtyInCart + qty;
 
-      // CORRECTED & SIMPLIFIED LOGIC
+
       const totalReserved = variant.reserved || 0;
-      const reservedByThisUser = currentQtyInCart; // This is what user already has reserved
+      const reservedByThisUser = currentQtyInCart; 
       const reservedByOthers = totalReserved - reservedByThisUser;
       const availableForThisUser = variant.stock - reservedByOthers;
 
-      console.log("\n--- STOCK DEBUG ---");
       console.log("Total stock:", variant.stock);
       console.log("Total reserved (all users):", totalReserved);
       console.log("Reserved by this user:", reservedByThisUser);
@@ -217,7 +212,6 @@ module.exports = {
         );
       }
 
-      // SUCCESS: Reserve the stock
       if (existingItem) {
         existingItem.quantity = newTotalQty;
         existingItem.reservedAt = new Date();
@@ -263,7 +257,7 @@ module.exports = {
     } catch (error) {
       await session.abortTransaction();
       console.log("ADD TO CART FAILED:", error.message);
-      res.status(400).json({ success: false, error: error.message });
+      res.status(STATUS_CODES.BAD_REQUEST).json({ success: false, error: error.message });
     } finally {
       session.endSession();
     }
@@ -276,8 +270,6 @@ module.exports = {
       const { productId, change } = req.params;
       const changeAmt = parseInt(change);
       const user = req.session.user._id;
-
-      console.log("\n========== UPDATE QUANTITY DEBUG ==========");
       console.log("Product ID:", productId);
       console.log("Change Amount:", changeAmt);
       console.log("User ID:", user);
@@ -335,21 +327,17 @@ module.exports = {
 
       // Check if new quantity exceeds available stock
       if (newQty > realAvailableStock) {
-        console.log("\n❌ VALIDATION FAILED");
+        console.log("VALIDATION FAILED");
         console.log(
           `User wants ${newQty} but only ${realAvailableStock} available`
         );
         throw new Error(`Only ${realAvailableStock} available`);
       }
 
-      console.log("\n✅ VALIDATION PASSED");
+      console.log("VALIDATION PASSED");
       console.log(
         `User can have ${newQty} items (${realAvailableStock} available)`
       );
-
-      // Update the product's reserved count
-      // If increasing: reserve more (+changeAmt)
-      // If decreasing: release some (-changeAmt)
       await Product.findOneAndUpdate(
         { _id: productId, "variants.size": item.size },
         {

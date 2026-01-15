@@ -84,7 +84,7 @@ module.exports = {
       });
     } catch (error) {
       console.error("Error fetching return requests:", error);
-      res.status(500).json({ message: Messages.INTERNAL_SERVER_ERROR });
+      res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({ message: Messages.INTERNAL_SERVER_ERROR });
     }
   },
 
@@ -103,14 +103,14 @@ module.exports = {
       if (!order) {
         await session.abortTransaction();
         session.endSession();
-        return res.status(404).json({ message: "Order not found" });
+        return res.status(STATUS_CODES.NOT_FOUND).json({ message: "Order not found" });
       }
 
       if (order.orderStatus !== "RETURN REQUESTED") {
         await session.abortTransaction();
         session.endSession();
         return res
-          .status(400)
+          .status(STATUS_CODES.BAD_REQUEST)
           .json({ message: "Order is not in return requested status" });
       }
 
@@ -122,7 +122,7 @@ module.exports = {
         await session.abortTransaction();
         session.endSession();
         return res
-          .status(400)
+          .status(STATUS_CODES.BAD_REQUEST)
           .json({ message: "No refundable amount remaining for this order" });
       }
 
@@ -133,7 +133,7 @@ module.exports = {
         await session.abortTransaction();
         session.endSession();
         return res
-          .status(400)
+          .status(STATUS_CODES.BAD_REQUEST)
           .json({ message: "No refundable items in this order" });
       }
 

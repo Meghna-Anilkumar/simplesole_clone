@@ -15,6 +15,8 @@ const ProductOffer = require("../models/productoffermodel");
 const CategoryOffer = require("../models/categoryoffer");
 const { calculateTotalPrice } = require("../utils/cartfunctions");
 const Coupon = require("../models/coupon");
+const messages = require('../constants/messages');
+const STATUS_CODES=require('../enums/statusCodes');
 
 const instance = new Razorpay({
   key_id: process.env.key_id,
@@ -100,8 +102,8 @@ module.exports = {
     } catch (error) {
       console.error("Error in checkoutpage:", error);
       res
-        .status(500)
-        .render("userviews/error", { error: "Internal Server Error" });
+        .status(STATUS_CODES.INTERNAL_SERVER_ERROR)
+        .render("userviews/error", { error: messages.INTERNAL_SERVER_ERROR});
     }
   },
 
@@ -239,7 +241,7 @@ module.exports = {
       await session.abortTransaction();
       session.endSession();
       console.error("createRazorpayOrder error:", error);
-      res.status(500).json({ success: false, error: "Failed to create order" });
+      res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({ success: false, error: "Failed to create order" });
     }
   },
 

@@ -10,4 +10,5 @@ module.exports = {
     "Password should contain at least 8 characters, an uppercase letter, a lowercase letter, and a special character",
   PROFILE_UPDATED_SUCCESS: "Profile details updated successfully",
   RAZORPAY_ORDER_FAILED: "Failed to create Razorpay order",
+  INVALID_CREDENTIALS:"invalid credentials"
 };
