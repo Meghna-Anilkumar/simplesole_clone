@@ -5,7 +5,7 @@ const Product = require("../models/product");
 const UserDetails = require("../models/userdetails");
 const Address = require("../models/address");
 const OTP = require("../models/otpSchema");
-const nodemailer = require("nodemailer");
+// const nodemailer = require("nodemailer");
 const otpGenerator = require("otp-generator");
 const Wishlist = require("../models/wishlist");
 const Cart = require("../models/cartSchema");
@@ -16,6 +16,7 @@ const HttpStatusCode = require("../enums/statusCodes");
 const Messages = require("../constants/messages");
 const ProductOffer = require("../models/productoffermodel");
 const CategoryOffer = require("../models/categoryoffer");
+const sendBrevoEmail = require("../utils/brevoEmail");
 
 const razorpay = new Razorpay({
   key_id: process.env.key_id,
@@ -31,7 +32,7 @@ module.exports = {
       let cart;
       if (req.user) {
         wishlist = await Wishlist.findOne({ user: req.user._id }).populate(
-          "items.product"
+          "items.product",
         );
         cart = await Cart.findOne({ user: req.user._id })
           .populate("items.product")
@@ -155,7 +156,7 @@ module.exports = {
       if (req.session.isAuth) {
         const categories = await Category.find();
         const wishlist = await Wishlist.findOne({ user: user._id }).populate(
-          "items.product"
+          "items.product",
         );
         const cart = await Cart.findOne({ user })
           .populate("items.product")
@@ -169,7 +170,7 @@ module.exports = {
           category: categories,
           data: data,
           user: user,
-          referral: user.referral, 
+          referral: user.referral,
           wishlist,
           cart,
         });
@@ -241,7 +242,7 @@ module.exports = {
       const updatedDetails = await UserDetails.findOneAndUpdate(
         { user: userId },
         updateFields,
-        { new: true, upsert: true }
+        { new: true, upsert: true },
       );
 
       res.status(200).json({
@@ -270,10 +271,10 @@ module.exports = {
         const id = req.params.id;
 
         const wishlist = await Wishlist.findOne({ user: userId }).populate(
-          "items.product"
+          "items.product",
         );
         const cart = await Cart.findOne({ user: userId }).populate(
-          "items.product"
+          "items.product",
         );
         const userData = await UserDetails.findOne({ user: userId });
         const addresses = await Address.find({ user: userId });
@@ -373,7 +374,7 @@ module.exports = {
         "getAddressById - Address ID:",
         addressId,
         "User ID:",
-        userId
+        userId,
       );
 
       if (!userId) {
@@ -389,7 +390,7 @@ module.exports = {
           "getAddressById - Address not found for ID:",
           addressId,
           "User:",
-          userId
+          userId,
         );
         return res
           .status(HttpStatusCode.NOT_FOUND)
@@ -476,7 +477,7 @@ module.exports = {
         "User ID:",
         userId,
         "Body:",
-        req.body
+        req.body,
       );
 
       if (!userId) {
@@ -497,7 +498,7 @@ module.exports = {
       const updatedAddress = await Address.findOneAndUpdate(
         { _id: addressId, user: userId },
         updatedAddressData,
-        { new: true }
+        { new: true },
       );
 
       if (!updatedAddress) {
@@ -528,7 +529,7 @@ module.exports = {
       const userData = await UserDetails.findOne({ user: userId });
       const addresses = await Address.find({ user: userId });
       const wishlist = await Wishlist.findOne({ user: userId }).populate(
-        "items.product"
+        "items.product",
       );
       const cart = await Cart.findOne({ user: userId })
         .populate("items.product")
@@ -591,7 +592,7 @@ module.exports = {
       const category = await Category.find();
       const userId = req.session.user ? req.session.user._id : null;
       const wishlist = await Wishlist.findOne({ user: userId }).populate(
-        "items.product"
+        "items.product",
       );
       const cart = await Cart.findOne({ user: userId })
         .populate("items.product")
@@ -641,30 +642,20 @@ module.exports = {
         email: email,
         otp: otp,
         expiresAt: Date.now() + 60 * 1000,
-        purpose: "password_reset", 
+        purpose: "password_reset",
       });
 
       await otpRecord.save();
 
-      const transporter = nodemailer.createTransport({
-        service: "gmail",
-        auth: {
-          user: process.env.MAILID,
-          pass: process.env.PASSWORD,
-        },
-      });
+      await sendBrevoEmail(
+        email,
+        "Your OTP for Forgot Password",
+        `Your OTP is ${otp}. It will expire in 60 seconds.`,
+      );
 
-      const mailOptions = {
-        from: process.env.MAILID,
-        to: email,
-        subject: "Your OTP for Forgot Password",
-        text: `Your OTP is ${otp}. It will expire in 60 seconds.`,
-      };
-
-      await transporter.sendMail(mailOptions);
       req.session.email = email;
 
-      console.log("OTP sent:", otp); 
+      console.log("OTP sent:", otp);
       const categories = await Category.find();
       const wishlist = [];
       const cart = [];
@@ -742,7 +733,7 @@ module.exports = {
     console.log("Razorpay order options:", options);
     console.log(
       "Razorpay instance check:",
-      razorpay ? "Available" : "Not Available"
+      razorpay ? "Available" : "Not Available",
     );
 
     razorpay.orders.create(options, (err, order) => {
@@ -761,7 +752,6 @@ module.exports = {
         console.log("Order ID:", order.id);
         console.log("Order amount:", order.amount);
 
-
         const response = {
           ...order,
           key_id: process.env.key_id,
@@ -778,7 +768,7 @@ module.exports = {
     console.log("Session user:", req.session.user);
 
     try {
-      const { amount, razorpayOrderId } = req.body; 
+      const { amount, razorpayOrderId } = req.body;
       console.log("Amount to add:", amount, "Type:", typeof amount);
       console.log("Razorpay Order ID:", razorpayOrderId);
 
@@ -835,7 +825,7 @@ module.exports = {
       console.log("Current balance:", wallet.balance);
       console.log("Amount to add:", amount);
 
-      wallet.balance += Number(amount); 
+      wallet.balance += Number(amount);
       const newTransaction = {
         type: "credit",
         amount: Number(amount),

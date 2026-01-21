@@ -1,6 +1,6 @@
 const User = require("../models/user");
 const OTP = require("../models/otpSchema");
-const nodemailer = require("nodemailer");
+// const nodemailer = require("nodemailer");
 const otpGenerator = require("otp-generator");
 const Category = require("../models/category");
 const bcrypt = require("bcrypt");
@@ -8,9 +8,11 @@ const { generateReferralCode } = require("../utils/generatereferral");
 const Wallet = require("../models/wallet");
 const messages = require('../constants/messages');
 const STATUS_CODES=require('../enums/statusCodes');
+const sendBrevoEmail = require("../utils/brevoEmail");
+
 
 module.exports = {
-  register: async (req, res) => {
+    register: async (req, res) => {
     try {
       const { name, email, password, confirmPassword, referralCode } = req.body;
 
@@ -26,13 +28,11 @@ module.exports = {
         });
       }
 
-      const passwordRegex =
-        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+      const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
       if (!passwordRegex.test(password)) {
         const categories = await Category.find();
         return res.render("userviews/signup", {
-          error:
-            "Password should contain at least 8 characters, an uppercase letter, a lowercase letter, and a special character",
+          error: "Password should contain at least 8 characters, an uppercase letter, a lowercase letter, and a special character",
           title: "Signup",
           category: categories,
           wishlist: [],
@@ -68,8 +68,7 @@ module.exports = {
         if (!referredUser) {
           const categories = await Category.find();
           return res.render("userviews/signup", {
-            error:
-              "Invalid referral code. Please enter a valid referral code if any.",
+            error: "Invalid referral code. Please enter a valid referral code if any.",
             title: "Signup",
             category: categories,
             wishlist: [],
@@ -107,25 +106,13 @@ module.exports = {
         otp,
         expiresAt: Date.now() + 5 * 60 * 1000,
       });
-
       await otpRecord.save();
 
-      const transporter = nodemailer.createTransport({
-        service: "gmail",
-        auth: {
-          user: process.env.MAILID,
-          pass: process.env.PASSWORD,
-        },
-      });
-
-      const mailOptions = {
-        from: process.env.MAILID,
-        to: email,
-        subject: "Your OTP for Signup",
-        text: `Your OTP is ${otp}. It will expire in 5 minutes.`,
-      };
-
-      await transporter.sendMail(mailOptions);
+      await sendBrevoEmail(
+        email,
+        "Your OTP for Signup",
+        `Your OTP is ${otp}. It will expire in 5 minutes.`
+      );
 
       const categories = await Category.find();
       res.render("userviews/otp", {
@@ -149,7 +136,7 @@ module.exports = {
   },
 
   sendOTP: async (req, res) => {
-    try {
+        try {
       const { email } = req.body;
 
       const existingUser = await User.findOne({ email });
@@ -176,7 +163,7 @@ module.exports = {
       if (!/^[0-9]{6}$/.test(otp)) {
         console.error("Generated OTP is invalid:", otp);
         return res
-          .status(500)
+          .status(STATUS_CODES.INTERNAL_SERVER_ERROR)
           .json({ error: "Failed to generate a valid OTP" });
       }
 
@@ -187,25 +174,13 @@ module.exports = {
         otp,
         expiresAt: Date.now() + 60 * 1000,
       });
-
       await otpRecord.save();
 
-      const transporter = nodemailer.createTransport({
-        service: "gmail",
-        auth: {
-          user: process.env.MAILID,
-          pass: process.env.PASSWORD,
-        },
-      });
-
-      const mailOptions = {
-        from: process.env.MAILID,
-        to: email,
-        subject: "Your OTP for Forgot Password",
-        text: `Your OTP is ${otp}. It will expire in 60 seconds.`,
-      };
-
-      await transporter.sendMail(mailOptions);
+      await sendBrevoEmail(
+        email,
+        "Your OTP for Forgot Password",
+        `Your OTP is ${otp}. It will expire in 60 seconds.`
+      );
 
       req.session.email = email;
       req.session.isSignup = false; // Flag to indicate forgot password flow
@@ -243,7 +218,7 @@ module.exports = {
         if (!otpRecord) {
             const categories = await Category.find();
             if (req.headers["content-type"] === "application/json") {
-                return res.status(400).json({ error: "Invalid or expired OTP" });
+                return res.status(STAT).json({ error: "Invalid or expired OTP" });
             }
             return res.render("userviews/otp", {
                 email,
@@ -258,7 +233,7 @@ module.exports = {
         if (otp !== otpRecord.otp) {
             const categories = await Category.find();
             if (req.headers["content-type"] === "application/json") {
-                return res.status(400).json({ error: "Invalid OTP" });
+                return res.status(STATUS_CODES.BAD_REQUEST).json({ error: "Invalid OTP" });
             }
             return res.render("userviews/otp", {
                 email,
@@ -311,7 +286,7 @@ module.exports = {
             req.session.isSignup = null;
 
             if (req.headers["content-type"] === "application/json") {
-                return res.status(200).json({
+                return res.status(STATUS_CODES.OK).json({
                     message: "Account created successfully! Please log in.",
                     redirect: "/login"
                 });
@@ -325,7 +300,7 @@ module.exports = {
             });
         } else {
             if (req.headers["content-type"] === "application/json") {
-                return res.status(200).json({
+                return res.status(STATUS_CODES.OK).json({
                     redirect: "/resetpassword"
                 });
             }
@@ -433,14 +408,14 @@ module.exports = {
       if (!email) {
         console.error("No email found in request or session");
         return res
-          .status(400)
+          .status(STATUS_CODES.BAD_REQUEST)
           .json({ error: "No email found in request or session" });
       }
 
       const existingUser = await User.findOne({ email });
       if (!existingUser && !req.session.isSignup) {
         console.error("Email not registered for forgot password:", email);
-        return res.status(400).json({ error: "Email not registered" });
+        return res.status(STATUS_CODES.BAD_REQUEST).json({ error: "Email not registered" });
       }
 
       await OTP.deleteOne({ email });
@@ -469,24 +444,13 @@ module.exports = {
 
       await otpRecord.save();
 
-      const transporter = nodemailer.createTransport({
-        service: "gmail",
-        auth: {
-          user: process.env.MAILID,
-          pass: process.env.PASSWORD,
-        },
-      });
-
-      const mailOptions = {
-        from: process.env.MAILID,
-        to: email,
-        subject: req.session.isSignup
+      await sendBrevoEmail(
+        email,
+        req.session.isSignup
           ? "Your New OTP for Signup"
           : "Your New OTP for Forgot Password",
-        text: `Your new OTP is ${otp}. It will expire in 60 seconds.`,
-      };
-
-      await transporter.sendMail(mailOptions);
+        `Your new OTP is ${otp}. It will expire in 60 seconds.`
+      );
 
       if (req.headers["content-type"] === "application/json") {
         return res.status(200).json({ message: "New OTP sent successfully" });
